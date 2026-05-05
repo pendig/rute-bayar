@@ -28,8 +28,10 @@ Contoh alur:
 
 - `rute-bayar onboard`
 - `rute-bayar onboard xendit --secret-key <key> --environment sandbox`
+- `rute-bayar onboard midtrans --merchant-id <id> --client-key <key> --server-key <key> --environment sandbox`
 - `rute-bayar provider list`
 - `rute-bayar provider accounts`
+- `rute-bayar provider test midtrans`
 - `rute-bayar provider test xendit`
 - `rute-bayar config show`
 - `rute-bayar config set`
@@ -61,6 +63,14 @@ Setelah itu CLI harus:
 - test status endpoint
 - test signature verification flow
 - simpan provider account
+
+Command awal yang sudah ditargetkan:
+
+```bash
+rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
+rute-bayar provider accounts
+rute-bayar provider test midtrans
+```
 
 ### Xendit
 

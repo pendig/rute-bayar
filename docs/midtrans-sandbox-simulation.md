@@ -23,6 +23,16 @@ Referensi dokumentasi resmi:
 - https://docs.midtrans.com/reference/charge-transaction
 - https://docs.midtrans.com/reference/get-transaction-status
 
+## Auth Probe
+
+`provider test midtrans` memakai status inquiry untuk order dummy:
+
+```text
+GET /v2/rute-bayar-auth-test/status
+```
+
+Jika credential valid, Midtrans tetap mengembalikan response JSON dari API status endpoint. Order dummy boleh menghasilkan `status_code: 404`, karena tujuan command ini adalah memvalidasi Basic Auth dan koneksi, bukan memastikan transaksi tersebut ada.
+
 ## Snap API
 
 Payload test:
@@ -121,4 +131,3 @@ Status inquiry untuk order yang sama:
 - Server Key dan Client Key tidak boleh disimpan di repository.
 - Gunakan `.env` lokal atau secret manager untuk pengujian berikutnya.
 - `.env` sudah masuk `.gitignore`.
-

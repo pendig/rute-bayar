@@ -39,6 +39,13 @@ rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbo
 rute-bayar provider accounts
 ```
 
+Onboard Midtrans credentials into local SQLite:
+
+```bash
+rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
+rute-bayar provider test midtrans
+```
+
 Start the webhook daemon:
 
 ```bash
@@ -90,8 +97,10 @@ Available command skeleton:
 ```bash
 rute-bayar onboard
 rute-bayar onboard xendit --secret-key <key> --environment sandbox
+rute-bayar onboard midtrans --merchant-id <id> --client-key <key> --server-key <key> --environment sandbox
 rute-bayar provider list
 rute-bayar provider accounts
+rute-bayar provider test midtrans
 rute-bayar provider test xendit
 rute-bayar pay create
 rute-bayar pay status

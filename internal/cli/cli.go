@@ -14,6 +14,7 @@ import (
 	"github.com/pendig/rute-bayar/internal/daemon"
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/forwarding"
+	"github.com/pendig/rute-bayar/internal/provider/midtrans"
 	"github.com/pendig/rute-bayar/internal/provider/xendit"
 	"github.com/pendig/rute-bayar/internal/storage/sqlite"
 )
@@ -59,6 +60,7 @@ func printHelp(w io.Writer) {
 Usage:
   rute-bayar onboard
   rute-bayar onboard xendit --secret-key <key>
+  rute-bayar onboard midtrans --server-key <key> --client-key <key> --merchant-id <id>
   rute-bayar provider list
   rute-bayar provider accounts
   rute-bayar provider test
@@ -77,16 +79,80 @@ func onboard(ctx context.Context, stdout, stderr io.Writer, args []string) error
 	if len(args) == 0 {
 		fmt.Fprintln(stdout, "Available onboarding providers:")
 		fmt.Fprintln(stdout, "  xendit")
-		fmt.Fprintln(stdout, "  midtrans (coming soon)")
+		fmt.Fprintln(stdout, "  midtrans")
 		return nil
 	}
 
 	switch args[0] {
 	case "xendit":
 		return onboardXendit(ctx, stdout, stderr, args[1:])
+	case "midtrans":
+		return onboardMidtrans(ctx, stdout, stderr, args[1:])
 	default:
 		return fmt.Errorf("unknown onboarding provider %q", args[0])
 	}
+}
+
+func onboardMidtrans(ctx context.Context, stdout, stderr io.Writer, args []string) error {
+	cfg := config.Load()
+	fs := flag.NewFlagSet("onboard midtrans", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	merchantID := fs.String("merchant-id", "", "Midtrans merchant ID")
+	clientKey := fs.String("client-key", "", "Midtrans client key")
+	serverKey := fs.String("server-key", "", "Midtrans server key")
+	environment := fs.String("environment", cfg.Environment, "provider environment: sandbox or production")
+	displayName := fs.String("name", "Midtrans", "provider account display name")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(*merchantID) == "" {
+		return fmt.Errorf("midtrans --merchant-id is required")
+	}
+	if strings.TrimSpace(*clientKey) == "" {
+		return fmt.Errorf("midtrans --client-key is required")
+	}
+	if strings.TrimSpace(*serverKey) == "" {
+		return fmt.Errorf("midtrans --server-key is required")
+	}
+	if err := validateEnvironment(*environment); err != nil {
+		return err
+	}
+
+	credentialJSON, err := json.Marshal(map[string]string{
+		"merchant_id": strings.TrimSpace(*merchantID),
+		"client_key":  strings.TrimSpace(*clientKey),
+		"server_key":  strings.TrimSpace(*serverKey),
+	})
+	if err != nil {
+		return fmt.Errorf("marshal midtrans credential: %w", err)
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	accountID, err := store.UpsertProviderAccount(ctx, domain.ProviderAccount{
+		ProviderCode:   domain.ProviderMidtrans,
+		Environment:    domain.Environment(*environment),
+		DisplayName:    *displayName,
+		CredentialJSON: credentialJSON,
+		ConfigJSON:     []byte(`{}`),
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(stdout, "midtrans account saved: %s\n", accountID)
+	fmt.Fprintf(stdout, "environment: %s\n", *environment)
+	fmt.Fprintf(stdout, "merchant id: %s\n", strings.TrimSpace(*merchantID))
+	fmt.Fprintf(stdout, "client key: %s\n", maskSecret(*clientKey))
+	fmt.Fprintf(stdout, "server key: %s\n", maskSecret(*serverKey))
+	fmt.Fprintf(stdout, "database: %s\n", *dbPath)
+	return nil
 }
 
 func onboardXendit(ctx context.Context, stdout, stderr io.Writer, args []string) error {
@@ -170,11 +236,64 @@ func providerTest(ctx context.Context, w io.Writer, args []string) error {
 	}
 
 	switch args[0] {
+	case "midtrans":
+		return providerTestMidtrans(ctx, w, args[1:])
 	case "xendit":
 		return providerTestXendit(ctx, w, args[1:])
 	default:
 		return fmt.Errorf("provider test for %q is not implemented yet", args[0])
 	}
+}
+
+func providerTestMidtrans(ctx context.Context, w io.Writer, args []string) error {
+	cfg := config.Load()
+	fs := flag.NewFlagSet("provider test midtrans", flag.ContinueOnError)
+	fs.SetOutput(w)
+	environment := fs.String("environment", cfg.Environment, "provider environment: sandbox or production")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	baseURL := fs.String("base-url", "", "override Midtrans API base URL")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := validateEnvironment(*environment); err != nil {
+		return err
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	account, err := store.GetProviderAccount(ctx, domain.ProviderMidtrans, domain.Environment(*environment))
+	if err != nil {
+		return err
+	}
+
+	credential, err := midtransCredentialFromJSON(account.CredentialJSON)
+	if err != nil {
+		return err
+	}
+
+	options := []midtrans.Option{midtrans.WithServerKey(credential.ServerKey)}
+	if strings.TrimSpace(*baseURL) != "" {
+		options = append(options, midtrans.WithBaseURL(*baseURL))
+	}
+	adapter := midtrans.New(options...)
+	info, err := adapter.TestAuth(ctx)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(w, "midtrans auth ok")
+	fmt.Fprintf(w, "environment: %s\n", *environment)
+	if info.StatusCode != "" {
+		fmt.Fprintf(w, "status_code: %s\n", info.StatusCode)
+	}
+	if info.StatusMessage != "" {
+		fmt.Fprintf(w, "status_message: %s\n", info.StatusMessage)
+	}
+	return nil
 }
 
 func providerTestXendit(ctx context.Context, w io.Writer, args []string) error {
@@ -370,4 +489,30 @@ func secretKeyFromCredential(raw []byte) (string, error) {
 		return "", fmt.Errorf("xendit secret key is not configured")
 	}
 	return secretKey, nil
+}
+
+type midtransCredential struct {
+	MerchantID string `json:"merchant_id"`
+	ClientKey  string `json:"client_key"`
+	ServerKey  string `json:"server_key"`
+}
+
+func midtransCredentialFromJSON(raw []byte) (midtransCredential, error) {
+	var credential midtransCredential
+	if err := json.Unmarshal(raw, &credential); err != nil {
+		return midtransCredential{}, fmt.Errorf("read midtrans credential json: %w", err)
+	}
+	credential.MerchantID = strings.TrimSpace(credential.MerchantID)
+	credential.ClientKey = strings.TrimSpace(credential.ClientKey)
+	credential.ServerKey = strings.TrimSpace(credential.ServerKey)
+	if credential.MerchantID == "" {
+		return midtransCredential{}, fmt.Errorf("midtrans merchant id is not configured")
+	}
+	if credential.ClientKey == "" {
+		return midtransCredential{}, fmt.Errorf("midtrans client key is not configured")
+	}
+	if credential.ServerKey == "" {
+		return midtransCredential{}, fmt.Errorf("midtrans server key is not configured")
+	}
+	return credential, nil
 }
