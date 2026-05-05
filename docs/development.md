@@ -25,6 +25,7 @@ go run ./cmd/rute-bayar webhook serve --addr :8080
 go run ./cmd/rute-bayar db migrate
 go run ./cmd/rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
 go run ./cmd/rute-bayar provider accounts
+go run ./cmd/rute-bayar provider test xendit
 ```
 
 ## Migration

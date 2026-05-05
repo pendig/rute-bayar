@@ -9,12 +9,14 @@ Endpoint resmi yang digunakan:
 ```text
 POST https://api.xendit.co/sessions
 GET https://api.xendit.co/sessions/{session_id}
+GET https://api.xendit.co/balance
 ```
 
 Referensi dokumentasi resmi:
 
 - https://docs.xendit.co/apidocs/create-session
 - https://docs.xendit.co/apidocs/get-session
+- https://docs.xendit.co/apidocs/get-balance
 
 ## Payload Create Session
 
@@ -60,6 +62,7 @@ Payload minimal yang berhasil untuk Indonesia:
 ## Temuan
 
 - Basic Auth harus memakai secret key sebagai username dan password kosong.
+- `GET /balance` bisa dipakai sebagai probe auth ringan untuk `provider test xendit`.
 - `items[].category` wajib dikirim. Tanpa field ini Xendit membalas `API_VALIDATION_ERROR`.
 - Response create session sukses mengembalikan HTTP `201`.
 - Response status session mengembalikan HTTP `200`.
@@ -73,4 +76,3 @@ Payload minimal yang berhasil untuk Indonesia:
 - Secret API key tidak boleh disimpan di repository.
 - Gunakan `.env` lokal atau secret manager untuk pengujian berikutnya.
 - `.env` sudah masuk `.gitignore`.
-

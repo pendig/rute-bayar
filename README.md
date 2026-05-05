@@ -92,7 +92,7 @@ rute-bayar onboard
 rute-bayar onboard xendit --secret-key <key> --environment sandbox
 rute-bayar provider list
 rute-bayar provider accounts
-rute-bayar provider test
+rute-bayar provider test xendit
 rute-bayar pay create
 rute-bayar pay status
 rute-bayar pay refund

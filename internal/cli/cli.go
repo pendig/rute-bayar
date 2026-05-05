@@ -14,6 +14,7 @@ import (
 	"github.com/pendig/rute-bayar/internal/daemon"
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/forwarding"
+	"github.com/pendig/rute-bayar/internal/provider/xendit"
 	"github.com/pendig/rute-bayar/internal/storage/sqlite"
 )
 
@@ -157,11 +158,71 @@ func providerCommand(ctx context.Context, w io.Writer, args []string) error {
 	case "accounts":
 		return providerAccounts(ctx, w)
 	case "test":
-		fmt.Fprintln(w, "provider test scaffold is ready.")
-		return nil
+		return providerTest(ctx, w, args[1:])
 	default:
 		return fmt.Errorf("unknown provider subcommand %q", args[0])
 	}
+}
+
+func providerTest(ctx context.Context, w io.Writer, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("provider test requires a provider code")
+	}
+
+	switch args[0] {
+	case "xendit":
+		return providerTestXendit(ctx, w, args[1:])
+	default:
+		return fmt.Errorf("provider test for %q is not implemented yet", args[0])
+	}
+}
+
+func providerTestXendit(ctx context.Context, w io.Writer, args []string) error {
+	cfg := config.Load()
+	fs := flag.NewFlagSet("provider test xendit", flag.ContinueOnError)
+	fs.SetOutput(io.Discard)
+	environment := fs.String("environment", cfg.Environment, "provider environment: sandbox or production")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	baseURL := fs.String("base-url", "", "override Xendit API base URL")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if err := validateEnvironment(*environment); err != nil {
+		return err
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	account, err := store.GetProviderAccount(ctx, domain.ProviderXendit, domain.Environment(*environment))
+	if err != nil {
+		return err
+	}
+
+	secretKey, err := secretKeyFromCredential(account.CredentialJSON)
+	if err != nil {
+		return err
+	}
+
+	options := []xendit.Option{xendit.WithSecretKey(secretKey)}
+	if strings.TrimSpace(*baseURL) != "" {
+		options = append(options, xendit.WithBaseURL(*baseURL))
+	}
+	adapter := xendit.New(options...)
+	info, err := adapter.TestAuth(ctx)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(w, "xendit auth ok")
+	fmt.Fprintf(w, "environment: %s\n", *environment)
+	if info.BusinessID != "" {
+		fmt.Fprintf(w, "business_id: %s\n", info.BusinessID)
+	}
+	return nil
 }
 
 func providerAccounts(ctx context.Context, w io.Writer) error {
@@ -292,4 +353,18 @@ func maskSecret(value string) string {
 		return "********"
 	}
 	return value[:4] + strings.Repeat("*", len(value)-8) + value[len(value)-4:]
+}
+
+func secretKeyFromCredential(raw []byte) (string, error) {
+	var credential struct {
+		SecretKey string `json:"secret_key"`
+	}
+	if err := json.Unmarshal(raw, &credential); err != nil {
+		return "", fmt.Errorf("read credential json: %w", err)
+	}
+	secretKey := strings.TrimSpace(credential.SecretKey)
+	if secretKey == "" {
+		return "", fmt.Errorf("xendit secret key is not configured")
+	}
+	return secretKey, nil
 }
