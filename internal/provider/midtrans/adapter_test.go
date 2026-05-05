@@ -20,7 +20,7 @@ func TestTestAuthSendsBasicAuth(t *testing.T) {
 		}
 		authHeader = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
+		w.WriteHeader(http.StatusNotFound)
 		_, _ = w.Write([]byte(`{"status_code":"404","status_message":"Transaction doesn't exist."}`))
 	}))
 	defer server.Close()

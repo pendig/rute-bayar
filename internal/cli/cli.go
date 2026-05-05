@@ -120,10 +120,10 @@ func onboardMidtrans(ctx context.Context, stdout, stderr io.Writer, args []strin
 		return err
 	}
 
-	credentialJSON, err := json.Marshal(map[string]string{
-		"merchant_id": strings.TrimSpace(*merchantID),
-		"client_key":  strings.TrimSpace(*clientKey),
-		"server_key":  strings.TrimSpace(*serverKey),
+	credentialJSON, err := json.Marshal(midtransCredential{
+		MerchantID: strings.TrimSpace(*merchantID),
+		ClientKey:  strings.TrimSpace(*clientKey),
+		ServerKey:  strings.TrimSpace(*serverKey),
 	})
 	if err != nil {
 		return fmt.Errorf("marshal midtrans credential: %w", err)

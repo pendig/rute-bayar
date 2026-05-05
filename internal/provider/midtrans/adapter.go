@@ -110,7 +110,7 @@ func (a *Adapter) TestAuth(ctx context.Context) (AuthTestResult, error) {
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
 		return AuthTestResult{RawJSON: body}, fmt.Errorf("midtrans authentication failed with status %d", resp.StatusCode)
 	}
-	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+	if (resp.StatusCode < 200 || resp.StatusCode >= 300) && resp.StatusCode != http.StatusNotFound {
 		return AuthTestResult{RawJSON: body}, fmt.Errorf("midtrans auth test returned status %d", resp.StatusCode)
 	}
 
