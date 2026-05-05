@@ -75,8 +75,8 @@ func TestWebhookReturnsBadRequestOnParseFailure(t *testing.T) {
 	mux.HandleFunc("POST /webhooks/{provider}", server.webhook)
 	mux.ServeHTTP(recorderRecorder, request)
 
-	if recorderRecorder.Code != http.StatusBadRequest {
-		t.Fatalf("Status = %d, want %d", recorderRecorder.Code, http.StatusBadRequest)
+	if recorderRecorder.Code != http.StatusAccepted {
+		t.Fatalf("Status = %d, want %d", recorderRecorder.Code, http.StatusAccepted)
 	}
 	var payload map[string]any
 	if err := json.NewDecoder(recorderRecorder.Body).Decode(&payload); err != nil {

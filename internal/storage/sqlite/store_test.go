@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"encoding/json"
+	"errors"
 	"testing"
 
 	"github.com/pendig/rute-bayar/internal/domain"
@@ -62,6 +63,22 @@ func TestProviderAccountUpsertListAndGet(t *testing.T) {
 	}
 	if account.ID != firstID {
 		t.Fatalf("GetProviderAccount ID = %q, want %q", account.ID, firstID)
+	}
+}
+
+func TestGetProviderAccountNotConfiguredSentinel(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	_, err = store.GetProviderAccount(ctx, domain.ProviderXendit, domain.EnvironmentSandbox)
+	if !errors.Is(err, ErrProviderAccountNotConfigured) {
+		t.Fatalf("GetProviderAccount error = %v, want ErrProviderAccountNotConfigured", err)
 	}
 }
 

@@ -847,32 +847,41 @@ func webhookForwardCommand(_ context.Context, w io.Writer, args []string) error 
 }
 
 func buildWebhookHandlers(ctx context.Context, store *sqlite.Store, environment domain.Environment) (map[domain.ProviderCode]provider.Adapter, error) {
-	midtransAccount, err := store.GetProviderAccount(ctx, domain.ProviderMidtrans, environment)
 	handlers := make(map[domain.ProviderCode]provider.Adapter)
+
+	midtransAccount, err := store.GetProviderAccount(ctx, domain.ProviderMidtrans, environment)
+	if err != nil && !errors.Is(err, sqlite.ErrProviderAccountNotConfigured) {
+		return nil, fmt.Errorf("load midtrans webhook account: %w", err)
+	}
 	if err == nil {
-		credential, parseErr := midtransCredentialFromJSON(midtransAccount.CredentialJSON)
-		if parseErr == nil {
-			handlers[domain.ProviderMidtrans] = midtrans.New(
-				midtrans.WithServerKey(credential.ServerKey),
-				midtrans.WithBaseURL(midtrans.BaseURLForEnvironment(environment)),
-			)
+		credential, err := midtransCredentialFromJSON(midtransAccount.CredentialJSON)
+		if err != nil {
+			return nil, fmt.Errorf("load midtrans webhook credential: %w", err)
 		}
+		handlers[domain.ProviderMidtrans] = midtrans.New(
+			midtrans.WithServerKey(credential.ServerKey),
+			midtrans.WithBaseURL(midtrans.BaseURLForEnvironment(environment)),
+		)
 	}
 
 	xenditAccount, err := store.GetProviderAccount(ctx, domain.ProviderXendit, environment)
-	if err == nil {
-		secretKey, parseErr := secretKeyFromCredential(xenditAccount.CredentialJSON)
-		if parseErr == nil {
-			options := []xendit.Option{xendit.WithSecretKey(secretKey)}
-			if token, tokenErr := xenditWebhookTokenFromConfig(xenditAccount.ConfigJSON); tokenErr == nil && token != "" {
-				options = append(options, xendit.WithCallbackToken(token))
-			}
-			handlers[domain.ProviderXendit] = xendit.New(options...)
-		}
+	if err != nil && !errors.Is(err, sqlite.ErrProviderAccountNotConfigured) {
+		return nil, fmt.Errorf("load xendit webhook account: %w", err)
 	}
-
-	if len(handlers) == 0 {
-		return handlers, nil
+	if err == nil {
+		secretKey, err := secretKeyFromCredential(xenditAccount.CredentialJSON)
+		if err != nil {
+			return nil, fmt.Errorf("load xendit webhook credential: %w", err)
+		}
+		options := []xendit.Option{xendit.WithSecretKey(secretKey)}
+		token, err := xenditWebhookTokenFromConfig(xenditAccount.ConfigJSON)
+		if err != nil {
+			return nil, fmt.Errorf("load xendit webhook config: %w", err)
+		}
+		if token != "" {
+			options = append(options, xendit.WithCallbackToken(token))
+		}
+		handlers[domain.ProviderXendit] = xendit.New(options...)
 	}
 	return handlers, nil
 }

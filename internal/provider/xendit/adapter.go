@@ -212,9 +212,6 @@ func (a *Adapter) VerifyWebhook(_ context.Context, req provider.WebhookRequest) 
 
 	headerToken := req.Headers.Get("x-callback-token")
 	if headerToken == "" {
-		headerToken = req.Headers.Get("X-Callback-Token")
-	}
-	if headerToken == "" {
 		return errors.New("xendit webhook callback token header is missing")
 	}
 	if subtle.ConstantTimeCompare([]byte(headerToken), []byte(a.callbackToken)) != 1 {

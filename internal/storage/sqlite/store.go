@@ -4,6 +4,7 @@ import (
 	"context"
 	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"net/http"
 	"path"
@@ -15,6 +16,8 @@ import (
 	"github.com/pendig/rute-bayar/internal/forwarding"
 	_ "modernc.org/sqlite"
 )
+
+var ErrProviderAccountNotConfigured = errors.New("provider account is not configured")
 
 type Store struct {
 	db *sql.DB
@@ -352,7 +355,7 @@ func (s *Store) GetProviderAccount(ctx context.Context, provider domain.Provider
 	`, string(provider), string(environment)).Scan(&account.ID, &account.DisplayName, &credentialRaw, &configRaw, &createdAtRaw, &updatedAtRaw)
 	if err != nil {
 		if err == sql.ErrNoRows {
-			return domain.ProviderAccount{}, fmt.Errorf("provider account %s/%s is not configured", provider, environment)
+			return domain.ProviderAccount{}, fmt.Errorf("%w: %s/%s", ErrProviderAccountNotConfigured, provider, environment)
 		}
 		return domain.ProviderAccount{}, fmt.Errorf("get provider account: %w", err)
 	}

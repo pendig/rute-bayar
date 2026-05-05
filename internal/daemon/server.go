@@ -115,7 +115,7 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	if handlerFound && event.ProcessingStatus == "parse_failed" {
-		writeJSON(w, http.StatusBadRequest, map[string]string{
+		writeJSON(w, http.StatusAccepted, map[string]string{
 			"status":  "accepted",
 			"warning": "webhook verification passed but parsing failed",
 		})
