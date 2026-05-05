@@ -26,6 +26,8 @@ go run ./cmd/rute-bayar db migrate
 go run ./cmd/rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
 go run ./cmd/rute-bayar provider accounts
 go run ./cmd/rute-bayar provider test xendit
+go run ./cmd/rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
+go run ./cmd/rute-bayar provider test midtrans
 ```
 
 ## Migration

@@ -46,6 +46,36 @@ func TestSecretKeyFromCredentialRequiresSecret(t *testing.T) {
 	}
 }
 
+func TestMidtransCredentialFromJSON(t *testing.T) {
+	t.Parallel()
+
+	credential, err := midtransCredentialFromJSON([]byte(`{
+		"merchant_id":" merchant ",
+		"client_key":" client ",
+		"server_key":" server "
+	}`))
+	if err != nil {
+		t.Fatalf("midtransCredentialFromJSON returned error: %v", err)
+	}
+	if credential.MerchantID != "merchant" {
+		t.Fatalf("MerchantID = %q, want merchant", credential.MerchantID)
+	}
+	if credential.ClientKey != "client" {
+		t.Fatalf("ClientKey = %q, want client", credential.ClientKey)
+	}
+	if credential.ServerKey != "server" {
+		t.Fatalf("ServerKey = %q, want server", credential.ServerKey)
+	}
+}
+
+func TestMidtransCredentialFromJSONRequiresFields(t *testing.T) {
+	t.Parallel()
+
+	if _, err := midtransCredentialFromJSON([]byte(`{"merchant_id":"merchant","client_key":"client"}`)); err == nil {
+		t.Fatal("midtransCredentialFromJSON returned nil error for missing server key")
+	}
+}
+
 func TestValidateEnvironment(t *testing.T) {
 	t.Parallel()
 

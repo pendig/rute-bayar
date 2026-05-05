@@ -38,6 +38,25 @@ Catatan:
 
 - `credential_json` menyimpan key, secret, token, atau field sensitif lain dalam format JSON terstruktur.
 - `config_json` menyimpan setting seperti webhook secret, callback URL, dan channel config.
+- Kombinasi `provider_id` dan `environment` harus unik agar onboarding provider bisa bersifat upsert.
+
+Contoh `credential_json` Xendit:
+
+```json
+{
+  "secret_key": "..."
+}
+```
+
+Contoh `credential_json` Midtrans:
+
+```json
+{
+  "merchant_id": "...",
+  "client_key": "...",
+  "server_key": "..."
+}
+```
 
 ### payment_intents
 
@@ -191,6 +210,7 @@ Tujuan:
 ## Index yang Disarankan
 
 - `payment_intents.external_ref`
+- `provider_accounts.provider_id + provider_accounts.environment`
 - `payment_attempts.payment_intent_id`
 - `payment_attempts.provider_reference`
 - `webhook_events.provider_event_id`
