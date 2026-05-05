@@ -93,6 +93,7 @@ rute-bayar webhook forward list
 rute-bayar webhook forward add
 rute-bayar webhook forward update
 rute-bayar webhook forward remove
+rute-bayar db migrate
 rute-bayar reconcile
 rute-bayar version
 ```
@@ -143,6 +144,12 @@ Project layout:
 - `internal/storage`: storage implementations.
 - `migrations`: SQLite schema migrations.
 - `docs`: product and technical documentation.
+
+Run the initial migration through the CLI:
+
+```bash
+rute-bayar db migrate
+```
 
 ## Provider Notes
 

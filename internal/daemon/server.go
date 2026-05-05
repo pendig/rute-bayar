@@ -1,26 +1,33 @@
 package daemon
 
 import (
+	"context"
 	"encoding/json"
 	"fmt"
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/forwarding"
 )
 
 type Server struct {
-	addr      string
-	forwarder *forwarding.Service
+	addr            string
+	webhookRecorder WebhookRecorder
+	forwarder       *forwarding.Service
 }
 
-func NewServer(addr string, forwarder *forwarding.Service) *Server {
+type WebhookRecorder interface {
+	RecordWebhookEvent(context.Context, domain.WebhookEvent) (string, error)
+}
+
+func NewServer(addr string, recorder WebhookRecorder, forwarder *forwarding.Service) *Server {
 	if addr == "" {
 		addr = ":8080"
 	}
-	return &Server{addr: addr, forwarder: forwarder}
+	return &Server{addr: addr, webhookRecorder: recorder, forwarder: forwarder}
 }
 
 func (s *Server) ListenAndServe() error {
@@ -47,10 +54,30 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
+	headersJSON, _ := json.Marshal(r.Header)
+	webhookEventID := ""
+	if s.webhookRecorder != nil {
+		id, err := s.webhookRecorder.RecordWebhookEvent(r.Context(), domain.WebhookEvent{
+			ProviderCode:     providerCode,
+			EventType:        "unknown",
+			SignatureValid:   false,
+			PayloadJSON:      body,
+			HeadersJSON:      headersJSON,
+			ReceivedAt:       time.Now().UTC(),
+			ProcessingStatus: "received",
+		})
+		if err != nil {
+			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to record webhook event"})
+			return
+		}
+		webhookEventID = id
+	}
+
 	inbound := forwarding.InboundWebhook{
-		Provider: providerCode,
-		Headers:  r.Header.Clone(),
-		Body:     body,
+		WebhookEventID: webhookEventID,
+		Provider:       providerCode,
+		Headers:        r.Header.Clone(),
+		Body:           body,
 	}
 
 	if s.forwarder != nil {

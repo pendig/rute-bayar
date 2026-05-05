@@ -9,9 +9,10 @@ import (
 	"strings"
 
 	"github.com/pendig/rute-bayar/internal/build"
+	"github.com/pendig/rute-bayar/internal/config"
 	"github.com/pendig/rute-bayar/internal/daemon"
 	"github.com/pendig/rute-bayar/internal/forwarding"
-	"github.com/pendig/rute-bayar/internal/storage/memory"
+	"github.com/pendig/rute-bayar/internal/storage/sqlite"
 )
 
 func Execute(args []string) error {
@@ -39,6 +40,8 @@ func ExecuteWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 		return payCommand(stdout, args[1:])
 	case "webhook":
 		return webhookCommand(ctx, stdout, stderr, args[1:])
+	case "db":
+		return dbCommand(ctx, stdout, args[1:])
 	case "reconcile":
 		fmt.Fprintln(stdout, "reconcile command scaffold is ready; implementation comes next.")
 		return nil
@@ -60,6 +63,7 @@ Usage:
   rute-bayar webhook serve --addr :8080
   rute-bayar webhook forward list
   rute-bayar webhook forward add
+  rute-bayar db migrate
   rute-bayar reconcile
   rute-bayar version`)
 }
@@ -109,14 +113,22 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 	case "serve":
 		fs := flag.NewFlagSet("webhook serve", flag.ContinueOnError)
 		fs.SetOutput(stderr)
-		addr := fs.String("addr", ":8080", "daemon listen address")
+		cfg := config.Load()
+		addr := fs.String("addr", cfg.WebhookAddr, "daemon listen address")
+		dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
 
-		store := memory.NewForwardingStore()
-		srv := daemon.NewServer(*addr, forwarding.NewService(store))
+		store, err := sqlite.Open(ctx, *dbPath)
+		if err != nil {
+			return err
+		}
+		defer store.Close()
+
+		srv := daemon.NewServer(*addr, store, forwarding.NewService(store))
 		fmt.Fprintf(stdout, "Rute Bayar webhook daemon listening on %s\n", *addr)
+		fmt.Fprintf(stdout, "SQLite database: %s\n", *dbPath)
 		return srv.ListenAndServe()
 	case "replay":
 		fmt.Fprintln(stdout, "webhook replay scaffold is ready.")
@@ -125,6 +137,27 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 		return webhookForwardCommand(ctx, stdout, args[1:])
 	default:
 		return fmt.Errorf("unknown webhook subcommand %q", args[0])
+	}
+}
+
+func dbCommand(ctx context.Context, w io.Writer, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("db command requires a subcommand")
+	}
+
+	switch args[0] {
+	case "migrate":
+		cfg := config.Load()
+		store, err := sqlite.Open(ctx, cfg.DBPath)
+		if err != nil {
+			return err
+		}
+		defer store.Close()
+
+		fmt.Fprintf(w, "database migrated: %s\n", cfg.DBPath)
+		return nil
+	default:
+		return fmt.Errorf("unknown db subcommand %q", args[0])
 	}
 }
 
@@ -147,4 +180,3 @@ func webhookForwardCommand(_ context.Context, w io.Writer, args []string) error 
 	}
 	return nil
 }
-

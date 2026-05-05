@@ -22,6 +22,7 @@ Catatan: environment saat scaffold awal dibuat belum memiliki `go` di PATH, jadi
 go run ./cmd/rute-bayar version
 go run ./cmd/rute-bayar provider list
 go run ./cmd/rute-bayar webhook serve --addr :8080
+go run ./cmd/rute-bayar db migrate
 ```
 
 ## Migration
@@ -50,4 +51,3 @@ Migration ini mencakup:
 - Implementasikan storage SQLite berdasarkan migration awal.
 - Hubungkan CLI onboarding ke storage SQLite.
 - Implementasikan adapter Midtrans dan Xendit sesuai dokumentasi resmi provider.
-

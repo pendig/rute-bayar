@@ -52,17 +52,19 @@ func (p RetryPolicy) withDefaults() RetryPolicy {
 }
 
 type InboundWebhook struct {
-	Provider domain.ProviderCode
-	Headers  http.Header
-	Body     []byte
+	WebhookEventID string
+	Provider       domain.ProviderCode
+	Headers        http.Header
+	Body           []byte
 }
 
 type Attempt struct {
-	TargetID     string
-	AttemptNo    int
-	RequestJSON  []byte
-	ResponseJSON []byte
-	Status       string
+	WebhookEventID string
+	TargetID       string
+	AttemptNo      int
+	RequestJSON    []byte
+	ResponseJSON   []byte
+	Status         string
 }
 
 type TargetStore interface {
@@ -117,11 +119,12 @@ func (s *Service) forwardToTarget(ctx context.Context, target Target, inbound In
 		}
 
 		_ = s.store.RecordAttempt(ctx, Attempt{
-			TargetID:     target.ID,
-			AttemptNo:    attemptNo,
-			RequestJSON:  marshalForwardRequest(target, inbound),
-			ResponseJSON: responseJSON,
-			Status:       status,
+			WebhookEventID: inbound.WebhookEventID,
+			TargetID:       target.ID,
+			AttemptNo:      attemptNo,
+			RequestJSON:    marshalForwardRequest(target, inbound),
+			ResponseJSON:   responseJSON,
+			Status:         status,
 		})
 
 		if err == nil {
