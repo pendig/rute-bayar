@@ -278,6 +278,8 @@ func providerTestMidtrans(ctx context.Context, w io.Writer, args []string) error
 	options := []midtrans.Option{midtrans.WithServerKey(credential.ServerKey)}
 	if strings.TrimSpace(*baseURL) != "" {
 		options = append(options, midtrans.WithBaseURL(*baseURL))
+	} else {
+		options = append(options, midtrans.WithBaseURL(midtrans.BaseURLForEnvironment(domain.Environment(*environment))))
 	}
 	adapter := midtrans.New(options...)
 	info, err := adapter.TestAuth(ctx)

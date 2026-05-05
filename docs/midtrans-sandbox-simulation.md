@@ -33,6 +33,11 @@ GET /v2/rute-bayar-auth-test/status
 
 Jika credential valid, Midtrans tetap mengembalikan response JSON dari API status endpoint. Order dummy boleh menghasilkan `status_code: 404`, karena tujuan command ini adalah memvalidasi Basic Auth dan koneksi, bukan memastikan transaksi tersebut ada.
 
+Base URL dipilih otomatis dari environment:
+
+- `sandbox` -> `https://api.sandbox.midtrans.com`
+- `production` -> `https://api.midtrans.com`
+
 ## Snap API
 
 Payload test:

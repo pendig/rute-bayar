@@ -79,6 +79,17 @@ func TestTestAuthRejectsMalformedJSON(t *testing.T) {
 	}
 }
 
+func TestBaseURLForEnvironment(t *testing.T) {
+	t.Parallel()
+
+	if got := BaseURLForEnvironment(domain.EnvironmentSandbox); got != "https://api.sandbox.midtrans.com" {
+		t.Fatalf("sandbox base URL = %q", got)
+	}
+	if got := BaseURLForEnvironment(domain.EnvironmentProduction); got != "https://api.midtrans.com" {
+		t.Fatalf("production base URL = %q", got)
+	}
+}
+
 func TestMapTransactionStatus(t *testing.T) {
 	t.Parallel()
 
@@ -110,4 +121,3 @@ func TestMapTransactionStatus(t *testing.T) {
 		})
 	}
 }
-

@@ -14,7 +14,10 @@ import (
 	"github.com/pendig/rute-bayar/internal/provider"
 )
 
-const defaultSandboxBaseURL = "https://api.sandbox.midtrans.com"
+const (
+	defaultSandboxBaseURL    = "https://api.sandbox.midtrans.com"
+	defaultProductionBaseURL = "https://api.midtrans.com"
+)
 
 type Adapter struct {
 	serverKey string
@@ -53,6 +56,13 @@ func WithHTTPClient(client *http.Client) Option {
 			adapter.client = client
 		}
 	}
+}
+
+func BaseURLForEnvironment(environment domain.Environment) string {
+	if environment == domain.EnvironmentProduction {
+		return defaultProductionBaseURL
+	}
+	return defaultSandboxBaseURL
 }
 
 func (a *Adapter) Code() domain.ProviderCode {
