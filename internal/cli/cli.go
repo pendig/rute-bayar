@@ -180,7 +180,7 @@ func providerTest(ctx context.Context, w io.Writer, args []string) error {
 func providerTestXendit(ctx context.Context, w io.Writer, args []string) error {
 	cfg := config.Load()
 	fs := flag.NewFlagSet("provider test xendit", flag.ContinueOnError)
-	fs.SetOutput(io.Discard)
+	fs.SetOutput(w)
 	environment := fs.String("environment", cfg.Environment, "provider environment: sandbox or production")
 	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
 	baseURL := fs.String("base-url", "", "override Xendit API base URL")
@@ -219,8 +219,11 @@ func providerTestXendit(ctx context.Context, w io.Writer, args []string) error {
 
 	fmt.Fprintln(w, "xendit auth ok")
 	fmt.Fprintf(w, "environment: %s\n", *environment)
-	if info.BusinessID != "" {
-		fmt.Fprintf(w, "business_id: %s\n", info.BusinessID)
+	if info.PermissionWarning != "" {
+		fmt.Fprintf(w, "warning: %s\n", info.PermissionWarning)
+	}
+	if info.Balance != nil {
+		fmt.Fprintf(w, "balance: %.0f\n", *info.Balance)
 	}
 	return nil
 }

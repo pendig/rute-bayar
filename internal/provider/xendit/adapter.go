@@ -69,10 +69,9 @@ func (a *Adapter) Capabilities() []provider.Capability {
 }
 
 type AccountInfo struct {
-	ID          string
-	BusinessID  string
-	Description string
-	RawJSON     []byte
+	Balance           *float64
+	PermissionWarning string
+	RawJSON           []byte
 }
 
 func (a *Adapter) TestAuth(ctx context.Context) (AccountInfo, error) {
@@ -98,6 +97,12 @@ func (a *Adapter) TestAuth(ctx context.Context) (AccountInfo, error) {
 	}
 
 	if resp.StatusCode == http.StatusUnauthorized || resp.StatusCode == http.StatusForbidden {
+		if resp.StatusCode == http.StatusForbidden {
+			return AccountInfo{
+				PermissionWarning: "authenticated, but the API key cannot read Xendit balance",
+				RawJSON:           body,
+			}, nil
+		}
 		return AccountInfo{RawJSON: body}, fmt.Errorf("xendit authentication failed with status %d", resp.StatusCode)
 	}
 	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
@@ -106,14 +111,12 @@ func (a *Adapter) TestAuth(ctx context.Context) (AccountInfo, error) {
 
 	var payload map[string]any
 	if err := json.Unmarshal(body, &payload); err != nil {
-		return AccountInfo{RawJSON: body}, nil
+		return AccountInfo{RawJSON: body}, fmt.Errorf("unmarshal xendit auth test response: %w", err)
 	}
 
 	return AccountInfo{
-		ID:          stringFromMap(payload, "id"),
-		BusinessID:  stringFromMap(payload, "business_id"),
-		Description: stringFromMap(payload, "description"),
-		RawJSON:     body,
+		Balance: numberFromMap(payload, "balance"),
+		RawJSON: body,
 	}, nil
 }
 
@@ -137,11 +140,14 @@ func (a *Adapter) ParseWebhook(context.Context, provider.WebhookRequest) (provid
 	return provider.WebhookEvent{}, errors.New("xendit webhook parsing is not implemented yet")
 }
 
-func stringFromMap(payload map[string]any, key string) string {
+func numberFromMap(payload map[string]any, key string) *float64 {
 	value, ok := payload[key]
 	if !ok {
-		return ""
+		return nil
 	}
-	text, _ := value.(string)
-	return text
+	number, ok := value.(float64)
+	if !ok {
+		return nil
+	}
+	return &number
 }

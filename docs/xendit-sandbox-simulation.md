@@ -62,7 +62,8 @@ Payload minimal yang berhasil untuk Indonesia:
 ## Temuan
 
 - Basic Auth harus memakai secret key sebagai username dan password kosong.
-- `GET /balance` bisa dipakai sebagai probe auth ringan untuk `provider test xendit`.
+- `GET /balance` dipakai sebagai probe auth ringan untuk `provider test xendit`.
+- Jika Xendit membalas `403` pada `/balance`, credential tetap bisa valid untuk payment flow tetapi tidak punya permission balance read. CLI harus menampilkan warning, bukan langsung menganggap API key invalid.
 - `items[].category` wajib dikirim. Tanpa field ini Xendit membalas `API_VALIDATION_ERROR`.
 - Response create session sukses mengembalikan HTTP `201`.
 - Response status session mengembalikan HTTP `200`.

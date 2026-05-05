@@ -19,7 +19,7 @@ func TestTestAuthSendsBasicAuth(t *testing.T) {
 		authHeader = r.Header.Get("Authorization")
 		w.Header().Set("Content-Type", "application/json")
 		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"business_id":"biz_123"}`))
+		_, _ = w.Write([]byte(`{"balance":1000}`))
 	}))
 	defer server.Close()
 
@@ -28,8 +28,8 @@ func TestTestAuthSendsBasicAuth(t *testing.T) {
 	if err != nil {
 		t.Fatalf("TestAuth returned error: %v", err)
 	}
-	if info.BusinessID != "biz_123" {
-		t.Fatalf("BusinessID = %q, want biz_123", info.BusinessID)
+	if info.Balance == nil || *info.Balance != 1000 {
+		t.Fatalf("Balance = %v, want 1000", info.Balance)
 	}
 
 	want := "Basic " + base64.StdEncoding.EncodeToString([]byte("secret_key:"))
@@ -62,3 +62,36 @@ func TestTestAuthRejectsUnauthorized(t *testing.T) {
 	}
 }
 
+func TestTestAuthAllowsForbiddenBalancePermission(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusForbidden)
+		_, _ = w.Write([]byte(`{"error_code":"REQUEST_FORBIDDEN_ERROR"}`))
+	}))
+	defer server.Close()
+
+	adapter := New(WithSecretKey("money_in_only_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	info, err := adapter.TestAuth(context.Background())
+	if err != nil {
+		t.Fatalf("TestAuth returned error for forbidden balance permission: %v", err)
+	}
+	if info.PermissionWarning == "" {
+		t.Fatal("PermissionWarning is empty for forbidden balance permission")
+	}
+}
+
+func TestTestAuthRejectsMalformedJSON(t *testing.T) {
+	t.Parallel()
+
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`not-json`))
+	}))
+	defer server.Close()
+
+	adapter := New(WithSecretKey("secret_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	if _, err := adapter.TestAuth(context.Background()); err == nil {
+		t.Fatal("TestAuth returned nil error for malformed JSON")
+	}
+}
