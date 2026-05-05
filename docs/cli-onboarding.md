@@ -30,7 +30,7 @@ Contoh alur:
 - `rute-bayar onboard xendit --secret-key <key> --environment sandbox`
 - `rute-bayar provider list`
 - `rute-bayar provider accounts`
-- `rute-bayar provider test`
+- `rute-bayar provider test xendit`
 - `rute-bayar config show`
 - `rute-bayar config set`
 - `rute-bayar pay create`
@@ -82,6 +82,7 @@ Command awal yang sudah ditargetkan:
 ```bash
 rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
 rute-bayar provider accounts
+rute-bayar provider test xendit
 ```
 
 ## UX yang Disarankan
