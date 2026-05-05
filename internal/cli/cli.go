@@ -3,8 +3,8 @@ package cli
 import (
 	"context"
 	"database/sql"
-	"errors"
 	"encoding/json"
+	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -770,8 +770,12 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 		fs.SetOutput(stderr)
 		cfg := config.Load()
 		addr := fs.String("addr", cfg.WebhookAddr, "daemon listen address")
+		environment := fs.String("environment", cfg.Environment, "webhook provider credential environment")
 		dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
 		if err := fs.Parse(args[1:]); err != nil {
+			return err
+		}
+		if err := validateEnvironment(*environment); err != nil {
 			return err
 		}
 
@@ -781,8 +785,14 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 		}
 		defer store.Close()
 
-		srv := daemon.NewServer(*addr, store, forwarding.NewService(store))
+		handlers, err := buildWebhookHandlers(ctx, store, domain.Environment(*environment))
+		if err != nil {
+			return err
+		}
+
+		srv := daemon.NewServer(*addr, store, forwarding.NewService(store), handlers)
 		fmt.Fprintf(stdout, "Rute Bayar webhook daemon listening on %s\n", *addr)
+		fmt.Fprintf(stdout, "webhook environment: %s\n", *environment)
 		fmt.Fprintf(stdout, "SQLite database: %s\n", *dbPath)
 		return srv.ListenAndServe()
 	case "replay":
@@ -834,6 +844,56 @@ func webhookForwardCommand(_ context.Context, w io.Writer, args []string) error 
 		return fmt.Errorf("unknown webhook forward subcommand %q", strings.Join(args, " "))
 	}
 	return nil
+}
+
+func buildWebhookHandlers(ctx context.Context, store *sqlite.Store, environment domain.Environment) (map[domain.ProviderCode]provider.Adapter, error) {
+	handlers := make(map[domain.ProviderCode]provider.Adapter)
+
+	midtransAccount, err := store.GetProviderAccount(ctx, domain.ProviderMidtrans, environment)
+	if err != nil && !errors.Is(err, sqlite.ErrProviderAccountNotConfigured) {
+		return nil, fmt.Errorf("load midtrans webhook account: %w", err)
+	}
+	if err == nil {
+		credential, err := midtransCredentialFromJSON(midtransAccount.CredentialJSON)
+		if err != nil {
+			return nil, fmt.Errorf("load midtrans webhook credential: %w", err)
+		}
+		handlers[domain.ProviderMidtrans] = midtrans.New(
+			midtrans.WithServerKey(credential.ServerKey),
+			midtrans.WithBaseURL(midtrans.BaseURLForEnvironment(environment)),
+		)
+	}
+
+	xenditAccount, err := store.GetProviderAccount(ctx, domain.ProviderXendit, environment)
+	if err != nil && !errors.Is(err, sqlite.ErrProviderAccountNotConfigured) {
+		return nil, fmt.Errorf("load xendit webhook account: %w", err)
+	}
+	if err == nil {
+		secretKey, err := secretKeyFromCredential(xenditAccount.CredentialJSON)
+		if err != nil {
+			return nil, fmt.Errorf("load xendit webhook credential: %w", err)
+		}
+		options := []xendit.Option{xendit.WithSecretKey(secretKey)}
+		token, err := xenditWebhookTokenFromConfig(xenditAccount.ConfigJSON)
+		if err != nil {
+			return nil, fmt.Errorf("load xendit webhook config: %w", err)
+		}
+		if token != "" {
+			options = append(options, xendit.WithCallbackToken(token))
+		}
+		handlers[domain.ProviderXendit] = xendit.New(options...)
+	}
+	return handlers, nil
+}
+
+func xenditWebhookTokenFromConfig(raw json.RawMessage) (string, error) {
+	var config struct {
+		WebhookToken string `json:"webhook_token"`
+	}
+	if err := json.Unmarshal(raw, &config); err != nil {
+		return "", fmt.Errorf("read xendit config json: %w", err)
+	}
+	return strings.TrimSpace(config.WebhookToken), nil
 }
 
 func validateEnvironment(value string) error {

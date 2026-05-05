@@ -1,6 +1,12 @@
 package cli
 
-import "testing"
+import (
+	"context"
+	"testing"
+
+	"github.com/pendig/rute-bayar/internal/domain"
+	"github.com/pendig/rute-bayar/internal/storage/sqlite"
+)
 
 func TestMaskSecret(t *testing.T) {
 	t.Parallel()
@@ -87,5 +93,50 @@ func TestValidateEnvironment(t *testing.T) {
 	}
 	if err := validateEnvironment("staging"); err == nil {
 		t.Fatal("validateEnvironment(staging) returned nil error")
+	}
+}
+
+func TestBuildWebhookHandlersAllowsUnconfiguredProviders(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := sqlite.Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	handlers, err := buildWebhookHandlers(ctx, store, domain.EnvironmentSandbox)
+	if err != nil {
+		t.Fatalf("buildWebhookHandlers returned error: %v", err)
+	}
+	if len(handlers) != 0 {
+		t.Fatalf("handlers length = %d, want 0", len(handlers))
+	}
+}
+
+func TestBuildWebhookHandlersReturnsMalformedCredentialError(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := sqlite.Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	_, err = store.UpsertProviderAccount(ctx, domain.ProviderAccount{
+		ProviderCode:   domain.ProviderMidtrans,
+		Environment:    domain.EnvironmentSandbox,
+		DisplayName:    "Midtrans Sandbox",
+		CredentialJSON: []byte(`{"merchant_id":"merchant","client_key":"client"}`),
+		ConfigJSON:     []byte(`{}`),
+	})
+	if err != nil {
+		t.Fatalf("UpsertProviderAccount returned error: %v", err)
+	}
+
+	if _, err := buildWebhookHandlers(ctx, store, domain.EnvironmentSandbox); err == nil {
+		t.Fatal("buildWebhookHandlers returned nil error for malformed credential")
 	}
 }

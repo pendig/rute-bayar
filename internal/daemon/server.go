@@ -11,23 +11,28 @@ import (
 
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/forwarding"
+	"github.com/pendig/rute-bayar/internal/provider"
 )
 
 type Server struct {
-	addr            string
-	webhookRecorder WebhookRecorder
-	forwarder       *forwarding.Service
+	addr             string
+	webhookRecorder  WebhookRecorder
+	forwarder        *forwarding.Service
+	providerHandlers map[domain.ProviderCode]provider.Adapter
 }
 
 type WebhookRecorder interface {
 	RecordWebhookEvent(context.Context, domain.WebhookEvent) (string, error)
 }
 
-func NewServer(addr string, recorder WebhookRecorder, forwarder *forwarding.Service) *Server {
+func NewServer(addr string, recorder WebhookRecorder, forwarder *forwarding.Service, handlers map[domain.ProviderCode]provider.Adapter) *Server {
 	if addr == "" {
 		addr = ":8080"
 	}
-	return &Server{addr: addr, webhookRecorder: recorder, forwarder: forwarder}
+	if handlers == nil {
+		handlers = make(map[domain.ProviderCode]provider.Adapter)
+	}
+	return &Server{addr: addr, webhookRecorder: recorder, forwarder: forwarder, providerHandlers: handlers}
 }
 
 func (s *Server) ListenAndServe() error {
@@ -55,22 +60,66 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	headersJSON, _ := json.Marshal(r.Header)
+	request := provider.WebhookRequest{
+		Headers: r.Header,
+		Body:    body,
+	}
 	webhookEventID := ""
+	event := domain.WebhookEvent{
+		ProviderCode:     providerCode,
+		EventType:        "unknown",
+		SignatureValid:   false,
+		PayloadJSON:      body,
+		HeadersJSON:      headersJSON,
+		ReceivedAt:       time.Now().UTC(),
+		ProcessingStatus: "received",
+	}
+
+	handler, handlerFound := s.providerHandlers[providerCode]
+	if handlerFound {
+		if err := handler.VerifyWebhook(r.Context(), request); err != nil {
+			event.ProcessingStatus = "rejected"
+			event.EventType = "verification_failed"
+			if s.webhookRecorder != nil {
+				id, recErr := s.webhookRecorder.RecordWebhookEvent(r.Context(), event)
+				if recErr == nil {
+					webhookEventID = id
+				}
+			}
+			writeJSON(w, http.StatusBadRequest, map[string]string{
+				"status": "rejected",
+				"error":  err.Error(),
+			})
+			return
+		}
+
+		event.SignatureValid = true
+		parsedEvent, parseErr := handler.ParseWebhook(r.Context(), request)
+		if parseErr == nil {
+			event.EventType = parsedEvent.EventType
+			event.ProviderEventID = parsedEvent.ProviderEventID
+			event.SignatureValid = true
+		} else {
+			event.EventType = "parse_error"
+			event.ProcessingStatus = "parse_failed"
+		}
+	}
+
 	if s.webhookRecorder != nil {
-		id, err := s.webhookRecorder.RecordWebhookEvent(r.Context(), domain.WebhookEvent{
-			ProviderCode:     providerCode,
-			EventType:        "unknown",
-			SignatureValid:   false,
-			PayloadJSON:      body,
-			HeadersJSON:      headersJSON,
-			ReceivedAt:       time.Now().UTC(),
-			ProcessingStatus: "received",
-		})
+		id, err := s.webhookRecorder.RecordWebhookEvent(r.Context(), event)
 		if err != nil {
 			writeJSON(w, http.StatusInternalServerError, map[string]string{"error": "failed to record webhook event"})
 			return
 		}
 		webhookEventID = id
+	}
+
+	if handlerFound && event.ProcessingStatus == "parse_failed" {
+		writeJSON(w, http.StatusAccepted, map[string]string{
+			"status":  "accepted",
+			"warning": "webhook verification passed but parsing failed",
+		})
+		return
 	}
 
 	inbound := forwarding.InboundWebhook{

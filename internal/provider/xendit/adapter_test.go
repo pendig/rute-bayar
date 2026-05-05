@@ -3,12 +3,15 @@ package xendit
 import (
 	"context"
 	"encoding/base64"
+	"encoding/json"
 	"io"
 	"net/http"
+	"net/http/httptest"
 	"strings"
 	"testing"
 
 	"github.com/pendig/rute-bayar/internal/domain"
+	"github.com/pendig/rute-bayar/internal/provider"
 )
 
 func TestTestAuthSendsBasicAuth(t *testing.T) {
@@ -121,6 +124,49 @@ func TestGetPaymentStatusMapsActiveSession(t *testing.T) {
 	}
 	if result.OrderID != "rb-001" {
 		t.Fatalf("OrderID = %q, want rb-001", result.OrderID)
+	}
+}
+
+func TestVerifyWebhookRejectsWrongToken(t *testing.T) {
+	t.Parallel()
+
+	adapter := New(WithSecretKey("secret"), WithCallbackToken("expected-token"))
+	req := httptest.NewRequest(http.MethodPost, "/webhooks/xendit", strings.NewReader(`{"status":"PAID"}`))
+	req.Header.Set("X-Callback-Token", "wrong-token")
+	if err := adapter.VerifyWebhook(context.Background(), provider.WebhookRequest{
+		Headers: req.Header,
+		Body:    []byte(`{"status":"PAID"}`),
+	}); err == nil {
+		t.Fatal("VerifyWebhook returned nil error for wrong callback token")
+	}
+}
+
+func TestParseWebhookMapsStatus(t *testing.T) {
+	t.Parallel()
+
+	payload, _ := json.Marshal(map[string]any{
+		"id":           "evt_123",
+		"status":       "COMPLETED",
+		"event":        "payment.completed",
+		"reference_id": "rb-001",
+	})
+
+	adapter := New(WithSecretKey("secret"))
+	event, err := adapter.ParseWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	})
+	if err != nil {
+		t.Fatalf("ParseWebhook returned error: %v", err)
+	}
+	if event.ProviderEventID != "evt_123" {
+		t.Fatalf("ProviderEventID = %q, want evt_123", event.ProviderEventID)
+	}
+	if event.EventType != "payment.completed" {
+		t.Fatalf("EventType = %q, want payment.completed", event.EventType)
+	}
+	if event.Status != domain.PaymentStatusSettled {
+		t.Fatalf("Status = %q, want %q", event.Status, domain.PaymentStatusSettled)
 	}
 }
 

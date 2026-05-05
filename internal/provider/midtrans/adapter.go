@@ -2,6 +2,8 @@ package midtrans
 
 import (
 	"context"
+	"crypto/sha512"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -313,18 +315,10 @@ func (a *Adapter) RefundPayment(context.Context, provider.RefundRequest) (provid
 	return provider.RefundResponse{}, errors.New("midtrans refund is not implemented yet")
 }
 
-func (a *Adapter) VerifyWebhook(context.Context, provider.WebhookRequest) error {
-	return errors.New("midtrans webhook verification is not implemented yet")
-}
-
-func (a *Adapter) ParseWebhook(context.Context, provider.WebhookRequest) (provider.WebhookEvent, error) {
-	return provider.WebhookEvent{}, errors.New("midtrans webhook parsing is not implemented yet")
-}
-
 type midtransCreateChargeRequest struct {
-	PaymentType        string                    `json:"payment_type"`
-	TransactionDetails  midtransTransactionDetails `json:"transaction_details"`
-	BankTransfer       *midtransBankTransfer     `json:"bank_transfer,omitempty"`
+	PaymentType        string                     `json:"payment_type"`
+	TransactionDetails midtransTransactionDetails `json:"transaction_details"`
+	BankTransfer       *midtransBankTransfer      `json:"bank_transfer,omitempty"`
 	CustomerDetails    *midtransCustomerDetails   `json:"customer_details,omitempty"`
 }
 
@@ -378,4 +372,85 @@ type midtransStatusResponse struct {
 	BillerCode      string `json:"biller_code"`
 	ExpiryTime      string `json:"expiry_time"`
 	RedirectURL     string `json:"redirect_url"`
+}
+
+func (a *Adapter) VerifyWebhook(_ context.Context, req provider.WebhookRequest) error {
+	if a.serverKey == "" {
+		return errors.New("midtrans server key is required")
+	}
+
+	payload := struct {
+		OrderID      string `json:"order_id"`
+		StatusCode   string `json:"status_code"`
+		GrossAmount  string `json:"gross_amount"`
+		SignatureKey string `json:"signature_key"`
+	}{}
+	if err := json.Unmarshal(req.Body, &payload); err != nil {
+		return fmt.Errorf("parse midtrans webhook payload: %w", err)
+	}
+
+	orderID := strings.TrimSpace(payload.OrderID)
+	statusCode := strings.TrimSpace(payload.StatusCode)
+	grossAmount := strings.TrimSpace(payload.GrossAmount)
+	signatureKey := strings.TrimSpace(payload.SignatureKey)
+
+	if orderID == "" || statusCode == "" || signatureKey == "" {
+		return errors.New("midtrans webhook payload missing required fields")
+	}
+	if grossAmount == "" {
+		return errors.New("midtrans webhook payload missing gross_amount")
+	}
+
+	expected := sha512Hex(orderID + statusCode + grossAmount + a.serverKey)
+	if !strings.EqualFold(expected, signatureKey) {
+		return fmt.Errorf("midtrans webhook signature mismatch")
+	}
+
+	return nil
+}
+
+func (a *Adapter) ParseWebhook(_ context.Context, req provider.WebhookRequest) (provider.WebhookEvent, error) {
+	type midtransWebhook struct {
+		OrderID           string `json:"order_id"`
+		TransactionID     string `json:"transaction_id"`
+		TransactionStatus string `json:"transaction_status"`
+		FraudStatus       string `json:"fraud_status"`
+		PaymentType       string `json:"payment_type"`
+	}
+
+	var webhook midtransWebhook
+	if err := json.Unmarshal(req.Body, &webhook); err != nil {
+		return provider.WebhookEvent{}, fmt.Errorf("parse midtrans webhook payload: %w", err)
+	}
+
+	eventType := strings.TrimSpace(webhook.TransactionStatus)
+	if eventType == "" {
+		eventType = "notification"
+	}
+	reference := strings.TrimSpace(webhook.OrderID)
+	if reference == "" {
+		reference = strings.TrimSpace(webhook.TransactionID)
+	}
+
+	return provider.WebhookEvent{
+		ProviderEventID: strings.TrimSpace(webhook.TransactionID),
+		EventType:       eventType,
+		PaymentRef:      reference,
+		Status:          MapTransactionStatus(webhook.TransactionStatus, webhook.FraudStatus),
+		RawPayloadJSON:  req.Body,
+		RawHeadersJSON:  marshalHeaders(req.Headers),
+	}, nil
+}
+
+func sha512Hex(value string) string {
+	raw := sha512.Sum512([]byte(value))
+	return hex.EncodeToString(raw[:])
+}
+
+func marshalHeaders(headers http.Header) []byte {
+	raw, err := json.Marshal(headers)
+	if err != nil {
+		return []byte("{}")
+	}
+	return raw
 }
