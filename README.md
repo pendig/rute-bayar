@@ -102,7 +102,7 @@ rute-bayar provider list
 rute-bayar provider accounts
 rute-bayar provider test midtrans
 rute-bayar provider test xendit
-rute-bayar pay create
+rute-bayar pay create --provider midtrans --method bank_transfer --bank bca --reference rb-0001 --amount 15000
 rute-bayar pay status
 rute-bayar pay refund
 rute-bayar webhook serve --addr :8080

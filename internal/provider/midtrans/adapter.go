@@ -155,8 +155,95 @@ func MapTransactionStatus(transactionStatus, fraudStatus string) domain.PaymentS
 	}
 }
 
-func (a *Adapter) CreatePayment(context.Context, provider.CreatePaymentRequest) (provider.CreatePaymentResponse, error) {
-	return provider.CreatePaymentResponse{}, errors.New("midtrans create payment is not implemented yet")
+func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaymentRequest) (provider.CreatePaymentResponse, error) {
+	if a.serverKey == "" {
+		return provider.CreatePaymentResponse{}, errors.New("midtrans server key is required")
+	}
+	if strings.TrimSpace(request.ExternalRef) == "" {
+		return provider.CreatePaymentResponse{}, errors.New("midtrans external reference is required")
+	}
+	if request.Amount <= 0 {
+		return provider.CreatePaymentResponse{}, errors.New("midtrans amount must be greater than zero")
+	}
+	paymentType := strings.TrimSpace(request.Method)
+	if paymentType == "" {
+		paymentType = "bank_transfer"
+	}
+	bankCode := strings.TrimSpace(request.Channel)
+	if paymentType != "bank_transfer" {
+		return provider.CreatePaymentResponse{}, fmt.Errorf("midtrans payment method %q is not implemented yet", paymentType)
+	}
+	if bankCode == "" {
+		return provider.CreatePaymentResponse{}, errors.New("midtrans bank channel is required for bank transfer")
+	}
+
+	payload := midtransCreateChargeRequest{
+		PaymentType: paymentType,
+		TransactionDetails: midtransTransactionDetails{
+			OrderID:     request.ExternalRef,
+			GrossAmount: request.Amount,
+		},
+		BankTransfer: &midtransBankTransfer{Bank: bankCode},
+	}
+	if request.CustomerName != "" || request.CustomerEmail != "" || request.CustomerPhone != "" {
+		payload.CustomerDetails = &midtransCustomerDetails{
+			FirstName: request.CustomerName,
+			Email:     request.CustomerEmail,
+			Phone:     request.CustomerPhone,
+		}
+	}
+
+	rawRequest, err := json.Marshal(payload)
+	if err != nil {
+		return provider.CreatePaymentResponse{}, fmt.Errorf("marshal midtrans create payment request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.baseURL+"/v2/charge", strings.NewReader(string(rawRequest)))
+	if err != nil {
+		return provider.CreatePaymentResponse{}, fmt.Errorf("create midtrans create payment request: %w", err)
+	}
+	req.SetBasicAuth(a.serverKey, "")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return provider.CreatePaymentResponse{}, fmt.Errorf("call midtrans create payment: %w", err)
+	}
+	defer resp.Body.Close()
+
+	rawResponse, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return provider.CreatePaymentResponse{}, fmt.Errorf("read midtrans create payment response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return provider.CreatePaymentResponse{RawRequestJSON: rawRequest, RawResponseJSON: rawResponse}, fmt.Errorf("midtrans create payment returned status %d", resp.StatusCode)
+	}
+
+	var parsed midtransChargeResponse
+	if err := json.Unmarshal(rawResponse, &parsed); err != nil {
+		return provider.CreatePaymentResponse{RawRequestJSON: rawRequest, RawResponseJSON: rawResponse}, fmt.Errorf("unmarshal midtrans create payment response: %w", err)
+	}
+
+	response := provider.CreatePaymentResponse{
+		ProviderReference: parsed.OrderID,
+		TransactionID:     parsed.TransactionID,
+		OrderID:           parsed.OrderID,
+		PaymentType:       parsed.PaymentType,
+		TransactionStatus: parsed.TransactionStatus,
+		FraudStatus:       parsed.FraudStatus,
+		ExpiryTime:        parsed.ExpiryTime,
+		Status:            MapTransactionStatus(parsed.TransactionStatus, parsed.FraudStatus),
+		RawRequestJSON:    rawRequest,
+		RawResponseJSON:   rawResponse,
+	}
+	if len(parsed.VANumbers) > 0 {
+		response.VANumber = parsed.VANumbers[0].VANumber
+	}
+	if parsed.RedirectURL != "" {
+		response.RedirectURL = parsed.RedirectURL
+	}
+	return response, nil
 }
 
 func (a *Adapter) GetPaymentStatus(context.Context, string) (domain.PaymentStatus, []byte, error) {
@@ -173,4 +260,43 @@ func (a *Adapter) VerifyWebhook(context.Context, provider.WebhookRequest) error 
 
 func (a *Adapter) ParseWebhook(context.Context, provider.WebhookRequest) (provider.WebhookEvent, error) {
 	return provider.WebhookEvent{}, errors.New("midtrans webhook parsing is not implemented yet")
+}
+
+type midtransCreateChargeRequest struct {
+	PaymentType        string                    `json:"payment_type"`
+	TransactionDetails  midtransTransactionDetails `json:"transaction_details"`
+	BankTransfer       *midtransBankTransfer     `json:"bank_transfer,omitempty"`
+	CustomerDetails    *midtransCustomerDetails   `json:"customer_details,omitempty"`
+}
+
+type midtransTransactionDetails struct {
+	OrderID     string `json:"order_id"`
+	GrossAmount int64  `json:"gross_amount"`
+}
+
+type midtransBankTransfer struct {
+	Bank string `json:"bank"`
+}
+
+type midtransCustomerDetails struct {
+	FirstName string `json:"first_name,omitempty"`
+	LastName  string `json:"last_name,omitempty"`
+	Email     string `json:"email,omitempty"`
+	Phone     string `json:"phone,omitempty"`
+}
+
+type midtransChargeResponse struct {
+	StatusCode        string `json:"status_code"`
+	StatusMessage     string `json:"status_message"`
+	TransactionID     string `json:"transaction_id"`
+	OrderID           string `json:"order_id"`
+	PaymentType       string `json:"payment_type"`
+	TransactionStatus string `json:"transaction_status"`
+	FraudStatus       string `json:"fraud_status"`
+	VANumbers         []struct {
+		Bank     string `json:"bank"`
+		VANumber string `json:"va_number"`
+	} `json:"va_numbers"`
+	ExpiryTime  string `json:"expiry_time"`
+	RedirectURL string `json:"redirect_url"`
 }

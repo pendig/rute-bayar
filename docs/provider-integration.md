@@ -84,6 +84,17 @@ Untuk debugging, semua provider harus menyimpan:
 - inbound webhook JSON
 - inbound webhook headers JSON
 
+### Midtrans `pay create`
+
+Implementasi awal `pay create` untuk Midtrans memakai Core API bank transfer:
+
+- `payment_type=bank_transfer`
+- `transaction_details.order_id` berasal dari external reference internal
+- `transaction_details.gross_amount` berasal dari amount request
+- `bank_transfer.bank` berasal dari bank/channel yang dipilih user
+
+Adapter harus menyimpan raw request dan raw response JSON ke payment attempt.
+
 ## Forwarding Policy
 
 - Forwarding bersifat pass-through.

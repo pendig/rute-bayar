@@ -366,6 +366,111 @@ func (s *Store) GetProviderAccount(ctx context.Context, provider domain.Provider
 	return account, nil
 }
 
+func (s *Store) UpsertPaymentIntent(ctx context.Context, intent domain.PaymentIntent) (string, error) {
+	id := intent.ID
+	if id == "" {
+		id = newID("payment_intent")
+	}
+	metadataJSON := intent.MetadataJSON
+	if len(metadataJSON) == 0 {
+		metadataJSON = []byte("{}")
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO payment_intents (
+			id,
+			external_ref,
+			provider_id,
+			amount,
+			currency,
+			status,
+			metadata_json,
+			created_at,
+			updated_at
+		)
+		VALUES (
+			?,
+			?,
+			(SELECT id FROM providers WHERE code = ?),
+			?,
+			?,
+			?,
+			?,
+			?,
+			?
+		)
+		ON CONFLICT(external_ref)
+		DO UPDATE SET
+			provider_id = excluded.provider_id,
+			amount = excluded.amount,
+			currency = excluded.currency,
+			status = excluded.status,
+			metadata_json = excluded.metadata_json,
+			updated_at = excluded.updated_at
+	`, id, intent.ExternalRef, string(intent.ProviderCode), intent.Amount, intent.Currency, string(intent.Status), string(metadataJSON), now, now)
+	if err != nil {
+		return "", fmt.Errorf("upsert payment intent: %w", err)
+	}
+
+	var savedID string
+	if err := s.db.QueryRowContext(ctx, `
+		SELECT id
+		FROM payment_intents
+		WHERE external_ref = ?
+	`, intent.ExternalRef).Scan(&savedID); err != nil {
+		return "", fmt.Errorf("load payment intent id: %w", err)
+	}
+
+	return savedID, nil
+}
+
+func (s *Store) RecordPaymentAttempt(ctx context.Context, attempt domain.PaymentAttempt) (string, error) {
+	id := attempt.ID
+	if id == "" {
+		id = newID("payment_attempt")
+	}
+	requestJSON := attempt.RequestJSON
+	if len(requestJSON) == 0 {
+		requestJSON = []byte("{}")
+	}
+	responseJSON := attempt.ResponseJSON
+	if len(responseJSON) == 0 {
+		responseJSON = []byte("{}")
+	}
+	now := time.Now().UTC().Format(time.RFC3339Nano)
+
+	_, err := s.db.ExecContext(ctx, `
+		INSERT INTO payment_attempts (
+			id,
+			payment_intent_id,
+			provider_id,
+			request_json,
+			response_json,
+			status,
+			provider_reference,
+			created_at,
+			updated_at
+		)
+		VALUES (
+			?,
+			?,
+			(SELECT id FROM providers WHERE code = ?),
+			?,
+			?,
+			?,
+			?,
+			?,
+			?
+		)
+	`, id, attempt.PaymentIntentID, string(attempt.ProviderCode), string(requestJSON), string(responseJSON), string(attempt.Status), attempt.ProviderReference, now, now)
+	if err != nil {
+		return "", fmt.Errorf("record payment attempt: %w", err)
+	}
+
+	return id, nil
+}
+
 func (s *Store) AddForwardingTarget(ctx context.Context, target forwarding.Target) (string, error) {
 	id := target.ID
 	if id == "" {

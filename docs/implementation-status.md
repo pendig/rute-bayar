@@ -16,18 +16,18 @@ Dokumen ini mencatat status implementasi teknis Rute Bayar agar contributor muda
 - Midtrans sandbox simulation untuk Snap API dan Core API.
 - Midtrans onboarding ke SQLite.
 - Midtrans provider auth test via status inquiry order dummy.
+- Midtrans `pay create` untuk Core API bank transfer.
+- Persistence raw outbound request/response JSON untuk payment attempt.
 - Unit test untuk utility CLI, provider auth request, provider account storage, dan status mapping penting.
 
 ## Belum Ada
 
-- `pay create` yang benar-benar membuat payment dari CLI.
 - Xendit Payment Session adapter untuk create/status/refund.
-- Midtrans Snap/Core adapter untuk create/status/refund.
+- Midtrans Snap/Core adapter untuk status/refund dan perluasan metode lain.
 - Webhook verification untuk Xendit.
 - Webhook signature verification untuk Midtrans.
 - Webhook event parsing dan status update internal.
 - Forwarding target management yang persist lewat CLI.
-- Payment attempt persistence dari provider adapter.
 - CI GitHub Actions.
 
 ## Command yang Sudah Ditargetkan
@@ -38,6 +38,7 @@ rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbo
 rute-bayar provider test xendit
 rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
 rute-bayar provider test midtrans
+rute-bayar pay create --provider midtrans --method bank_transfer --bank bca --reference rb-0001 --amount 15000
 ```
 
 ## Catatan Verifikasi Lokal
@@ -49,4 +50,3 @@ Verifikasi yang sudah bisa dilakukan:
 ```bash
 sqlite3 :memory: ".read migrations/0001_initial.sql"
 ```
-

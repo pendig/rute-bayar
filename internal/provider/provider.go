@@ -14,15 +14,27 @@ type Capability struct {
 }
 
 type CreatePaymentRequest struct {
-	ExternalRef  string
-	Amount       int64
-	Currency     string
-	Method       string
-	MetadataJSON []byte
+	ExternalRef    string
+	Amount         int64
+	Currency       string
+	Method         string
+	Channel        string
+	CustomerName   string
+	CustomerEmail  string
+	CustomerPhone  string
+	MetadataJSON   []byte
 }
 
 type CreatePaymentResponse struct {
 	ProviderReference string
+	TransactionID     string
+	OrderID           string
+	PaymentType       string
+	TransactionStatus string
+	FraudStatus       string
+	VANumber          string
+	ExpiryTime        string
+	RedirectURL       string
 	Status            domain.PaymentStatus
 	RawRequestJSON    []byte
 	RawResponseJSON   []byte
@@ -64,4 +76,3 @@ type Adapter interface {
 	VerifyWebhook(context.Context, WebhookRequest) error
 	ParseWebhook(context.Context, WebhookRequest) (WebhookEvent, error)
 }
-
