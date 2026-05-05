@@ -1,6 +1,6 @@
 module github.com/pendig/rute-bayar
 
-go 1.22
+go 1.25.0
 
 require modernc.org/sqlite v1.48.2
 

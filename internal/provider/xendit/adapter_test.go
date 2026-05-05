@@ -3,8 +3,9 @@ package xendit
 import (
 	"context"
 	"encoding/base64"
+	"io"
 	"net/http"
-	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/pendig/rute-bayar/internal/domain"
@@ -14,18 +15,15 @@ func TestTestAuthSendsBasicAuth(t *testing.T) {
 	t.Parallel()
 
 	var authHeader string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path != "/balance" {
 			t.Fatalf("request path = %q, want /balance", r.URL.Path)
 		}
 		authHeader = r.Header.Get("Authorization")
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{"balance":1000}`))
-	}))
-	defer server.Close()
+		return response(http.StatusOK, `{"balance":1000}`), nil
+	})}
 
-	adapter := New(WithSecretKey("secret_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	adapter := New(WithSecretKey("secret_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
 	info, err := adapter.TestAuth(context.Background())
 	if err != nil {
 		t.Fatalf("TestAuth returned error: %v", err)
@@ -52,13 +50,11 @@ func TestTestAuthRequiresSecretKey(t *testing.T) {
 func TestTestAuthRejectsUnauthorized(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte(`{"error_code":"INVALID_API_KEY"}`))
-	}))
-	defer server.Close()
+	client := &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		return response(http.StatusUnauthorized, `{"error_code":"INVALID_API_KEY"}`), nil
+	})}
 
-	adapter := New(WithSecretKey("bad_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	adapter := New(WithSecretKey("bad_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
 	if _, err := adapter.TestAuth(context.Background()); err == nil {
 		t.Fatal("TestAuth returned nil error for unauthorized response")
 	}
@@ -67,13 +63,11 @@ func TestTestAuthRejectsUnauthorized(t *testing.T) {
 func TestTestAuthAllowsForbiddenBalancePermission(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusForbidden)
-		_, _ = w.Write([]byte(`{"error_code":"REQUEST_FORBIDDEN_ERROR"}`))
-	}))
-	defer server.Close()
+	client := &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		return response(http.StatusForbidden, `{"error_code":"REQUEST_FORBIDDEN_ERROR"}`), nil
+	})}
 
-	adapter := New(WithSecretKey("money_in_only_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	adapter := New(WithSecretKey("money_in_only_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
 	info, err := adapter.TestAuth(context.Background())
 	if err != nil {
 		t.Fatalf("TestAuth returned error for forbidden balance permission: %v", err)
@@ -86,13 +80,11 @@ func TestTestAuthAllowsForbiddenBalancePermission(t *testing.T) {
 func TestTestAuthRejectsMalformedJSON(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`not-json`))
-	}))
-	defer server.Close()
+	client := &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		return response(http.StatusOK, `not-json`), nil
+	})}
 
-	adapter := New(WithSecretKey("secret_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	adapter := New(WithSecretKey("secret_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
 	if _, err := adapter.TestAuth(context.Background()); err == nil {
 		t.Fatal("TestAuth returned nil error for malformed JSON")
 	}
@@ -102,21 +94,18 @@ func TestGetPaymentStatusMapsActiveSession(t *testing.T) {
 	t.Parallel()
 
 	var requestedPath string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
 		requestedPath = r.URL.Path
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{
+		return response(http.StatusOK, `{
 			"id":"ps_123",
 			"reference_id":"rb-001",
 			"mode":"PAYMENT_LINK",
 			"status":"ACTIVE",
 			"payment_link_url":"https://example.com/pay"
-		}`))
-	}))
-	defer server.Close()
+		}`), nil
+	})}
 
-	adapter := New(WithSecretKey("secret_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	adapter := New(WithSecretKey("secret_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
 	result, err := adapter.GetPaymentStatus(context.Background(), "ps_123")
 	if err != nil {
 		t.Fatalf("GetPaymentStatus returned error: %v", err)
@@ -132,5 +121,19 @@ func TestGetPaymentStatusMapsActiveSession(t *testing.T) {
 	}
 	if result.OrderID != "rb-001" {
 		t.Fatalf("OrderID = %q, want rb-001", result.OrderID)
+	}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return fn(r)
+}
+
+func response(statusCode int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: statusCode,
+		Header:     make(http.Header),
+		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 }

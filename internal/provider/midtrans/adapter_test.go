@@ -4,8 +4,9 @@ import (
 	"context"
 	"encoding/base64"
 	"encoding/json"
+	"io"
 	"net/http"
-	"net/http/httptest"
+	"strings"
 	"testing"
 
 	"github.com/pendig/rute-bayar/internal/domain"
@@ -16,18 +17,15 @@ func TestTestAuthSendsBasicAuth(t *testing.T) {
 	t.Parallel()
 
 	var authHeader string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path != "/v2/rute-bayar-auth-test/status" {
 			t.Fatalf("request path = %q, want /v2/rute-bayar-auth-test/status", r.URL.Path)
 		}
 		authHeader = r.Header.Get("Authorization")
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusNotFound)
-		_, _ = w.Write([]byte(`{"status_code":"404","status_message":"Transaction doesn't exist."}`))
-	}))
-	defer server.Close()
+		return response(http.StatusNotFound, `{"status_code":"404","status_message":"Transaction doesn't exist."}`), nil
+	})}
 
-	adapter := New(WithServerKey("server_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
 	result, err := adapter.TestAuth(context.Background())
 	if err != nil {
 		t.Fatalf("TestAuth returned error: %v", err)
@@ -54,13 +52,11 @@ func TestTestAuthRequiresServerKey(t *testing.T) {
 func TestTestAuthRejectsUnauthorized(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusUnauthorized)
-		_, _ = w.Write([]byte(`{"status_code":"401"}`))
-	}))
-	defer server.Close()
+	client := &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		return response(http.StatusUnauthorized, `{"status_code":"401"}`), nil
+	})}
 
-	adapter := New(WithServerKey("bad_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	adapter := New(WithServerKey("bad_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
 	if _, err := adapter.TestAuth(context.Background()); err == nil {
 		t.Fatal("TestAuth returned nil error for unauthorized response")
 	}
@@ -69,13 +65,11 @@ func TestTestAuthRejectsUnauthorized(t *testing.T) {
 func TestTestAuthRejectsMalformedJSON(t *testing.T) {
 	t.Parallel()
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, _ *http.Request) {
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`not-json`))
-	}))
-	defer server.Close()
+	client := &http.Client{Transport: roundTripperFunc(func(*http.Request) (*http.Response, error) {
+		return response(http.StatusOK, `not-json`), nil
+	})}
 
-	adapter := New(WithServerKey("server_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
 	if _, err := adapter.TestAuth(context.Background()); err == nil {
 		t.Fatal("TestAuth returned nil error for malformed JSON")
 	}
@@ -129,7 +123,7 @@ func TestCreatePaymentBankTransfer(t *testing.T) {
 
 	var receivedAuth string
 	var receivedBody map[string]any
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path != "/v2/charge" {
 			t.Fatalf("request path = %q, want /v2/charge", r.URL.Path)
 		}
@@ -137,8 +131,7 @@ func TestCreatePaymentBankTransfer(t *testing.T) {
 		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
 			t.Fatalf("decode request body: %v", err)
 		}
-		w.Header().Set("Content-Type", "application/json")
-		_, _ = w.Write([]byte(`{
+		return response(http.StatusOK, `{
 			"status_code":"201",
 			"status_message":"Success, Bank Transfer transaction is created",
 			"transaction_id":"tx-123",
@@ -148,11 +141,10 @@ func TestCreatePaymentBankTransfer(t *testing.T) {
 			"fraud_status":"accept",
 			"va_numbers":[{"bank":"bca","va_number":"1234567890"}],
 			"expiry_time":"2026-05-05 18:00:00 +0700"
-		}`))
-	}))
-	defer server.Close()
+		}`), nil
+	})}
 
-	adapter := New(WithServerKey("server_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
 	result, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{
 		ExternalRef:  "order-123",
 		Amount:       15000,
@@ -205,14 +197,12 @@ func TestGetPaymentStatusBankTransfer(t *testing.T) {
 	t.Parallel()
 
 	var requestedPath string
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
 		requestedPath = r.URL.Path
 		if r.Header.Get("Authorization") == "" {
 			t.Fatal("Authorization header is empty")
 		}
-		w.Header().Set("Content-Type", "application/json")
-		w.WriteHeader(http.StatusOK)
-		_, _ = w.Write([]byte(`{
+		return response(http.StatusOK, `{
 			"status_code":"200",
 			"status_message":"Success, transaction is found",
 			"transaction_id":"tx-123",
@@ -222,11 +212,10 @@ func TestGetPaymentStatusBankTransfer(t *testing.T) {
 			"fraud_status":"accept",
 			"va_numbers":[{"bank":"bca","va_number":"1234567890"}],
 			"expiry_time":"2026-05-05 18:00:00 +0700"
-		}`))
-	}))
-	defer server.Close()
+		}`), nil
+	})}
 
-	adapter := New(WithServerKey("server_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
 	result, err := adapter.GetPaymentStatus(context.Background(), "order-123")
 	if err != nil {
 		t.Fatalf("GetPaymentStatus returned error: %v", err)
@@ -242,5 +231,19 @@ func TestGetPaymentStatusBankTransfer(t *testing.T) {
 	}
 	if result.OrderID != "order-123" {
 		t.Fatalf("OrderID = %q, want order-123", result.OrderID)
+	}
+}
+
+type roundTripperFunc func(*http.Request) (*http.Response, error)
+
+func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
+	return fn(r)
+}
+
+func response(statusCode int, body string) *http.Response {
+	return &http.Response{
+		StatusCode: statusCode,
+		Header:     make(http.Header),
+		Body:       io.NopCloser(strings.NewReader(body)),
 	}
 }
