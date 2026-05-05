@@ -128,8 +128,98 @@ func (a *Adapter) TestAuth(ctx context.Context) (AccountInfo, error) {
 	}, nil
 }
 
-func (a *Adapter) CreatePayment(context.Context, provider.CreatePaymentRequest) (provider.CreatePaymentResponse, error) {
-	return provider.CreatePaymentResponse{}, errors.New("xendit create payment is not implemented yet")
+func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaymentRequest) (provider.CreatePaymentResponse, error) {
+	if a.secretKey == "" {
+		return provider.CreatePaymentResponse{}, errors.New("xendit secret key is required")
+	}
+
+	request.ExternalRef = strings.TrimSpace(request.ExternalRef)
+	if request.ExternalRef == "" {
+		return provider.CreatePaymentResponse{}, errors.New("xendit external reference is required")
+	}
+	if request.Amount <= 0 {
+		return provider.CreatePaymentResponse{}, errors.New("xendit amount must be greater than zero")
+	}
+
+	mode := normalizeXenditMode(strings.TrimSpace(request.Method))
+	if mode == "" {
+		return provider.CreatePaymentResponse{}, errors.New("xendit payment method is not implemented yet")
+	}
+
+	currency := strings.ToUpper(strings.TrimSpace(request.Currency))
+	if currency == "" {
+		currency = "IDR"
+	}
+
+	requestBody := xenditSessionCreateRequest{
+		ReferenceID: request.ExternalRef,
+		SessionType: "PAY",
+		Mode:        mode,
+		Amount:      request.Amount,
+		Currency:    currency,
+		Country:     "ID",
+		Customer:    xenditSessionCustomerFromRequest(request),
+		Items: []xenditSessionItem{
+			{
+				ReferenceID:   request.ExternalRef + "-01",
+				Name:          "Rute Bayar Payment",
+				Type:          "DIGITAL_PRODUCT",
+				Category:      "SOFTWARE",
+				NetUnitAmount: request.Amount,
+				Quantity:      1,
+				Currency:      currency,
+			},
+		},
+		CaptureMethod: "AUTOMATIC",
+		Locale:        "id",
+		Description:   "Rute Bayar payment",
+	}
+
+	rawRequest, err := json.Marshal(requestBody)
+	if err != nil {
+		return provider.CreatePaymentResponse{}, fmt.Errorf("marshal xendit create payment request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.baseURL+"/sessions", strings.NewReader(string(rawRequest)))
+	if err != nil {
+		return provider.CreatePaymentResponse{}, fmt.Errorf("create xendit create payment request: %w", err)
+	}
+	req.SetBasicAuth(a.secretKey, "")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return provider.CreatePaymentResponse{RawRequestJSON: rawRequest}, fmt.Errorf("call xendit create payment: %w", err)
+	}
+	defer resp.Body.Close()
+
+	rawResponse, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return provider.CreatePaymentResponse{RawRequestJSON: rawRequest}, fmt.Errorf("read xendit create payment response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return provider.CreatePaymentResponse{RawRequestJSON: rawRequest, RawResponseJSON: rawResponse}, fmt.Errorf("xendit create payment returned status %d", resp.StatusCode)
+	}
+
+	var parsed xenditSessionResponse
+	if err := json.Unmarshal(rawResponse, &parsed); err != nil {
+		return provider.CreatePaymentResponse{RawRequestJSON: rawRequest, RawResponseJSON: rawResponse}, fmt.Errorf("unmarshal xendit create payment response: %w", err)
+	}
+
+	response := provider.CreatePaymentResponse{
+		ProviderReference: parsed.ID,
+		TransactionID:     parsed.ID,
+		OrderID:           parsed.ReferenceID,
+		PaymentType:       parsed.Mode,
+		TransactionStatus: parsed.Status,
+		Status:            mapXenditSessionStatus(parsed.Status),
+		RedirectURL:       firstNonEmpty(parsed.PaymentLinkURL, parsed.CheckoutURL),
+		RawRequestJSON:    rawRequest,
+		RawResponseJSON:   rawResponse,
+	}
+
+	return response, nil
 }
 
 func (a *Adapter) GetPaymentStatus(ctx context.Context, sessionID string) (provider.PaymentStatusResponse, error) {
@@ -197,12 +287,50 @@ func numberFromMap(payload map[string]any, key string) *float64 {
 	return &number
 }
 
+type xenditSessionCreateRequest struct {
+	ReferenceID   string                `json:"reference_id"`
+	SessionType   string                `json:"session_type"`
+	Mode          string                `json:"mode"`
+	Amount        int64                 `json:"amount"`
+	Currency      string                `json:"currency"`
+	Country       string                `json:"country"`
+	Customer      xenditSessionCustomer `json:"customer"`
+	Items         []xenditSessionItem   `json:"items"`
+	CaptureMethod string                `json:"capture_method"`
+	Locale        string                `json:"locale"`
+	Description   string                `json:"description"`
+}
+
+type xenditSessionCustomer struct {
+	ReferenceID      string                        `json:"reference_id"`
+	Type             string                        `json:"type"`
+	Email            string                        `json:"email,omitempty"`
+	MobileNumber     string                        `json:"mobile_number,omitempty"`
+	IndividualDetail xenditSessionIndividualDetail `json:"individual_detail"`
+}
+
+type xenditSessionIndividualDetail struct {
+	GivenNames string `json:"given_names"`
+	Surname    string `json:"surname"`
+}
+
+type xenditSessionItem struct {
+	ReferenceID   string `json:"reference_id"`
+	Name          string `json:"name"`
+	Type          string `json:"type"`
+	Category      string `json:"category"`
+	NetUnitAmount int64  `json:"net_unit_amount"`
+	Quantity      int64  `json:"quantity"`
+	Currency      string `json:"currency"`
+}
+
 type xenditSessionResponse struct {
 	ID             string `json:"id"`
 	ReferenceID    string `json:"reference_id"`
 	Mode           string `json:"mode"`
 	Status         string `json:"status"`
 	PaymentLinkURL string `json:"payment_link_url"`
+	CheckoutURL    string `json:"checkout_url"`
 }
 
 func (a *Adapter) VerifyWebhook(_ context.Context, req provider.WebhookRequest) error {
@@ -265,6 +393,55 @@ func firstNonEmpty(values ...string) string {
 	return ""
 }
 
+func normalizeXenditMode(method string) string {
+	switch strings.ToLower(strings.TrimSpace(method)) {
+	case "", "payment_link", "payment-link", "paymentlink":
+		return "PAYMENT_LINK"
+	default:
+		return ""
+	}
+}
+
+func xenditSessionCustomerFromRequest(request provider.CreatePaymentRequest) xenditSessionCustomer {
+	firstName, lastName := splitName(strings.TrimSpace(request.CustomerName))
+	customer := xenditSessionCustomer{
+		ReferenceID: request.ExternalRef,
+		Type:        "INDIVIDUAL",
+		IndividualDetail: xenditSessionIndividualDetail{
+			GivenNames: firstName,
+			Surname:    lastName,
+		},
+	}
+	if request.CustomerEmail != "" {
+		customer.Email = strings.TrimSpace(request.CustomerEmail)
+	}
+	if request.CustomerPhone != "" {
+		customer.MobileNumber = strings.TrimSpace(request.CustomerPhone)
+	}
+
+	if customer.IndividualDetail.GivenNames == "" {
+		customer.IndividualDetail.GivenNames = "Customer"
+		customer.IndividualDetail.Surname = "Rute Bayar"
+	}
+
+	if customer.Email == "" && customer.MobileNumber == "" {
+		customer.ReferenceID = ""
+	}
+
+	return customer
+}
+
+func splitName(name string) (string, string) {
+	parts := strings.Fields(strings.TrimSpace(name))
+	if len(parts) == 0 {
+		return "", ""
+	}
+	if len(parts) == 1 {
+		return parts[0], ""
+	}
+	return parts[0], strings.Join(parts[1:], " ")
+}
+
 func marshalHeaders(headers http.Header) []byte {
 	raw, err := json.Marshal(headers)
 	if err != nil {
@@ -285,6 +462,8 @@ func mapXenditSessionStatus(status string) domain.PaymentStatus {
 		return domain.PaymentStatusCancelled
 	case "FAILED":
 		return domain.PaymentStatusFailed
+	case "SUCCEEDED", "PAID":
+		return domain.PaymentStatusPaid
 	default:
 		return domain.PaymentStatusPending
 	}

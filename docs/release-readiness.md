@@ -19,6 +19,7 @@ Rute Bayar belum siap untuk release publik stabil karena beberapa komponen inti 
 - `provider test` untuk Midtrans dan Xendit.
 - `pay create` Midtrans Core API bank transfer.
 - Penyimpanan raw JSON inbound dan outbound untuk debugging.
+- `pay create` Xendit Payment Session sudah bisa digunakan.
 - Dokumentasi produk, arsitektur, onboarding, dan integrasi provider.
 - PR workflow dasar di GitHub.
 
@@ -63,7 +64,7 @@ Rute Bayar belum siap untuk release publik stabil karena beberapa komponen inti 
 
 Release pertama dianggap siap jika:
 
-- CLI bisa onboard provider, test provider, dan membuat payment Midtrans tanpa manual patch.
+- CLI bisa onboard provider, test provider, dan membuat payment Midtrans serta Xendit tanpa manual patch.
 - Webhook provider bisa diverifikasi dan diproses dengan benar.
 - Raw inbound/outbound JSON tersimpan untuk audit dan debugging.
 - Setidaknya satu provider end-to-end bekerja untuk create, receive webhook, dan cek status.

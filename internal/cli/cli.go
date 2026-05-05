@@ -68,6 +68,7 @@ Usage:
   rute-bayar provider accounts
   rute-bayar provider test
   rute-bayar pay create --provider midtrans --method bank_transfer --bank bca
+  rute-bayar pay create --provider xendit --method payment_link --reference rb-0001 --amount 15000
   rute-bayar pay status --provider midtrans --reference rb-0001
   rute-bayar pay refund
   rute-bayar webhook serve --addr :8080
@@ -405,13 +406,11 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	customerName := fs.String("customer-name", "", "customer name")
 	customerEmail := fs.String("customer-email", "", "customer email")
 	customerPhone := fs.String("customer-phone", "", "customer phone")
+	baseURL := fs.String("base-url", "", "override provider API base URL")
 	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
 	environment := fs.String("environment", cfg.Environment, "provider environment")
 	if err := fs.Parse(args); err != nil {
 		return err
-	}
-	if *providerCode != "midtrans" {
-		return fmt.Errorf("pay create for provider %q is not implemented yet", *providerCode)
 	}
 	if strings.TrimSpace(*reference) == "" {
 		return fmt.Errorf("pay create --reference is required")
@@ -423,50 +422,69 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 		return err
 	}
 
-	rawRequestBody := map[string]any{
-		"payment_type": *method,
-		"transaction_details": map[string]any{
-			"order_id":     *reference,
-			"gross_amount": *amount,
-		},
-		"bank_transfer": map[string]any{
-			"bank": *bank,
-		},
-	}
-	if strings.TrimSpace(*customerName) != "" || strings.TrimSpace(*customerEmail) != "" || strings.TrimSpace(*customerPhone) != "" {
-		rawRequestBody["customer_details"] = map[string]any{
-			"first_name": strings.TrimSpace(*customerName),
-			"email":      strings.TrimSpace(*customerEmail),
-			"phone":      strings.TrimSpace(*customerPhone),
-		}
-	}
-	rawRequest, err := json.Marshal(rawRequestBody)
-	if err != nil {
-		return fmt.Errorf("marshal pay create request: %w", err)
-	}
-
 	store, err := sqlite.Open(ctx, *dbPath)
 	if err != nil {
 		return err
 	}
 	defer store.Close()
 
-	account, err := store.GetProviderAccount(ctx, domain.ProviderMidtrans, domain.Environment(*environment))
-	if err != nil {
-		return err
-	}
-	credential, err := midtransCredentialFromJSON(account.CredentialJSON)
-	if err != nil {
-		return err
+	normalizedProvider := strings.ToLower(strings.TrimSpace(*providerCode))
+	paymentMethod := strings.TrimSpace(*method)
+	request := provider.CreatePaymentRequest{
+		ExternalRef:   strings.TrimSpace(*reference),
+		Amount:        *amount,
+		Currency:      strings.TrimSpace(*currency),
+		Method:        paymentMethod,
+		Channel:       strings.TrimSpace(*bank),
+		CustomerName:  strings.TrimSpace(*customerName),
+		CustomerEmail: strings.TrimSpace(*customerEmail),
+		CustomerPhone: strings.TrimSpace(*customerPhone),
 	}
 
-	adapter := midtrans.New(
-		midtrans.WithServerKey(credential.ServerKey),
-		midtrans.WithBaseURL(midtrans.BaseURLForEnvironment(domain.Environment(*environment))),
-	)
+	var adapter provider.Adapter
+	switch normalizedProvider {
+	case "midtrans":
+		account, err := store.GetProviderAccount(ctx, domain.ProviderMidtrans, domain.Environment(*environment))
+		if err != nil {
+			return err
+		}
+		credential, err := midtransCredentialFromJSON(account.CredentialJSON)
+		if err != nil {
+			return err
+		}
+
+		options := []midtrans.Option{midtrans.WithServerKey(credential.ServerKey)}
+		if strings.TrimSpace(*baseURL) != "" {
+			options = append(options, midtrans.WithBaseURL(*baseURL))
+		} else {
+			options = append(options, midtrans.WithBaseURL(midtrans.BaseURLForEnvironment(domain.Environment(*environment))))
+		}
+		adapter = midtrans.New(options...)
+	case "xendit":
+		secretKey, err := secretKeyFromCredentialFromStore(store, ctx, domain.ProviderXendit, domain.Environment(*environment))
+		if err != nil {
+			return err
+		}
+
+		if paymentMethod == "" || strings.EqualFold(paymentMethod, "bank_transfer") {
+			request.Method = "payment_link"
+		}
+		if !isXenditPayMethodSupported(request.Method) {
+			return fmt.Errorf("pay create for xendit supports --method payment_link only")
+		}
+
+		options := []xendit.Option{xendit.WithSecretKey(secretKey)}
+		if strings.TrimSpace(*baseURL) != "" {
+			options = append(options, xendit.WithBaseURL(*baseURL))
+		}
+		adapter = xendit.New(options...)
+	default:
+		return fmt.Errorf("pay create for provider %q is not implemented yet", *providerCode)
+	}
+
 	intentID, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
 		ExternalRef:  *reference,
-		ProviderCode: domain.ProviderMidtrans,
+		ProviderCode: domain.ProviderCode(normalizedProvider),
 		Amount:       *amount,
 		Currency:     *currency,
 		Status:       domain.PaymentStatusPending,
@@ -476,20 +494,27 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	}
 
 	response, err := adapter.CreatePayment(ctx, provider.CreatePaymentRequest{
-		ExternalRef:   *reference,
-		Amount:        *amount,
-		Currency:      *currency,
-		Method:        *method,
-		Channel:       *bank,
-		CustomerName:  *customerName,
-		CustomerEmail: *customerEmail,
-		CustomerPhone: *customerPhone,
+		ExternalRef:   request.ExternalRef,
+		Amount:        request.Amount,
+		Currency:      request.Currency,
+		Method:        request.Method,
+		Channel:       request.Channel,
+		CustomerName:  request.CustomerName,
+		CustomerEmail: request.CustomerEmail,
+		CustomerPhone: request.CustomerPhone,
 	})
+	requestJSON := response.RawRequestJSON
+	if len(requestJSON) == 0 {
+		marshaledRequest, marshalErr := json.Marshal(request)
+		if marshalErr == nil {
+			requestJSON = marshaledRequest
+		}
+	}
 	if err != nil {
 		_, _ = store.RecordPaymentAttempt(ctx, domain.PaymentAttempt{
 			PaymentIntentID: intentID,
-			ProviderCode:    domain.ProviderMidtrans,
-			RequestJSON:     rawRequest,
+			ProviderCode:    domain.ProviderCode(normalizedProvider),
+			RequestJSON:     requestJSON,
 			ResponseJSON:    []byte("{}"),
 			Status:          domain.PaymentStatusFailed,
 		})
@@ -498,7 +523,7 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 
 	if _, err := store.RecordPaymentAttempt(ctx, domain.PaymentAttempt{
 		PaymentIntentID:   intentID,
-		ProviderCode:      domain.ProviderMidtrans,
+		ProviderCode:      domain.ProviderCode(normalizedProvider),
 		RequestJSON:       response.RawRequestJSON,
 		ResponseJSON:      response.RawResponseJSON,
 		Status:            response.Status,
@@ -509,7 +534,7 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	if _, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
 		ID:           intentID,
 		ExternalRef:  *reference,
-		ProviderCode: domain.ProviderMidtrans,
+		ProviderCode: domain.ProviderCode(normalizedProvider),
 		Amount:       *amount,
 		Currency:     *currency,
 		Status:       response.Status,
@@ -518,7 +543,7 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	}
 
 	fmt.Fprintln(stdout, "payment created")
-	fmt.Fprintf(stdout, "provider: %s\n", *providerCode)
+	fmt.Fprintf(stdout, "provider: %s\n", normalizedProvider)
 	fmt.Fprintf(stdout, "reference: %s\n", *reference)
 	fmt.Fprintf(stdout, "status: %s\n", response.Status)
 	if response.TransactionID != "" {
@@ -532,6 +557,9 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	}
 	if response.ExpiryTime != "" {
 		fmt.Fprintf(stdout, "expiry_time: %s\n", response.ExpiryTime)
+	}
+	if response.RedirectURL != "" {
+		fmt.Fprintf(stdout, "redirect_url: %s\n", response.RedirectURL)
 	}
 	return nil
 }
@@ -925,6 +953,21 @@ func secretKeyFromCredential(raw []byte) (string, error) {
 		return "", fmt.Errorf("xendit secret key is not configured")
 	}
 	return secretKey, nil
+}
+
+func secretKeyFromCredentialFromStore(store *sqlite.Store, ctx context.Context, providerCode domain.ProviderCode, environment domain.Environment) (string, error) {
+	account, err := store.GetProviderAccount(ctx, providerCode, environment)
+	if err != nil {
+		return "", err
+	}
+	return secretKeyFromCredential(account.CredentialJSON)
+}
+
+func isXenditPayMethodSupported(method string) bool {
+	return strings.EqualFold(strings.TrimSpace(method), "payment_link") ||
+		strings.EqualFold(strings.TrimSpace(method), "payment-link") ||
+		strings.EqualFold(strings.TrimSpace(method), "paymentlink") ||
+		strings.EqualFold(strings.TrimSpace(method), "")
 }
 
 type midtransCredential struct {
