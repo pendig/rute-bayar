@@ -2,6 +2,7 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
@@ -11,6 +12,7 @@ import (
 	"github.com/pendig/rute-bayar/internal/build"
 	"github.com/pendig/rute-bayar/internal/config"
 	"github.com/pendig/rute-bayar/internal/daemon"
+	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/forwarding"
 	"github.com/pendig/rute-bayar/internal/storage/sqlite"
 )
@@ -33,9 +35,9 @@ func ExecuteWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 		fmt.Fprintf(stdout, "%s %s\n", build.Name, build.Version)
 		return nil
 	case "onboard":
-		return onboard(stdout)
+		return onboard(ctx, stdout, stderr, args[1:])
 	case "provider":
-		return providerCommand(stdout, args[1:])
+		return providerCommand(ctx, stdout, args[1:])
 	case "pay":
 		return payCommand(stdout, args[1:])
 	case "webhook":
@@ -55,7 +57,9 @@ func printHelp(w io.Writer) {
 
 Usage:
   rute-bayar onboard
+  rute-bayar onboard xendit --secret-key <key>
   rute-bayar provider list
+  rute-bayar provider accounts
   rute-bayar provider test
   rute-bayar pay create
   rute-bayar pay status
@@ -68,13 +72,80 @@ Usage:
   rute-bayar version`)
 }
 
-func onboard(w io.Writer) error {
-	fmt.Fprintln(w, "onboarding wizard scaffold is ready.")
-	fmt.Fprintln(w, "Next implementation: collect provider credentials, validate them, and persist to SQLite.")
+func onboard(ctx context.Context, stdout, stderr io.Writer, args []string) error {
+	if len(args) == 0 {
+		fmt.Fprintln(stdout, "Available onboarding providers:")
+		fmt.Fprintln(stdout, "  xendit")
+		fmt.Fprintln(stdout, "  midtrans (coming soon)")
+		return nil
+	}
+
+	switch args[0] {
+	case "xendit":
+		return onboardXendit(ctx, stdout, stderr, args[1:])
+	default:
+		return fmt.Errorf("unknown onboarding provider %q", args[0])
+	}
+}
+
+func onboardXendit(ctx context.Context, stdout, stderr io.Writer, args []string) error {
+	cfg := config.Load()
+	fs := flag.NewFlagSet("onboard xendit", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	secretKey := fs.String("secret-key", "", "Xendit secret API key")
+	environment := fs.String("environment", cfg.Environment, "provider environment: sandbox or production")
+	displayName := fs.String("name", "Xendit", "provider account display name")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	webhookToken := fs.String("webhook-token", "", "optional Xendit webhook verification token")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(*secretKey) == "" {
+		return fmt.Errorf("xendit --secret-key is required")
+	}
+	if err := validateEnvironment(*environment); err != nil {
+		return err
+	}
+
+	credentialJSON, err := json.Marshal(map[string]string{
+		"secret_key": strings.TrimSpace(*secretKey),
+	})
+	if err != nil {
+		return fmt.Errorf("marshal xendit credential: %w", err)
+	}
+	configJSON, err := json.Marshal(map[string]string{
+		"webhook_token": strings.TrimSpace(*webhookToken),
+	})
+	if err != nil {
+		return fmt.Errorf("marshal xendit config: %w", err)
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	accountID, err := store.UpsertProviderAccount(ctx, domain.ProviderAccount{
+		ProviderCode:   domain.ProviderXendit,
+		Environment:    domain.Environment(*environment),
+		DisplayName:    *displayName,
+		CredentialJSON: credentialJSON,
+		ConfigJSON:     configJSON,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(stdout, "xendit account saved: %s\n", accountID)
+	fmt.Fprintf(stdout, "environment: %s\n", *environment)
+	fmt.Fprintf(stdout, "secret key: %s\n", maskSecret(*secretKey))
+	fmt.Fprintf(stdout, "database: %s\n", *dbPath)
 	return nil
 }
 
-func providerCommand(w io.Writer, args []string) error {
+func providerCommand(ctx context.Context, w io.Writer, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("provider command requires a subcommand")
 	}
@@ -83,12 +154,37 @@ func providerCommand(w io.Writer, args []string) error {
 		fmt.Fprintln(w, "midtrans")
 		fmt.Fprintln(w, "xendit")
 		return nil
+	case "accounts":
+		return providerAccounts(ctx, w)
 	case "test":
 		fmt.Fprintln(w, "provider test scaffold is ready.")
 		return nil
 	default:
 		return fmt.Errorf("unknown provider subcommand %q", args[0])
 	}
+}
+
+func providerAccounts(ctx context.Context, w io.Writer) error {
+	cfg := config.Load()
+	store, err := sqlite.Open(ctx, cfg.DBPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	accounts, err := store.ListProviderAccounts(ctx)
+	if err != nil {
+		return err
+	}
+	if len(accounts) == 0 {
+		fmt.Fprintln(w, "no provider accounts configured yet")
+		return nil
+	}
+
+	for _, account := range accounts {
+		fmt.Fprintf(w, "%s %s %s\n", account.ProviderCode, account.Environment, account.DisplayName)
+	}
+	return nil
 }
 
 func payCommand(w io.Writer, args []string) error {
@@ -179,4 +275,21 @@ func webhookForwardCommand(_ context.Context, w io.Writer, args []string) error 
 		return fmt.Errorf("unknown webhook forward subcommand %q", strings.Join(args, " "))
 	}
 	return nil
+}
+
+func validateEnvironment(value string) error {
+	switch domain.Environment(value) {
+	case domain.EnvironmentSandbox, domain.EnvironmentProduction:
+		return nil
+	default:
+		return fmt.Errorf("environment must be %q or %q", domain.EnvironmentSandbox, domain.EnvironmentProduction)
+	}
+}
+
+func maskSecret(value string) string {
+	value = strings.TrimSpace(value)
+	if len(value) <= 8 {
+		return "********"
+	}
+	return value[:4] + strings.Repeat("*", len(value)-8) + value[len(value)-4:]
 }

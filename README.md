@@ -32,6 +32,13 @@ go run ./cmd/rute-bayar version
 go run ./cmd/rute-bayar provider list
 ```
 
+Onboard Xendit credentials into local SQLite:
+
+```bash
+rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
+rute-bayar provider accounts
+```
+
 Start the webhook daemon:
 
 ```bash
@@ -82,7 +89,9 @@ Available command skeleton:
 
 ```bash
 rute-bayar onboard
+rute-bayar onboard xendit --secret-key <key> --environment sandbox
 rute-bayar provider list
+rute-bayar provider accounts
 rute-bayar provider test
 rute-bayar pay create
 rute-bayar pay status

@@ -15,7 +15,8 @@ CREATE TABLE IF NOT EXISTS provider_accounts (
   credential_json TEXT NOT NULL,
   config_json TEXT NOT NULL,
   created_at TEXT NOT NULL,
-  updated_at TEXT NOT NULL
+  updated_at TEXT NOT NULL,
+  UNIQUE(provider_id, environment)
 );
 
 CREATE TABLE IF NOT EXISTS payment_intents (
@@ -105,6 +106,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_payment_intents_external_ref ON payment_intents(external_ref);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_accounts_provider_environment ON provider_accounts(provider_id, environment);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_payment_intent_id ON payment_attempts(payment_intent_id);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_provider_reference ON payment_attempts(provider_reference);
 CREATE INDEX IF NOT EXISTS idx_webhook_events_provider_event_id ON webhook_events(provider_event_id);
@@ -117,4 +119,3 @@ INSERT OR IGNORE INTO providers (id, name, code, status, created_at, updated_at)
 VALUES
   ('provider_midtrans', 'Midtrans', 'midtrans', 'active', datetime('now'), datetime('now')),
   ('provider_xendit', 'Xendit', 'xendit', 'active', datetime('now'), datetime('now'));
-

@@ -27,7 +27,9 @@ Contoh alur:
 ## Perintah CLI yang Disarankan
 
 - `rute-bayar onboard`
+- `rute-bayar onboard xendit --secret-key <key> --environment sandbox`
 - `rute-bayar provider list`
+- `rute-bayar provider accounts`
 - `rute-bayar provider test`
 - `rute-bayar config show`
 - `rute-bayar config set`
@@ -74,6 +76,13 @@ Setelah itu CLI harus:
 - test auth ke API
 - test webhook verification helper
 - simpan provider account
+
+Command awal yang sudah ditargetkan:
+
+```bash
+rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
+rute-bayar provider accounts
+```
 
 ## UX yang Disarankan
 
