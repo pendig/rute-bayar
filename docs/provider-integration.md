@@ -54,6 +54,15 @@ Catatan: mapping `settlement -> settled` dipilih agar status provider tetap info
 
 Mapping Xendit lain perlu dilengkapi saat implementasi create/status Payment Session masuk.
 
+### Xendit `pay create`
+
+- Endpoint aktif: `POST /sessions` (Payment Session API).
+- `CreatePaymentRequest` dipetakan ke payload `reference_id`, `session_type=PAY`, `mode=PAYMENT_LINK`, `amount`, `currency`, `country`, `items[]`, `customer`.
+- `reference_id` diisi dari `external reference`.
+- `items[].category` dan `items[].type` wajib sesuai simulasi untuk menghindari validasi gagal.
+- Response status awal umumnya `ACTIVE` dan dipetakan ke `pending`.
+- URL pembayaran diambil dari `payment_link_url` dan ditampilkan sebagai `redirect_url`.
+
 ## Webhook Handling
 
 Untuk setiap provider:

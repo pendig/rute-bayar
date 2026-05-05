@@ -18,6 +18,7 @@ Dokumen ini mencatat status implementasi teknis Rute Bayar agar contributor muda
 - Midtrans provider auth test via status inquiry order dummy.
 - Midtrans `pay create` untuk Core API bank transfer.
 - Midtrans `pay status` untuk status inquiry order/VA.
+- Xendit `pay create` untuk Payment Session.
 - Persistence raw outbound request/response JSON untuk payment attempt.
 - Persistence raw outbound request/response JSON untuk payment status check.
 - Unit test untuk utility CLI, provider auth request, provider account storage, dan status mapping penting.
@@ -27,7 +28,7 @@ Dokumen ini mencatat status implementasi teknis Rute Bayar agar contributor muda
 
 ## Belum Ada
 
-- Xendit Payment Session adapter untuk create/refund.
+- Xendit Payment Session refund + webhook-to-intent reconciliation.
 - Midtrans Snap/Core adapter untuk create/refund dan perluasan metode lain.
 - Status update internal dari webhook untuk `payment_intents`.
 - Forwarding target management yang persist lewat CLI.
@@ -42,6 +43,7 @@ rute-bayar provider test xendit
 rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
 rute-bayar provider test midtrans
 rute-bayar pay create --provider midtrans --method bank_transfer --bank bca --reference rb-0001 --amount 15000
+rute-bayar pay create --provider xendit --method payment_link --reference rb-xnd-001 --amount 15000
 ```
 
 ## Catatan Verifikasi Lokal

@@ -127,6 +127,72 @@ func TestGetPaymentStatusMapsActiveSession(t *testing.T) {
 	}
 }
 
+func TestCreatePaymentCreatesSession(t *testing.T) {
+	t.Parallel()
+
+	var requestPath string
+	var rawBody []byte
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		requestPath = r.URL.Path
+		raw, err := io.ReadAll(r.Body)
+		if err != nil {
+			t.Fatalf("read request body: %v", err)
+		}
+		rawBody = raw
+		return response(http.StatusCreated, `{
+			"id":"sess_01",
+			"reference_id":"rb-001",
+			"mode":"PAYMENT_LINK",
+			"status":"ACTIVE",
+			"payment_link_url":"https://checkout.example.com/pay"
+		}`), nil
+	})}
+
+	adapter := New(WithSecretKey("secret"), WithBaseURL("https://example.com"), WithHTTPClient(client))
+	result, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{
+		ExternalRef: "rb-001",
+		Amount:      15000,
+		Currency:    "IDR",
+		Method:      "payment_link",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment returned error: %v", err)
+	}
+
+	if requestPath != "/sessions" {
+		t.Fatalf("requested path = %q, want /sessions", requestPath)
+	}
+	var payload map[string]any
+	if err := json.Unmarshal(rawBody, &payload); err != nil {
+		t.Fatalf("unmarshal request payload: %v", err)
+	}
+	if payload["reference_id"] != "rb-001" {
+		t.Fatalf("reference_id = %v, want rb-001", payload["reference_id"])
+	}
+	if payload["mode"] != "PAYMENT_LINK" {
+		t.Fatalf("mode = %v, want PAYMENT_LINK", payload["mode"])
+	}
+	if result.Status != domain.PaymentStatusPending {
+		t.Fatalf("Status = %q, want %q", result.Status, domain.PaymentStatusPending)
+	}
+	if result.TransactionID != "sess_01" {
+		t.Fatalf("TransactionID = %q, want sess_01", result.TransactionID)
+	}
+}
+
+func TestCreatePaymentRequiresPaymentLinkMethod(t *testing.T) {
+	t.Parallel()
+
+	adapter := New(WithSecretKey("secret"))
+	if _, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{
+		ExternalRef: "rb-001",
+		Amount:      1000,
+		Method:      "bank_transfer",
+	}); err == nil {
+		t.Fatal("CreatePayment returned nil error for unsupported method")
+	}
+}
+
 func TestVerifyWebhookRejectsWrongToken(t *testing.T) {
 	t.Parallel()
 
