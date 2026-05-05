@@ -192,6 +192,7 @@ Read the project docs:
 - [Webhook Forwarding](./docs/webhook-forwarding.md)
 - [Development](./docs/development.md)
 - [Xendit Sandbox Simulation](./docs/xendit-sandbox-simulation.md)
+- [Midtrans Sandbox Simulation](./docs/midtrans-sandbox-simulation.md)
 
 ## Roadmap
 
