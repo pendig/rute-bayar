@@ -2,6 +2,8 @@ package cli
 
 import (
 	"context"
+	"database/sql"
+	"errors"
 	"encoding/json"
 	"flag"
 	"fmt"
@@ -66,7 +68,7 @@ Usage:
   rute-bayar provider accounts
   rute-bayar provider test
   rute-bayar pay create --provider midtrans --method bank_transfer --bank bca
-  rute-bayar pay status
+  rute-bayar pay status --provider midtrans --reference rb-0001
   rute-bayar pay refund
   rute-bayar webhook serve --addr :8080
   rute-bayar webhook forward list
@@ -260,29 +262,6 @@ func providerTestMidtrans(ctx context.Context, w io.Writer, args []string) error
 		return err
 	}
 
-	rawRequestBody := map[string]any{
-		"payment_type": *method,
-		"transaction_details": map[string]any{
-			"order_id":     *reference,
-			"gross_amount": *amount,
-		},
-		"bank_transfer": map[string]any{
-			"bank": *bank,
-		},
-	}
-	if strings.TrimSpace(*customerName) != "" || strings.TrimSpace(*customerEmail) != "" || strings.TrimSpace(*customerPhone) != "" {
-		rawRequestBody["customer_details"] = map[string]any{
-			"first_name": strings.TrimSpace(*customerName),
-			"email":      strings.TrimSpace(*customerEmail),
-			"phone":      strings.TrimSpace(*customerPhone),
-		}
-	}
-
-	rawRequest, err := json.Marshal(rawRequestBody)
-	if err != nil {
-		return fmt.Errorf("marshal pay create request: %w", err)
-	}
-
 	store, err := sqlite.Open(ctx, *dbPath)
 	if err != nil {
 		return err
@@ -403,8 +382,10 @@ func payCommand(ctx context.Context, stdout, stderr io.Writer, args []string) er
 	switch args[0] {
 	case "create":
 		return payCreate(ctx, stdout, stderr, args[1:])
-	case "status", "refund":
-		fmt.Fprintf(stdout, "pay %s scaffold is ready.\n", args[0])
+	case "status":
+		return payStatus(ctx, stdout, stderr, args[1:])
+	case "refund":
+		fmt.Fprintln(stdout, "pay refund scaffold is ready.")
 		return nil
 	default:
 		return fmt.Errorf("unknown pay subcommand %q", args[0])
@@ -440,6 +421,28 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	}
 	if err := validateEnvironment(*environment); err != nil {
 		return err
+	}
+
+	rawRequestBody := map[string]any{
+		"payment_type": *method,
+		"transaction_details": map[string]any{
+			"order_id":     *reference,
+			"gross_amount": *amount,
+		},
+		"bank_transfer": map[string]any{
+			"bank": *bank,
+		},
+	}
+	if strings.TrimSpace(*customerName) != "" || strings.TrimSpace(*customerEmail) != "" || strings.TrimSpace(*customerPhone) != "" {
+		rawRequestBody["customer_details"] = map[string]any{
+			"first_name": strings.TrimSpace(*customerName),
+			"email":      strings.TrimSpace(*customerEmail),
+			"phone":      strings.TrimSpace(*customerPhone),
+		}
+	}
+	rawRequest, err := json.Marshal(rawRequestBody)
+	if err != nil {
+		return fmt.Errorf("marshal pay create request: %w", err)
 	}
 
 	store, err := sqlite.Open(ctx, *dbPath)
@@ -531,6 +534,229 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 		fmt.Fprintf(stdout, "expiry_time: %s\n", response.ExpiryTime)
 	}
 	return nil
+}
+
+func payStatus(ctx context.Context, stdout, stderr io.Writer, args []string) error {
+	cfg := config.Load()
+	fs := flag.NewFlagSet("pay status", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	providerCode := fs.String("provider", "midtrans", "provider code")
+	reference := fs.String("reference", "", "external reference / order id")
+	providerReference := fs.String("provider-reference", "", "provider-side reference override")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	environment := fs.String("environment", cfg.Environment, "provider environment")
+	baseURL := fs.String("base-url", "", "override provider API base URL")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*reference) == "" {
+		return fmt.Errorf("pay status --reference is required")
+	}
+	if err := validateEnvironment(*environment); err != nil {
+		return err
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	intent, intentFound, err := lookupPaymentIntent(ctx, store, *reference)
+	if err != nil {
+		return err
+	}
+
+	providerRef := strings.TrimSpace(*providerReference)
+	if providerRef == "" && intentFound {
+		if attempt, err := store.GetLatestPaymentAttemptByIntent(ctx, intent.ID, domain.ProviderCode(*providerCode)); err == nil {
+			providerRef = strings.TrimSpace(attempt.ProviderReference)
+		} else if !errors.Is(err, sql.ErrNoRows) {
+			return err
+		}
+	}
+	if providerRef == "" {
+		providerRef = strings.TrimSpace(*reference)
+	}
+
+	switch *providerCode {
+	case "midtrans":
+		account, err := store.GetProviderAccount(ctx, domain.ProviderMidtrans, domain.Environment(*environment))
+		if err != nil {
+			return err
+		}
+		credential, err := midtransCredentialFromJSON(account.CredentialJSON)
+		if err != nil {
+			return err
+		}
+
+		options := []midtrans.Option{midtrans.WithServerKey(credential.ServerKey)}
+		if strings.TrimSpace(*baseURL) != "" {
+			options = append(options, midtrans.WithBaseURL(*baseURL))
+		} else {
+			options = append(options, midtrans.WithBaseURL(midtrans.BaseURLForEnvironment(domain.Environment(*environment))))
+		}
+
+		adapter := midtrans.New(options...)
+		statusResponse, err := adapter.GetPaymentStatus(ctx, providerRef)
+		if err != nil {
+			if intentFound {
+				_, _ = store.RecordPaymentStatusCheck(ctx, domain.PaymentStatusCheck{
+					PaymentIntentID:   intent.ID,
+					ProviderCode:      domain.ProviderMidtrans,
+					RequestJSON:       statusResponse.RawRequestJSON,
+					ResponseJSON:      statusResponse.RawResponseJSON,
+					Status:            statusResponse.Status,
+					ProviderReference: providerRef,
+				})
+			}
+			return err
+		}
+
+		if intentFound {
+			if _, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+				ID:           intent.ID,
+				ExternalRef:  intent.ExternalRef,
+				ProviderCode: intent.ProviderCode,
+				Amount:       intent.Amount,
+				Currency:     intent.Currency,
+				Status:       statusResponse.Status,
+				MetadataJSON: intent.MetadataJSON,
+			}); err != nil {
+				return err
+			}
+			if _, err := store.RecordPaymentStatusCheck(ctx, domain.PaymentStatusCheck{
+				PaymentIntentID:   intent.ID,
+				ProviderCode:      domain.ProviderMidtrans,
+				RequestJSON:       statusResponse.RawRequestJSON,
+				ResponseJSON:      statusResponse.RawResponseJSON,
+				Status:            statusResponse.Status,
+				ProviderReference: providerRef,
+			}); err != nil {
+				return err
+			}
+		}
+
+		printPaymentStatus(stdout, "midtrans", referenceValueForStatus(intentFound, intent, *reference), providerRef, statusResponse)
+		return nil
+	case "xendit":
+		account, err := store.GetProviderAccount(ctx, domain.ProviderXendit, domain.Environment(*environment))
+		if err != nil {
+			return err
+		}
+		secretKey, err := secretKeyFromCredential(account.CredentialJSON)
+		if err != nil {
+			return err
+		}
+
+		options := []xendit.Option{xendit.WithSecretKey(secretKey)}
+		if strings.TrimSpace(*baseURL) != "" {
+			options = append(options, xendit.WithBaseURL(*baseURL))
+		}
+
+		adapter := xendit.New(options...)
+		statusResponse, err := adapter.GetPaymentStatus(ctx, providerRef)
+		if err != nil {
+			if intentFound {
+				_, _ = store.RecordPaymentStatusCheck(ctx, domain.PaymentStatusCheck{
+					PaymentIntentID:   intent.ID,
+					ProviderCode:      domain.ProviderXendit,
+					RequestJSON:       statusResponse.RawRequestJSON,
+					ResponseJSON:      statusResponse.RawResponseJSON,
+					Status:            statusResponse.Status,
+					ProviderReference: providerRef,
+				})
+			}
+			return err
+		}
+
+		if intentFound {
+			if _, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+				ID:           intent.ID,
+				ExternalRef:  intent.ExternalRef,
+				ProviderCode: intent.ProviderCode,
+				Amount:       intent.Amount,
+				Currency:     intent.Currency,
+				Status:       statusResponse.Status,
+				MetadataJSON: intent.MetadataJSON,
+			}); err != nil {
+				return err
+			}
+			if _, err := store.RecordPaymentStatusCheck(ctx, domain.PaymentStatusCheck{
+				PaymentIntentID:   intent.ID,
+				ProviderCode:      domain.ProviderXendit,
+				RequestJSON:       statusResponse.RawRequestJSON,
+				ResponseJSON:      statusResponse.RawResponseJSON,
+				Status:            statusResponse.Status,
+				ProviderReference: providerRef,
+			}); err != nil {
+				return err
+			}
+		}
+
+		printPaymentStatus(stdout, "xendit", referenceValueForStatus(intentFound, intent, *reference), providerRef, statusResponse)
+		return nil
+	default:
+		return fmt.Errorf("pay status for provider %q is not implemented yet", *providerCode)
+	}
+}
+
+func lookupPaymentIntent(ctx context.Context, store *sqlite.Store, reference string) (domain.PaymentIntent, bool, error) {
+	intent, err := store.GetPaymentIntentByExternalRef(ctx, reference)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return domain.PaymentIntent{}, false, nil
+		}
+		return domain.PaymentIntent{}, false, err
+	}
+	return intent, true, nil
+}
+
+func referenceValueForStatus(found bool, intent domain.PaymentIntent, fallback string) string {
+	if found && strings.TrimSpace(intent.ExternalRef) != "" {
+		return intent.ExternalRef
+	}
+	return fallback
+}
+
+func printPaymentStatus(w io.Writer, providerCode, reference, providerReference string, response provider.PaymentStatusResponse) {
+	fmt.Fprintln(w, "payment status")
+	fmt.Fprintf(w, "provider: %s\n", providerCode)
+	fmt.Fprintf(w, "reference: %s\n", reference)
+	if providerReference != "" {
+		fmt.Fprintf(w, "provider_reference: %s\n", providerReference)
+	}
+	fmt.Fprintf(w, "status: %s\n", response.Status)
+	if response.StatusCode != "" {
+		fmt.Fprintf(w, "status_code: %s\n", response.StatusCode)
+	}
+	if response.StatusMessage != "" {
+		fmt.Fprintf(w, "status_message: %s\n", response.StatusMessage)
+	}
+	if response.TransactionID != "" {
+		fmt.Fprintf(w, "transaction_id: %s\n", response.TransactionID)
+	}
+	if response.OrderID != "" {
+		fmt.Fprintf(w, "order_id: %s\n", response.OrderID)
+	}
+	if response.PaymentType != "" {
+		fmt.Fprintf(w, "payment_type: %s\n", response.PaymentType)
+	}
+	if response.TransactionStatus != "" {
+		fmt.Fprintf(w, "transaction_status: %s\n", response.TransactionStatus)
+	}
+	if response.FraudStatus != "" {
+		fmt.Fprintf(w, "fraud_status: %s\n", response.FraudStatus)
+	}
+	if response.VANumber != "" {
+		fmt.Fprintf(w, "va_number: %s\n", response.VANumber)
+	}
+	if response.ExpiryTime != "" {
+		fmt.Fprintf(w, "expiry_time: %s\n", response.ExpiryTime)
+	}
+	if response.RedirectURL != "" {
+		fmt.Fprintf(w, "redirect_url: %s\n", response.RedirectURL)
+	}
 }
 
 func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string) error {

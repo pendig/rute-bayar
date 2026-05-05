@@ -65,3 +65,70 @@ func TestProviderAccountUpsertListAndGet(t *testing.T) {
 	}
 }
 
+func TestPaymentIntentAttemptAndStatusCheckStorage(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	intentID, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+		ExternalRef:  "rb-001",
+		ProviderCode: domain.ProviderMidtrans,
+		Amount:       15000,
+		Currency:     "IDR",
+		Status:       domain.PaymentStatusPending,
+	})
+	if err != nil {
+		t.Fatalf("UpsertPaymentIntent returned error: %v", err)
+	}
+
+	intent, err := store.GetPaymentIntentByExternalRef(ctx, "rb-001")
+	if err != nil {
+		t.Fatalf("GetPaymentIntentByExternalRef returned error: %v", err)
+	}
+	if intent.ID != intentID {
+		t.Fatalf("GetPaymentIntentByExternalRef ID = %q, want %q", intent.ID, intentID)
+	}
+
+	attemptID, err := store.RecordPaymentAttempt(ctx, domain.PaymentAttempt{
+		PaymentIntentID:   intentID,
+		ProviderCode:      domain.ProviderMidtrans,
+		RequestJSON:       []byte(`{"test":true}`),
+		ResponseJSON:      []byte(`{"status":"pending"}`),
+		Status:            domain.PaymentStatusPending,
+		ProviderReference: "order-123",
+	})
+	if err != nil {
+		t.Fatalf("RecordPaymentAttempt returned error: %v", err)
+	}
+	if attemptID == "" {
+		t.Fatal("RecordPaymentAttempt returned empty id")
+	}
+
+	latestAttempt, err := store.GetLatestPaymentAttemptByIntent(ctx, intentID, domain.ProviderMidtrans)
+	if err != nil {
+		t.Fatalf("GetLatestPaymentAttemptByIntent returned error: %v", err)
+	}
+	if latestAttempt.ProviderReference != "order-123" {
+		t.Fatalf("latest attempt reference = %q, want order-123", latestAttempt.ProviderReference)
+	}
+
+	checkID, err := store.RecordPaymentStatusCheck(ctx, domain.PaymentStatusCheck{
+		PaymentIntentID:   intentID,
+		ProviderCode:      domain.ProviderMidtrans,
+		RequestJSON:       []byte(`{"order_id":"rb-001"}`),
+		ResponseJSON:      []byte(`{"transaction_status":"pending"}`),
+		Status:            domain.PaymentStatusPending,
+		ProviderReference: "order-123",
+	})
+	if err != nil {
+		t.Fatalf("RecordPaymentStatusCheck returned error: %v", err)
+	}
+	if checkID == "" {
+		t.Fatal("RecordPaymentStatusCheck returned empty id")
+	}
+}

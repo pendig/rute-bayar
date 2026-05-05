@@ -246,8 +246,67 @@ func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaym
 	return response, nil
 }
 
-func (a *Adapter) GetPaymentStatus(context.Context, string) (domain.PaymentStatus, []byte, error) {
-	return "", nil, errors.New("midtrans payment status is not implemented yet")
+func (a *Adapter) GetPaymentStatus(ctx context.Context, orderID string) (provider.PaymentStatusResponse, error) {
+	if a.serverKey == "" {
+		return provider.PaymentStatusResponse{}, errors.New("midtrans server key is required")
+	}
+	orderID = strings.TrimSpace(orderID)
+	if orderID == "" {
+		return provider.PaymentStatusResponse{}, errors.New("midtrans order id is required")
+	}
+
+	rawRequest := []byte(fmt.Sprintf(`{"order_id":"%s"}`, orderID))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.baseURL+"/v2/"+orderID+"/status", nil)
+	if err != nil {
+		return provider.PaymentStatusResponse{}, fmt.Errorf("create midtrans payment status request: %w", err)
+	}
+	req.SetBasicAuth(a.serverKey, "")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return provider.PaymentStatusResponse{RawRequestJSON: rawRequest}, fmt.Errorf("call midtrans payment status: %w", err)
+	}
+	defer resp.Body.Close()
+
+	rawResponse, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return provider.PaymentStatusResponse{RawRequestJSON: rawRequest}, fmt.Errorf("read midtrans payment status response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return provider.PaymentStatusResponse{RawRequestJSON: rawRequest, RawResponseJSON: rawResponse}, fmt.Errorf("midtrans payment status returned status %d", resp.StatusCode)
+	}
+
+	var parsed midtransStatusResponse
+	if err := json.Unmarshal(rawResponse, &parsed); err != nil {
+		return provider.PaymentStatusResponse{RawRequestJSON: rawRequest, RawResponseJSON: rawResponse}, fmt.Errorf("unmarshal midtrans payment status response: %w", err)
+	}
+
+	response := provider.PaymentStatusResponse{
+		ProviderReference: parsed.OrderID,
+		TransactionID:     parsed.TransactionID,
+		OrderID:           parsed.OrderID,
+		PaymentType:       parsed.PaymentType,
+		StatusCode:        parsed.StatusCode,
+		StatusMessage:     parsed.StatusMessage,
+		TransactionStatus: parsed.TransactionStatus,
+		FraudStatus:       parsed.FraudStatus,
+		ExpiryTime:        parsed.ExpiryTime,
+		Status:            MapTransactionStatus(parsed.TransactionStatus, parsed.FraudStatus),
+		RawRequestJSON:    rawRequest,
+		RawResponseJSON:   rawResponse,
+	}
+	if len(parsed.VANumbers) > 0 {
+		response.VANumber = parsed.VANumbers[0].VANumber
+	} else if parsed.PermataVANumber != "" {
+		response.VANumber = parsed.PermataVANumber
+	} else if parsed.BCAVANumber != "" {
+		response.VANumber = parsed.BCAVANumber
+	}
+	if parsed.RedirectURL != "" {
+		response.RedirectURL = parsed.RedirectURL
+	}
+	return response, nil
 }
 
 func (a *Adapter) RefundPayment(context.Context, provider.RefundRequest) (provider.RefundResponse, error) {
@@ -299,4 +358,24 @@ type midtransChargeResponse struct {
 	} `json:"va_numbers"`
 	ExpiryTime  string `json:"expiry_time"`
 	RedirectURL string `json:"redirect_url"`
+}
+
+type midtransStatusResponse struct {
+	StatusCode        string `json:"status_code"`
+	StatusMessage     string `json:"status_message"`
+	TransactionID     string `json:"transaction_id"`
+	OrderID           string `json:"order_id"`
+	PaymentType       string `json:"payment_type"`
+	TransactionStatus string `json:"transaction_status"`
+	FraudStatus       string `json:"fraud_status"`
+	VANumbers         []struct {
+		Bank     string `json:"bank"`
+		VANumber string `json:"va_number"`
+	} `json:"va_numbers"`
+	PermataVANumber string `json:"permata_va_number"`
+	BCAVANumber     string `json:"bca_va_number"`
+	BillKey         string `json:"bill_key"`
+	BillerCode      string `json:"biller_code"`
+	ExpiryTime      string `json:"expiry_time"`
+	RedirectURL     string `json:"redirect_url"`
 }

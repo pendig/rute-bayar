@@ -40,6 +40,23 @@ type CreatePaymentResponse struct {
 	RawResponseJSON   []byte
 }
 
+type PaymentStatusResponse struct {
+	ProviderReference string
+	TransactionID     string
+	OrderID           string
+	PaymentType       string
+	StatusCode        string
+	StatusMessage     string
+	TransactionStatus string
+	FraudStatus       string
+	VANumber          string
+	ExpiryTime        string
+	RedirectURL       string
+	Status            domain.PaymentStatus
+	RawRequestJSON    []byte
+	RawResponseJSON   []byte
+}
+
 type RefundRequest struct {
 	ProviderReference string
 	Amount            int64
@@ -71,7 +88,7 @@ type Adapter interface {
 	Code() domain.ProviderCode
 	Capabilities() []Capability
 	CreatePayment(context.Context, CreatePaymentRequest) (CreatePaymentResponse, error)
-	GetPaymentStatus(context.Context, string) (domain.PaymentStatus, []byte, error)
+	GetPaymentStatus(context.Context, string) (PaymentStatusResponse, error)
 	RefundPayment(context.Context, RefundRequest) (RefundResponse, error)
 	VerifyWebhook(context.Context, WebhookRequest) error
 	ParseWebhook(context.Context, WebhookRequest) (WebhookEvent, error)

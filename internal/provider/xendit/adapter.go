@@ -124,8 +124,53 @@ func (a *Adapter) CreatePayment(context.Context, provider.CreatePaymentRequest) 
 	return provider.CreatePaymentResponse{}, errors.New("xendit create payment is not implemented yet")
 }
 
-func (a *Adapter) GetPaymentStatus(context.Context, string) (domain.PaymentStatus, []byte, error) {
-	return "", nil, errors.New("xendit payment status is not implemented yet")
+func (a *Adapter) GetPaymentStatus(ctx context.Context, sessionID string) (provider.PaymentStatusResponse, error) {
+	if a.secretKey == "" {
+		return provider.PaymentStatusResponse{}, errors.New("xendit secret key is required")
+	}
+	sessionID = strings.TrimSpace(sessionID)
+	if sessionID == "" {
+		return provider.PaymentStatusResponse{}, errors.New("xendit session id is required")
+	}
+
+	rawRequest := []byte(fmt.Sprintf(`{"id":"%s"}`, sessionID))
+	req, err := http.NewRequestWithContext(ctx, http.MethodGet, a.baseURL+"/sessions/"+sessionID, nil)
+	if err != nil {
+		return provider.PaymentStatusResponse{}, fmt.Errorf("create xendit payment status request: %w", err)
+	}
+	req.SetBasicAuth(a.secretKey, "")
+	req.Header.Set("Accept", "application/json")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return provider.PaymentStatusResponse{RawRequestJSON: rawRequest}, fmt.Errorf("call xendit payment status: %w", err)
+	}
+	defer resp.Body.Close()
+
+	rawResponse, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return provider.PaymentStatusResponse{RawRequestJSON: rawRequest}, fmt.Errorf("read xendit payment status response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return provider.PaymentStatusResponse{RawRequestJSON: rawRequest, RawResponseJSON: rawResponse}, fmt.Errorf("xendit payment status returned status %d", resp.StatusCode)
+	}
+
+	var parsed xenditSessionResponse
+	if err := json.Unmarshal(rawResponse, &parsed); err != nil {
+		return provider.PaymentStatusResponse{RawRequestJSON: rawRequest, RawResponseJSON: rawResponse}, fmt.Errorf("unmarshal xendit payment status response: %w", err)
+	}
+
+	response := provider.PaymentStatusResponse{
+		ProviderReference: parsed.ID,
+		OrderID:           parsed.ReferenceID,
+		PaymentType:       parsed.Mode,
+		StatusMessage:     parsed.Status,
+		Status:            mapXenditSessionStatus(parsed.Status),
+		RawRequestJSON:    rawRequest,
+		RawResponseJSON:   rawResponse,
+		RedirectURL:       parsed.PaymentLinkURL,
+	}
+	return response, nil
 }
 
 func (a *Adapter) RefundPayment(context.Context, provider.RefundRequest) (provider.RefundResponse, error) {
@@ -150,4 +195,29 @@ func numberFromMap(payload map[string]any, key string) *float64 {
 		return nil
 	}
 	return &number
+}
+
+type xenditSessionResponse struct {
+	ID             string `json:"id"`
+	ReferenceID    string `json:"reference_id"`
+	Mode           string `json:"mode"`
+	Status         string `json:"status"`
+	PaymentLinkURL  string `json:"payment_link_url"`
+}
+
+func mapXenditSessionStatus(status string) domain.PaymentStatus {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case "ACTIVE":
+		return domain.PaymentStatusPending
+	case "COMPLETED":
+		return domain.PaymentStatusSettled
+	case "EXPIRED":
+		return domain.PaymentStatusExpired
+	case "CANCELLED":
+		return domain.PaymentStatusCancelled
+	case "FAILED":
+		return domain.PaymentStatusFailed
+	default:
+		return domain.PaymentStatusPending
+	}
 }

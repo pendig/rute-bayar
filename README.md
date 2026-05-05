@@ -4,7 +4,7 @@ Rute Bayar is an open source payment router for Indonesian payment gateways.
 
 The project provides one internal interface for multiple providers, starting with **Xendit** and **Midtrans**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
 
-> Status: early scaffold. The repository already contains the project structure, domain contracts, daemon skeleton, forwarding skeleton, docs, and initial SQLite migration. Provider API implementations are still in progress.
+> Status: alpha preview. The repository already contains the project structure, domain contracts, daemon skeleton, forwarding skeleton, docs, SQLite persistence, provider onboarding, Midtrans `pay create`, and `pay status`. Webhook verification, forwarding management, and CI are still in progress.
 
 ## Features
 
@@ -103,7 +103,7 @@ rute-bayar provider accounts
 rute-bayar provider test midtrans
 rute-bayar provider test xendit
 rute-bayar pay create --provider midtrans --method bank_transfer --bank bca --reference rb-0001 --amount 15000
-rute-bayar pay status
+rute-bayar pay status --provider midtrans --reference rb-0001
 rute-bayar pay refund
 rute-bayar webhook serve --addr :8080
 rute-bayar webhook replay

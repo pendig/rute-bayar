@@ -96,6 +96,28 @@ Catatan penting:
 - `response_json` adalah inbound mentah dari provider.
 - Ini wajib untuk debugging, audit, dan replay.
 
+### payment_status_checks
+
+Menyimpan setiap percobaan status inquiry ke provider.
+
+Field yang disarankan:
+
+- `id`
+- `payment_intent_id`
+- `provider_id`
+- `request_json`
+- `response_json`
+- `status`
+- `provider_reference`
+- `created_at`
+- `updated_at`
+
+Catatan penting:
+
+- `request_json` adalah request mentah ke provider untuk cek status.
+- `response_json` adalah response mentah dari provider.
+- Ini membantu audit, replay, dan debugging status yang berubah belakangan.
+
 ### webhook_events
 
 Menyimpan event webhook masuk.
@@ -213,6 +235,8 @@ Tujuan:
 - `provider_accounts.provider_id + provider_accounts.environment`
 - `payment_attempts.payment_intent_id`
 - `payment_attempts.provider_reference`
+- `payment_status_checks.payment_intent_id`
+- `payment_status_checks.provider_reference`
 - `webhook_events.provider_event_id`
 - `webhook_events.event_type`
 - `webhook_forwarding_targets.provider_id`

@@ -69,6 +69,18 @@ type PaymentAttempt struct {
 	UpdatedAt         time.Time
 }
 
+type PaymentStatusCheck struct {
+	ID                string
+	PaymentIntentID   string
+	ProviderCode      ProviderCode
+	RequestJSON       json.RawMessage
+	ResponseJSON      json.RawMessage
+	Status            PaymentStatus
+	ProviderReference string
+	CreatedAt         time.Time
+	UpdatedAt         time.Time
+}
+
 type WebhookEvent struct {
 	ID               string
 	ProviderCode     ProviderCode
@@ -94,4 +106,3 @@ type Refund struct {
 	CreatedAt         time.Time
 	UpdatedAt         time.Time
 }
-

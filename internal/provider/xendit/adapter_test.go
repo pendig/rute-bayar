@@ -6,6 +6,8 @@ import (
 	"net/http"
 	"net/http/httptest"
 	"testing"
+
+	"github.com/pendig/rute-bayar/internal/domain"
 )
 
 func TestTestAuthSendsBasicAuth(t *testing.T) {
@@ -93,5 +95,42 @@ func TestTestAuthRejectsMalformedJSON(t *testing.T) {
 	adapter := New(WithSecretKey("secret_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
 	if _, err := adapter.TestAuth(context.Background()); err == nil {
 		t.Fatal("TestAuth returned nil error for malformed JSON")
+	}
+}
+
+func TestGetPaymentStatusMapsActiveSession(t *testing.T) {
+	t.Parallel()
+
+	var requestedPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPath = r.URL.Path
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{
+			"id":"ps_123",
+			"reference_id":"rb-001",
+			"mode":"PAYMENT_LINK",
+			"status":"ACTIVE",
+			"payment_link_url":"https://example.com/pay"
+		}`))
+	}))
+	defer server.Close()
+
+	adapter := New(WithSecretKey("secret_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	result, err := adapter.GetPaymentStatus(context.Background(), "ps_123")
+	if err != nil {
+		t.Fatalf("GetPaymentStatus returned error: %v", err)
+	}
+	if requestedPath != "/sessions/ps_123" {
+		t.Fatalf("requested path = %q, want /sessions/ps_123", requestedPath)
+	}
+	if result.Status != domain.PaymentStatusPending {
+		t.Fatalf("Status = %q, want pending", result.Status)
+	}
+	if result.ProviderReference != "ps_123" {
+		t.Fatalf("ProviderReference = %q, want ps_123", result.ProviderReference)
+	}
+	if result.OrderID != "rb-001" {
+		t.Fatalf("OrderID = %q, want rb-001", result.OrderID)
 	}
 }

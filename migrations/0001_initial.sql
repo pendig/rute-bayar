@@ -43,6 +43,18 @@ CREATE TABLE IF NOT EXISTS payment_attempts (
   updated_at TEXT NOT NULL
 );
 
+CREATE TABLE IF NOT EXISTS payment_status_checks (
+  id TEXT PRIMARY KEY,
+  payment_intent_id TEXT NOT NULL REFERENCES payment_intents(id),
+  provider_id TEXT NOT NULL REFERENCES providers(id),
+  request_json TEXT NOT NULL,
+  response_json TEXT NOT NULL,
+  status TEXT NOT NULL,
+  provider_reference TEXT,
+  created_at TEXT NOT NULL,
+  updated_at TEXT NOT NULL
+);
+
 CREATE TABLE IF NOT EXISTS webhook_events (
   id TEXT PRIMARY KEY,
   provider_id TEXT NOT NULL REFERENCES providers(id),
@@ -110,6 +122,8 @@ CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_intents_external_ref_unique ON pay
 CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_accounts_provider_environment ON provider_accounts(provider_id, environment);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_payment_intent_id ON payment_attempts(payment_intent_id);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_provider_reference ON payment_attempts(provider_reference);
+CREATE INDEX IF NOT EXISTS idx_payment_status_checks_payment_intent_id ON payment_status_checks(payment_intent_id);
+CREATE INDEX IF NOT EXISTS idx_payment_status_checks_provider_reference ON payment_status_checks(provider_reference);
 CREATE INDEX IF NOT EXISTS idx_webhook_events_provider_event_id ON webhook_events(provider_event_id);
 CREATE INDEX IF NOT EXISTS idx_webhook_events_event_type ON webhook_events(event_type);
 CREATE INDEX IF NOT EXISTS idx_webhook_forwarding_targets_provider_id ON webhook_forwarding_targets(provider_id);

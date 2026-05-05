@@ -200,3 +200,47 @@ func TestCreatePaymentRequiresBankTransferFields(t *testing.T) {
 		t.Fatal("CreatePayment returned nil error without bank code")
 	}
 }
+
+func TestGetPaymentStatusBankTransfer(t *testing.T) {
+	t.Parallel()
+
+	var requestedPath string
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		requestedPath = r.URL.Path
+		if r.Header.Get("Authorization") == "" {
+			t.Fatal("Authorization header is empty")
+		}
+		w.Header().Set("Content-Type", "application/json")
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{
+			"status_code":"200",
+			"status_message":"Success, transaction is found",
+			"transaction_id":"tx-123",
+			"order_id":"order-123",
+			"payment_type":"bank_transfer",
+			"transaction_status":"pending",
+			"fraud_status":"accept",
+			"va_numbers":[{"bank":"bca","va_number":"1234567890"}],
+			"expiry_time":"2026-05-05 18:00:00 +0700"
+		}`))
+	}))
+	defer server.Close()
+
+	adapter := New(WithServerKey("server_key"), WithBaseURL(server.URL), WithHTTPClient(server.Client()))
+	result, err := adapter.GetPaymentStatus(context.Background(), "order-123")
+	if err != nil {
+		t.Fatalf("GetPaymentStatus returned error: %v", err)
+	}
+	if requestedPath != "/v2/order-123/status" {
+		t.Fatalf("requested path = %q, want /v2/order-123/status", requestedPath)
+	}
+	if result.Status != domain.PaymentStatusPending {
+		t.Fatalf("Status = %q, want pending", result.Status)
+	}
+	if result.VANumber != "1234567890" {
+		t.Fatalf("VANumber = %q, want 1234567890", result.VANumber)
+	}
+	if result.OrderID != "order-123" {
+		t.Fatalf("OrderID = %q, want order-123", result.OrderID)
+	}
+}

@@ -17,7 +17,9 @@ Dokumen ini mencatat status implementasi teknis Rute Bayar agar contributor muda
 - Midtrans onboarding ke SQLite.
 - Midtrans provider auth test via status inquiry order dummy.
 - Midtrans `pay create` untuk Core API bank transfer.
+- Midtrans `pay status` untuk status inquiry order/VA.
 - Persistence raw outbound request/response JSON untuk payment attempt.
+- Persistence raw outbound request/response JSON untuk payment status check.
 - Unit test untuk utility CLI, provider auth request, provider account storage, dan status mapping penting.
 
 ## Belum Ada
