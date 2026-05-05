@@ -78,7 +78,8 @@ curl -i -X POST http://localhost:8080/webhooks/midtrans \
   -d "{\"order_id\":\"$MIDTRANS_ORDER_ID\",\"status_code\":\"$MIDTRANS_STATUS_CODE\",\"gross_amount\":\"$MIDTRANS_GROSS_AMOUNT\",\"transaction_status\":\"capture\",\"fraud_status\":\"accept\",\"payment_type\":\"bank_transfer\",\"signature_key\":\"$MIDTRANS_SIGNATURE\",\"transaction_id\":\"trx_001\",\"transaction_time\":\"2026-05-05T00:00:00Z\"}"
 ```
 
-Kedua endpoint di atas seharusnya mengembalikan `202 Accepted`.
+Untuk payload yang valid dan lolos verifikasi provider (jika konfigurasi tersedia), kedua endpoint di atas seharusnya mengembalikan `202 Accepted`.
+Jika verifikasi gagal (misalnya signature/token tidak cocok), daemon akan mengembalikan `400`.
 
 ## Troubleshooting Khusus Provider
 
@@ -89,13 +90,14 @@ Kedua endpoint di atas seharusnya mengembalikan `202 Accepted`.
   - pastikan payload ada semua field berikut: `order_id`, `status_code`, `gross_amount`, `signature_key`.
   - pastikan nilai `gross_amount` di webhook sama persis (format string/numerik) dengan nilai yang dihitung `Midtrans`.
   - hitung ulang `signature_key` dengan `sha512(order_id + status_code + gross_amount + server_key)` (tanpa pemisah).
+  - `gross_amount` di payload Midtrans biasanya berupa string, contoh: `"10000.00"` atau `"10000"`.
 - Jika webhook `200/202` tidak masuk ke log parse:
   - cek apakah payload webhook sudah termasuk `transaction_status` dan `fraud_status` agar mapping status bisa lebih lengkap.
   - cek `handler` tidak terbentuk bila akun Midtrans belum di-onboard; di mode itu verification tidak akan jalan.
 
 ### Xendit
 
-- Response `400 Bad Request` dengan `callback token`:
+- Response `400 Bad Request` dengan kesalahan `callback token`:
   - pastikan Xendit mengirim header `X-Callback-Token` bila token di-set saat onboarding.
   - jika tidak pakai token saat ini, hapus `--webhook-token` saat onboarding lalu restart daemon.
 - Jika webhook 202 tapi tidak ada efek `payment_status`:

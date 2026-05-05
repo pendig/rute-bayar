@@ -21,8 +21,8 @@ Dokumen ini mencatat status implementasi teknis Rute Bayar agar contributor muda
 - Persistence raw outbound request/response JSON untuk payment attempt.
 - Persistence raw outbound request/response JSON untuk payment status check.
 - Unit test untuk utility CLI, provider auth request, provider account storage, dan status mapping penting.
-- Webhook signature verification untuk Midtrans.
-- Webhook callback token verification untuk Xendit.
+- Webhook signature verification untuk Midtrans (tergantung akun/onboarding key tersedia).
+- Webhook callback token verification untuk Xendit (jika token konfigurasi diset).
 - Webhook parsing event untuk payload Midtrans dan Xendit.
 
 ## Belum Ada
