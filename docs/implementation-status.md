@@ -21,14 +21,15 @@ Dokumen ini mencatat status implementasi teknis Rute Bayar agar contributor muda
 - Persistence raw outbound request/response JSON untuk payment attempt.
 - Persistence raw outbound request/response JSON untuk payment status check.
 - Unit test untuk utility CLI, provider auth request, provider account storage, dan status mapping penting.
+- Webhook signature verification untuk Midtrans (tergantung akun/onboarding key tersedia).
+- Webhook callback token verification untuk Xendit (jika token konfigurasi diset).
+- Webhook parsing event untuk payload Midtrans dan Xendit.
 
 ## Belum Ada
 
-- Xendit Payment Session adapter untuk create/status/refund.
-- Midtrans Snap/Core adapter untuk status/refund dan perluasan metode lain.
-- Webhook verification untuk Xendit.
-- Webhook signature verification untuk Midtrans.
-- Webhook event parsing dan status update internal.
+- Xendit Payment Session adapter untuk create/refund.
+- Midtrans Snap/Core adapter untuk create/refund dan perluasan metode lain.
+- Status update internal dari webhook untuk `payment_intents`.
 - Forwarding target management yang persist lewat CLI.
 - CI GitHub Actions.
 
@@ -45,10 +46,14 @@ rute-bayar pay create --provider midtrans --method bank_transfer --bank bca --re
 
 ## Catatan Verifikasi Lokal
 
-Saat dokumen ini ditulis, environment kerja belum memiliki Go toolchain di PATH. Karena itu `go test ./...` belum bisa dijalankan lokal dari sesi ini.
+Verifikasi terbaru:
 
-Verifikasi yang sudah bisa dilakukan:
+- `healthz` lokal dan simulasi webhook sudah bisa di-check dari lingkungan pengujian yang memungkinkan socket local.
+- `wrangler tunnel quick-start` untuk URL sementara bisa dipakai untuk simulasi callback publik.
+
+Verifikasi tambahan yang tetap direkomendasikan:
 
 ```bash
 sqlite3 :memory: ".read migrations/0001_initial.sql"
+curl -i http://localhost:8080/healthz
 ```
