@@ -4,8 +4,8 @@ import (
 	"context"
 	"sync"
 
-	"github.com/pena-digital/rute-bayar/internal/domain"
-	"github.com/pena-digital/rute-bayar/internal/forwarding"
+	"github.com/pendig/rute-bayar/internal/domain"
+	"github.com/pendig/rute-bayar/internal/forwarding"
 )
 
 type ForwardingStore struct {

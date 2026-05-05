@@ -1,52 +1,204 @@
 # Rute Bayar
 
-Rute Bayar adalah payment router berbasis Go untuk menjembatani provider payment gateway Indonesia seperti Midtrans dan Xendit.
+Rute Bayar is an open source payment router for Indonesian payment gateways.
 
-Project ini dirancang sebagai:
+The project provides one internal interface for multiple providers, starting with **Xendit** and **Midtrans**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
 
-- CLI untuk onboarding, operasi payment, status, refund, dan forwarding setup.
-- Daemon untuk webhook receiver, verification, reconciliation, dan webhook forwarding.
+> Status: early scaffold. The repository already contains the project structure, domain contracts, daemon skeleton, forwarding skeleton, docs, and initial SQLite migration. Provider API implementations are still in progress.
 
-## Prinsip
+## Features
+
+- Modular provider adapters.
+- CLI-first onboarding and operations.
+- Webhook daemon per provider.
+- Pass-through webhook forwarding.
+- Raw inbound and outbound JSON storage for debugging and audit.
+- SQLite-first local storage.
+- Initial support target: Xendit Payment Sessions and Midtrans.
+
+## Quick Start
+
+Clone the repository:
+
+```bash
+git clone git@github.com:pendig/rute-bayar.git
+cd rute-bayar
+```
+
+Install Go 1.22 or newer, then check the CLI:
+
+```bash
+go run ./cmd/rute-bayar version
+go run ./cmd/rute-bayar provider list
+```
+
+Start the webhook daemon:
+
+```bash
+go run ./cmd/rute-bayar webhook serve --addr :8080
+```
+
+Check the daemon:
+
+```bash
+curl http://localhost:8080/healthz
+```
+
+Send a local webhook simulation:
+
+```bash
+curl -X POST http://localhost:8080/webhooks/xendit \
+  -H 'Content-Type: application/json' \
+  -d '{"event":"payment_session.created","status":"ACTIVE"}'
+```
+
+The current daemon accepts the webhook and runs the forwarding scaffold. Provider verification and persistence are planned next.
+
+## Installation
+
+Build a local binary:
+
+```bash
+go build -o bin/rute-bayar ./cmd/rute-bayar
+```
+
+Run it:
+
+```bash
+./bin/rute-bayar version
+```
+
+Install into your Go binary path:
+
+```bash
+go install github.com/pendig/rute-bayar/cmd/rute-bayar@latest
+```
+
+For now, prefer local builds from the repository until the first tagged release is published.
+
+## Usage
+
+Available command skeleton:
+
+```bash
+rute-bayar onboard
+rute-bayar provider list
+rute-bayar provider test
+rute-bayar pay create
+rute-bayar pay status
+rute-bayar pay refund
+rute-bayar webhook serve --addr :8080
+rute-bayar webhook replay
+rute-bayar webhook forward list
+rute-bayar webhook forward add
+rute-bayar webhook forward update
+rute-bayar webhook forward remove
+rute-bayar reconcile
+rute-bayar version
+```
+
+These commands establish the intended user experience. The next implementation milestone is wiring them to SQLite and provider adapters.
+
+## Configuration
+
+Copy the example environment file:
+
+```bash
+cp .env.example .env
+```
+
+Default local configuration:
+
+```env
+RUTE_BAYAR_ENV=sandbox
+RUTE_BAYAR_DB_PATH=./rute-bayar.sqlite3
+RUTE_BAYAR_WEBHOOK_ADDR=:8080
+```
+
+Do not commit `.env` or provider credentials. The file is ignored by Git.
+
+## Development
+
+Run formatting and tests:
+
+```bash
+gofmt -w ./cmd ./internal
+go test ./...
+```
+
+Validate the SQLite migration:
+
+```bash
+sqlite3 :memory: ".read migrations/0001_initial.sql"
+```
+
+Project layout:
+
+- `cmd/rute-bayar`: CLI entrypoint.
+- `internal/cli`: command routing.
+- `internal/daemon`: HTTP daemon for webhook receiving.
+- `internal/domain`: provider-neutral domain types.
+- `internal/provider`: provider adapter contracts and registry.
+- `internal/forwarding`: pass-through webhook forwarding service.
+- `internal/storage`: storage implementations.
+- `migrations`: SQLite schema migrations.
+- `docs`: product and technical documentation.
+
+## Provider Notes
+
+Xendit sandbox simulation has been tested with Payment Sessions:
+
+- `POST /sessions` creates a Payment Session.
+- `GET /sessions/{session_id}` retrieves status.
+- Initial Xendit `ACTIVE` status maps naturally to Rute Bayar `pending`.
+- `items[].category` is required for the tested Payment Session payload.
+
+See [docs/xendit-sandbox-simulation.md](./docs/xendit-sandbox-simulation.md).
+
+## Design Principles
 
 - Modular per provider.
-- Simpan inbound dan outbound sebagai JSON mentah.
-- Webhook forwarding pass-through.
-- Konfigurasi forwarding bisa diatur lewat CLI.
-- SQLite dipakai sebagai storage awal.
+- Keep provider-specific behavior inside adapter packages.
+- Store inbound and outbound payloads as raw JSON.
+- Keep webhook forwarding pass-through by default.
+- Make CLI onboarding simple before asking users to configure providers manually.
+- Start with SQLite, but keep the domain portable.
 
-## Dokumentasi
+## Documentation
 
-Lihat folder [docs](./docs) untuk dokumen desain awal:
+Read the project docs:
 
-- [PRD](./docs/prd.md)
-- [Arsitektur](./docs/architecture.md)
+- [Product Requirements](./docs/prd.md)
+- [Architecture](./docs/architecture.md)
 - [Model Data](./docs/data-model.md)
 - [CLI Onboarding](./docs/cli-onboarding.md)
 - [Provider Integration](./docs/provider-integration.md)
 - [Webhook Forwarding](./docs/webhook-forwarding.md)
 - [Development](./docs/development.md)
+- [Xendit Sandbox Simulation](./docs/xendit-sandbox-simulation.md)
 
-## Struktur Awal
+## Roadmap
 
-- `cmd/rute-bayar`: entrypoint CLI.
-- `internal/cli`: command routing CLI.
-- `internal/daemon`: HTTP daemon untuk webhook.
-- `internal/domain`: model internal netral provider.
-- `internal/provider`: kontrak adapter provider.
-- `internal/forwarding`: webhook forwarding pass-through.
-- `migrations`: skema SQLite awal.
+- Implement SQLite storage layer.
+- Wire CLI onboarding to provider account storage.
+- Implement Xendit Payment Session create/status/refund.
+- Implement Xendit webhook verification and parsing.
+- Implement Midtrans create/status/refund and notification handling.
+- Persist raw inbound/outbound JSON for every provider operation.
+- Add webhook forwarding target management via CLI.
 
-## Rekomendasi Teknologi
+## Contributing
 
-- Bahasa: Go
-- Database: SQLite
-- Distribusi: single binary
+Issues, ideas, and pull requests are welcome. For larger changes, please open an issue first so the design can stay aligned with the provider adapter model.
 
-## Konfigurasi Lokal
+Before opening a pull request:
 
-Contoh environment tersedia di [.env.example](./.env.example).
+- Run `gofmt -w ./cmd ./internal`.
+- Run `go test ./...`.
+- Avoid committing provider credentials, `.env`, local SQLite files, or raw secret-bearing payloads.
 
 ## License
 
-Open source under the MIT License. See [LICENSE](./LICENSE).
+Rute Bayar is open source under the [MIT License](./LICENSE).
+
+Copyright (c) 2026 Wahyu Adi Putra Pena Digital.

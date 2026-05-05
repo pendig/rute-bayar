@@ -4,7 +4,7 @@ import (
 	"fmt"
 	"os"
 
-	"github.com/pena-digital/rute-bayar/internal/cli"
+	"github.com/pendig/rute-bayar/internal/cli"
 )
 
 func main() {

@@ -8,10 +8,10 @@ import (
 	"os"
 	"strings"
 
-	"github.com/pena-digital/rute-bayar/internal/build"
-	"github.com/pena-digital/rute-bayar/internal/daemon"
-	"github.com/pena-digital/rute-bayar/internal/forwarding"
-	"github.com/pena-digital/rute-bayar/internal/storage/memory"
+	"github.com/pendig/rute-bayar/internal/build"
+	"github.com/pendig/rute-bayar/internal/daemon"
+	"github.com/pendig/rute-bayar/internal/forwarding"
+	"github.com/pendig/rute-bayar/internal/storage/memory"
 )
 
 func Execute(args []string) error {

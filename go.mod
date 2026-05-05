@@ -1,4 +1,4 @@
-module github.com/pena-digital/rute-bayar
+module github.com/pendig/rute-bayar
 
 go 1.22
 

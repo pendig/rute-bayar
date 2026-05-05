@@ -9,7 +9,7 @@ import (
 	"net/http"
 	"time"
 
-	"github.com/pena-digital/rute-bayar/internal/domain"
+	"github.com/pendig/rute-bayar/internal/domain"
 )
 
 type Target struct {
