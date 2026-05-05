@@ -131,6 +131,13 @@ Status inquiry untuk order yang sama:
 - Core API cocok untuk flow spesifik seperti virtual account, QRIS, dan e-wallet.
 - Webhook Midtrans tetap harus diverifikasi dengan signature resmi provider.
 
+## Command CLI Terkait
+
+```bash
+rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
+rute-bayar provider test midtrans
+```
+
 ## Catatan Keamanan
 
 - Server Key dan Client Key tidak boleh disimpan di repository.

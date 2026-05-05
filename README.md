@@ -198,6 +198,7 @@ Read the project docs:
 - [Model Data](./docs/data-model.md)
 - [CLI Onboarding](./docs/cli-onboarding.md)
 - [Provider Integration](./docs/provider-integration.md)
+- [Implementation Status](./docs/implementation-status.md)
 - [Webhook Forwarding](./docs/webhook-forwarding.md)
 - [Development](./docs/development.md)
 - [Xendit Sandbox Simulation](./docs/xendit-sandbox-simulation.md)

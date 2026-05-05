@@ -33,6 +33,27 @@ Core system harus punya status netral provider, misalnya:
 
 Provider-specific status harus selalu dipetakan ke status internal ini.
 
+### Mapping Awal Midtrans
+
+- `pending` -> `pending`
+- `settlement` -> `settled`
+- `capture` + `fraud_status: accept` -> `captured`
+- `capture` + fraud status selain `accept` -> `pending`
+- `deny` -> `failed`
+- `failure` -> `failed`
+- `cancel` -> `cancelled`
+- `expire` -> `expired`
+- `refund` -> `refunded`
+- `partial_refund` -> `partial_refunded`
+
+Catatan: mapping `settlement -> settled` dipilih agar status provider tetap informatif. Jika consumer butuh status bisnis yang lebih sederhana, application layer bisa memperlakukan `settled` sebagai paid-like final state.
+
+### Mapping Awal Xendit
+
+- Payment Session `ACTIVE` -> `pending`
+
+Mapping Xendit lain perlu dilengkapi saat implementasi create/status Payment Session masuk.
+
 ## Webhook Handling
 
 Untuk setiap provider:
