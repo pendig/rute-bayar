@@ -4,7 +4,7 @@ Rute Bayar is an open source payment router for Indonesian payment gateways.
 
 The project provides one internal interface for multiple providers, starting with **Xendit** and **Midtrans**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
 
-> Status: alpha preview. The repository already contains the project structure, domain contracts, daemon skeleton, forwarding skeleton, docs, SQLite persistence, provider onboarding, Midtrans `pay create`, and `pay status`. Webhook verification, forwarding management, and CI are still in progress.
+> Status: alpha preview. The repository already contains webhook signature verification for Midtrans and callback-token verification for Xendit, plus Midtrans `pay create`, `pay status`, and SQLite persistence. Forwarding target management and CI are still in progress.
 
 ## Features
 
@@ -49,13 +49,28 @@ rute-bayar provider test midtrans
 Start the webhook daemon:
 
 ```bash
-go run ./cmd/rute-bayar webhook serve --addr :8080
+go run ./cmd/rute-bayar webhook serve --addr :8080 --environment sandbox
 ```
 
 Check the daemon:
 
 ```bash
 curl http://localhost:8080/healthz
+```
+
+### Local Webhook + Health Check
+
+Run daemon and verify:
+
+```bash
+go run ./cmd/rute-bayar webhook serve --addr :8080 --environment sandbox
+curl -i http://localhost:8080/healthz
+```
+
+Expected:
+
+```json
+{"status":"ok"}
 ```
 
 Send a local webhook simulation:
@@ -66,7 +81,30 @@ curl -X POST http://localhost:8080/webhooks/xendit \
   -d '{"event":"payment_session.created","status":"ACTIVE"}'
 ```
 
-The current daemon accepts the webhook and runs the forwarding scaffold. Provider verification and persistence are planned next.
+### Cloudflare Tunnel Test (temporary)
+
+If you need a public URL for provider callback testing:
+
+```bash
+wrangler tunnel quick-start http://localhost:8080
+```
+
+After Cloudflare prints a public URL (for example `https://xxxx.trycloudflare.com`), verify:
+
+```bash
+curl -i https://xxxx.trycloudflare.com/healthz
+```
+
+Set provider webhook URL to:
+
+```text
+https://xxxx.trycloudflare.com/webhooks/xendit
+https://xxxx.trycloudflare.com/webhooks/midtrans
+```
+
+The daemon now verifies webhook signatures when credentials are configured:
+- Midtrans: `signature_key` is validated with `order_id + status_code + gross_amount + server_key`.
+- Xendit: callback token validation uses `X-Callback-Token` when configured on onboarding.
 
 ## Installation
 
@@ -135,6 +173,12 @@ RUTE_BAYAR_WEBHOOK_ADDR=:8080
 ```
 
 Do not commit `.env` or provider credentials. The file is ignored by Git.
+
+### Troubleshooting
+
+- `bind: operation not permitted` when starting daemon: environment may block local socket binding; try another port or run in a normal local terminal.
+- `502` from `trycloudflare.com`: confirm the local daemon is running and still reachable at the forwarded local URL.
+- DNS resolve failure for `*.trycloudflare.com`: usually environment/network-restricted; retry in another network/tool environment.
 
 ## Development
 
@@ -209,8 +253,7 @@ Read the project docs:
 - Implement SQLite storage layer.
 - Wire CLI onboarding to provider account storage.
 - Implement Xendit Payment Session create/status/refund.
-- Implement Xendit webhook verification and parsing.
-- Implement Midtrans create/status/refund and notification handling.
+- Implement webhook-driven payment intent status update.
 - Persist raw inbound/outbound JSON for every provider operation.
 - Add webhook forwarding target management via CLI.
 
