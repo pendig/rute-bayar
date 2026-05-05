@@ -11,6 +11,7 @@ Kumpulan dokumentasi awal untuk proyek **Rute Bayar**, payment router berbasis G
 - [Provider Integration](./provider-integration.md)
 - [Webhook Forwarding](./webhook-forwarding.md)
 - [Development](./development.md)
+- [Xendit Sandbox Simulation](./xendit-sandbox-simulation.md)
 
 ## Prinsip Utama
 
