@@ -428,18 +428,17 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	}
 	defer store.Close()
 
-	normalizedProvider := strings.ToLower(strings.TrimSpace(*providerCode))
-	paymentMethod := strings.TrimSpace(*method)
 	request := provider.CreatePaymentRequest{
 		ExternalRef:   strings.TrimSpace(*reference),
 		Amount:        *amount,
 		Currency:      strings.TrimSpace(*currency),
-		Method:        paymentMethod,
+		Method:        strings.TrimSpace(*method),
 		Channel:       strings.TrimSpace(*bank),
 		CustomerName:  strings.TrimSpace(*customerName),
 		CustomerEmail: strings.TrimSpace(*customerEmail),
 		CustomerPhone: strings.TrimSpace(*customerPhone),
 	}
+	normalizedProvider := strings.ToLower(strings.TrimSpace(*providerCode))
 
 	var adapter provider.Adapter
 	switch normalizedProvider {
@@ -466,7 +465,7 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 			return err
 		}
 
-		if paymentMethod == "" || strings.EqualFold(paymentMethod, "bank_transfer") {
+		if request.Method == "" || strings.EqualFold(request.Method, "bank_transfer") {
 			request.Method = "payment_link"
 		}
 		if !isXenditPayMethodSupported(request.Method) {
@@ -483,7 +482,7 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	}
 
 	intentID, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
-		ExternalRef:  *reference,
+		ExternalRef:  request.ExternalRef,
 		ProviderCode: domain.ProviderCode(normalizedProvider),
 		Amount:       *amount,
 		Currency:     *currency,
@@ -493,16 +492,7 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 		return err
 	}
 
-	response, err := adapter.CreatePayment(ctx, provider.CreatePaymentRequest{
-		ExternalRef:   request.ExternalRef,
-		Amount:        request.Amount,
-		Currency:      request.Currency,
-		Method:        request.Method,
-		Channel:       request.Channel,
-		CustomerName:  request.CustomerName,
-		CustomerEmail: request.CustomerEmail,
-		CustomerPhone: request.CustomerPhone,
-	})
+	response, err := adapter.CreatePayment(ctx, request)
 	requestJSON := response.RawRequestJSON
 	if len(requestJSON) == 0 {
 		marshaledRequest, marshalErr := json.Marshal(request)
@@ -515,7 +505,7 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 			PaymentIntentID: intentID,
 			ProviderCode:    domain.ProviderCode(normalizedProvider),
 			RequestJSON:     requestJSON,
-			ResponseJSON:    []byte("{}"),
+			ResponseJSON:    response.RawResponseJSON,
 			Status:          domain.PaymentStatusFailed,
 		})
 		return err
@@ -533,7 +523,7 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	}
 	if _, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
 		ID:           intentID,
-		ExternalRef:  *reference,
+		ExternalRef:  request.ExternalRef,
 		ProviderCode: domain.ProviderCode(normalizedProvider),
 		Amount:       *amount,
 		Currency:     *currency,

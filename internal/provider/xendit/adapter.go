@@ -1,6 +1,7 @@
 package xendit
 
 import (
+	"bytes"
 	"context"
 	"crypto/subtle"
 	"encoding/json"
@@ -180,7 +181,7 @@ func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaym
 		return provider.CreatePaymentResponse{}, fmt.Errorf("marshal xendit create payment request: %w", err)
 	}
 
-	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.baseURL+"/sessions", strings.NewReader(string(rawRequest)))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.baseURL+"/sessions", bytes.NewReader(rawRequest))
 	if err != nil {
 		return provider.CreatePaymentResponse{}, fmt.Errorf("create xendit create payment request: %w", err)
 	}
