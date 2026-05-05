@@ -2,6 +2,7 @@ package xendit
 
 import (
 	"context"
+	"crypto/subtle"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -17,9 +18,10 @@ import (
 const defaultBaseURL = "https://api.xendit.co"
 
 type Adapter struct {
-	secretKey string
-	baseURL   string
-	client    *http.Client
+	secretKey     string
+	baseURL       string
+	callbackToken string
+	client        *http.Client
 }
 
 type Option func(*Adapter)
@@ -44,6 +46,12 @@ func WithSecretKey(secretKey string) Option {
 func WithBaseURL(baseURL string) Option {
 	return func(adapter *Adapter) {
 		adapter.baseURL = strings.TrimRight(strings.TrimSpace(baseURL), "/")
+	}
+}
+
+func WithCallbackToken(callbackToken string) Option {
+	return func(adapter *Adapter) {
+		adapter.callbackToken = strings.TrimSpace(callbackToken)
 	}
 }
 
@@ -177,14 +185,6 @@ func (a *Adapter) RefundPayment(context.Context, provider.RefundRequest) (provid
 	return provider.RefundResponse{}, errors.New("xendit refund is not implemented yet")
 }
 
-func (a *Adapter) VerifyWebhook(context.Context, provider.WebhookRequest) error {
-	return errors.New("xendit webhook verification is not implemented yet")
-}
-
-func (a *Adapter) ParseWebhook(context.Context, provider.WebhookRequest) (provider.WebhookEvent, error) {
-	return provider.WebhookEvent{}, errors.New("xendit webhook parsing is not implemented yet")
-}
-
 func numberFromMap(payload map[string]any, key string) *float64 {
 	value, ok := payload[key]
 	if !ok {
@@ -202,7 +202,78 @@ type xenditSessionResponse struct {
 	ReferenceID    string `json:"reference_id"`
 	Mode           string `json:"mode"`
 	Status         string `json:"status"`
-	PaymentLinkURL  string `json:"payment_link_url"`
+	PaymentLinkURL string `json:"payment_link_url"`
+}
+
+func (a *Adapter) VerifyWebhook(_ context.Context, req provider.WebhookRequest) error {
+	if a.callbackToken == "" {
+		return nil
+	}
+
+	headerToken := req.Headers.Get("x-callback-token")
+	if headerToken == "" {
+		headerToken = req.Headers.Get("X-Callback-Token")
+	}
+	if headerToken == "" {
+		return errors.New("xendit webhook callback token header is missing")
+	}
+	if subtle.ConstantTimeCompare([]byte(headerToken), []byte(a.callbackToken)) != 1 {
+		return errors.New("xendit webhook callback token mismatch")
+	}
+	return nil
+}
+
+func (a *Adapter) ParseWebhook(_ context.Context, req provider.WebhookRequest) (provider.WebhookEvent, error) {
+	var payload struct {
+		ID         string `json:"id"`
+		Status     string `json:"status"`
+		Event      string `json:"event"`
+		Reference  string `json:"reference_id"`
+		ExternalID string `json:"external_id"`
+		OrderID    string `json:"order_id"`
+	}
+	if err := json.Unmarshal(req.Body, &payload); err != nil {
+		return provider.WebhookEvent{}, fmt.Errorf("parse xendit webhook payload: %w", err)
+	}
+
+	eventType := strings.TrimSpace(payload.Event)
+	if eventType == "" {
+		eventType = strings.TrimSpace(payload.Status)
+	}
+	if eventType == "" {
+		eventType = "notification"
+	}
+
+	reference := firstNonEmpty(payload.Reference, payload.ExternalID, payload.OrderID)
+	if reference == "" {
+		reference = payload.ID
+	}
+
+	return provider.WebhookEvent{
+		ProviderEventID: strings.TrimSpace(payload.ID),
+		EventType:       eventType,
+		PaymentRef:      strings.TrimSpace(reference),
+		Status:          mapXenditSessionStatus(payload.Status),
+		RawPayloadJSON:  req.Body,
+		RawHeadersJSON:  marshalHeaders(req.Headers),
+	}, nil
+}
+
+func firstNonEmpty(values ...string) string {
+	for _, value := range values {
+		if strings.TrimSpace(value) != "" {
+			return strings.TrimSpace(value)
+		}
+	}
+	return ""
+}
+
+func marshalHeaders(headers http.Header) []byte {
+	raw, err := json.Marshal(headers)
+	if err != nil {
+		return []byte("{}")
+	}
+	return raw
 }
 
 func mapXenditSessionStatus(status string) domain.PaymentStatus {

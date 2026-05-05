@@ -2,7 +2,9 @@ package midtrans
 
 import (
 	"context"
+	"crypto/sha512"
 	"encoding/base64"
+	"encoding/hex"
 	"encoding/json"
 	"io"
 	"net/http"
@@ -231,6 +233,74 @@ func TestGetPaymentStatusBankTransfer(t *testing.T) {
 	}
 	if result.OrderID != "order-123" {
 		t.Fatalf("OrderID = %q, want order-123", result.OrderID)
+	}
+}
+
+func TestVerifyWebhookAcceptsValidSignature(t *testing.T) {
+	t.Parallel()
+
+	sum := sha512.Sum512([]byte("order-12320010000server_key"))
+	notification := map[string]any{
+		"order_id":      "order-123",
+		"status_code":   "200",
+		"gross_amount":  "10000",
+		"signature_key": hex.EncodeToString(sum[:]),
+	}
+
+	payload, _ := json.Marshal(notification)
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"))
+	if err := adapter.VerifyWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	}); err != nil {
+		t.Fatalf("VerifyWebhook returned error: %v", err)
+	}
+}
+
+func TestVerifyWebhookRejectsInvalidSignature(t *testing.T) {
+	t.Parallel()
+
+	payload, _ := json.Marshal(map[string]any{
+		"order_id":      "order-123",
+		"status_code":   "200",
+		"gross_amount":  "10000",
+		"signature_key": "invalid",
+	})
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"))
+	if err := adapter.VerifyWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	}); err == nil {
+		t.Fatal("VerifyWebhook returned nil error for invalid signature")
+	}
+}
+
+func TestParseWebhookMapsStatus(t *testing.T) {
+	t.Parallel()
+
+	payload, _ := json.Marshal(map[string]any{
+		"order_id":           "order-123",
+		"transaction_id":     "tx-123",
+		"transaction_status": "capture",
+		"fraud_status":       "accept",
+		"payment_type":       "bank_transfer",
+	})
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"))
+	event, err := adapter.ParseWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	})
+	if err != nil {
+		t.Fatalf("ParseWebhook returned error: %v", err)
+	}
+	if event.ProviderEventID != "tx-123" {
+		t.Fatalf("ProviderEventID = %q, want tx-123", event.ProviderEventID)
+	}
+	if event.EventType != "capture" {
+		t.Fatalf("EventType = %q, want capture", event.EventType)
+	}
+	if event.Status != domain.PaymentStatusCaptured {
+		t.Fatalf("Status = %q, want %q", event.Status, domain.PaymentStatusCaptured)
 	}
 }
 
