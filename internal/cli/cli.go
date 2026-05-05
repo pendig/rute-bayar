@@ -14,6 +14,7 @@ import (
 	"github.com/pendig/rute-bayar/internal/daemon"
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/forwarding"
+	"github.com/pendig/rute-bayar/internal/provider"
 	"github.com/pendig/rute-bayar/internal/provider/midtrans"
 	"github.com/pendig/rute-bayar/internal/provider/xendit"
 	"github.com/pendig/rute-bayar/internal/storage/sqlite"
@@ -41,7 +42,7 @@ func ExecuteWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 	case "provider":
 		return providerCommand(ctx, stdout, args[1:])
 	case "pay":
-		return payCommand(stdout, args[1:])
+		return payCommand(ctx, stdout, stderr, args[1:])
 	case "webhook":
 		return webhookCommand(ctx, stdout, stderr, args[1:])
 	case "db":
@@ -64,7 +65,7 @@ Usage:
   rute-bayar provider list
   rute-bayar provider accounts
   rute-bayar provider test
-  rute-bayar pay create
+  rute-bayar pay create --provider midtrans --method bank_transfer --bank bca
   rute-bayar pay status
   rute-bayar pay refund
   rute-bayar webhook serve --addr :8080
@@ -259,6 +260,29 @@ func providerTestMidtrans(ctx context.Context, w io.Writer, args []string) error
 		return err
 	}
 
+	rawRequestBody := map[string]any{
+		"payment_type": *method,
+		"transaction_details": map[string]any{
+			"order_id":     *reference,
+			"gross_amount": *amount,
+		},
+		"bank_transfer": map[string]any{
+			"bank": *bank,
+		},
+	}
+	if strings.TrimSpace(*customerName) != "" || strings.TrimSpace(*customerEmail) != "" || strings.TrimSpace(*customerPhone) != "" {
+		rawRequestBody["customer_details"] = map[string]any{
+			"first_name": strings.TrimSpace(*customerName),
+			"email":      strings.TrimSpace(*customerEmail),
+			"phone":      strings.TrimSpace(*customerPhone),
+		}
+	}
+
+	rawRequest, err := json.Marshal(rawRequestBody)
+	if err != nil {
+		return fmt.Errorf("marshal pay create request: %w", err)
+	}
+
 	store, err := sqlite.Open(ctx, *dbPath)
 	if err != nil {
 		return err
@@ -372,17 +396,141 @@ func providerAccounts(ctx context.Context, w io.Writer) error {
 	return nil
 }
 
-func payCommand(w io.Writer, args []string) error {
+func payCommand(ctx context.Context, stdout, stderr io.Writer, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("pay command requires a subcommand")
 	}
 	switch args[0] {
-	case "create", "status", "refund":
-		fmt.Fprintf(w, "pay %s scaffold is ready.\n", args[0])
+	case "create":
+		return payCreate(ctx, stdout, stderr, args[1:])
+	case "status", "refund":
+		fmt.Fprintf(stdout, "pay %s scaffold is ready.\n", args[0])
 		return nil
 	default:
 		return fmt.Errorf("unknown pay subcommand %q", args[0])
 	}
+}
+
+func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) error {
+	cfg := config.Load()
+	fs := flag.NewFlagSet("pay create", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	providerCode := fs.String("provider", "midtrans", "provider code")
+	method := fs.String("method", "bank_transfer", "payment method")
+	bank := fs.String("bank", "bca", "bank code for bank transfer")
+	reference := fs.String("reference", "", "external reference / order id")
+	amount := fs.Int64("amount", 0, "payment amount")
+	currency := fs.String("currency", "IDR", "payment currency")
+	customerName := fs.String("customer-name", "", "customer name")
+	customerEmail := fs.String("customer-email", "", "customer email")
+	customerPhone := fs.String("customer-phone", "", "customer phone")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	environment := fs.String("environment", cfg.Environment, "provider environment")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if *providerCode != "midtrans" {
+		return fmt.Errorf("pay create for provider %q is not implemented yet", *providerCode)
+	}
+	if strings.TrimSpace(*reference) == "" {
+		return fmt.Errorf("pay create --reference is required")
+	}
+	if *amount <= 0 {
+		return fmt.Errorf("pay create --amount must be greater than zero")
+	}
+	if err := validateEnvironment(*environment); err != nil {
+		return err
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	account, err := store.GetProviderAccount(ctx, domain.ProviderMidtrans, domain.Environment(*environment))
+	if err != nil {
+		return err
+	}
+	credential, err := midtransCredentialFromJSON(account.CredentialJSON)
+	if err != nil {
+		return err
+	}
+
+	adapter := midtrans.New(
+		midtrans.WithServerKey(credential.ServerKey),
+		midtrans.WithBaseURL(midtrans.BaseURLForEnvironment(domain.Environment(*environment))),
+	)
+	intentID, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+		ExternalRef:  *reference,
+		ProviderCode: domain.ProviderMidtrans,
+		Amount:       *amount,
+		Currency:     *currency,
+		Status:       domain.PaymentStatusPending,
+	})
+	if err != nil {
+		return err
+	}
+
+	response, err := adapter.CreatePayment(ctx, provider.CreatePaymentRequest{
+		ExternalRef:   *reference,
+		Amount:        *amount,
+		Currency:      *currency,
+		Method:        *method,
+		Channel:       *bank,
+		CustomerName:  *customerName,
+		CustomerEmail: *customerEmail,
+		CustomerPhone: *customerPhone,
+	})
+	if err != nil {
+		_, _ = store.RecordPaymentAttempt(ctx, domain.PaymentAttempt{
+			PaymentIntentID: intentID,
+			ProviderCode:    domain.ProviderMidtrans,
+			RequestJSON:     rawRequest,
+			ResponseJSON:    []byte("{}"),
+			Status:          domain.PaymentStatusFailed,
+		})
+		return err
+	}
+
+	if _, err := store.RecordPaymentAttempt(ctx, domain.PaymentAttempt{
+		PaymentIntentID:   intentID,
+		ProviderCode:      domain.ProviderMidtrans,
+		RequestJSON:       response.RawRequestJSON,
+		ResponseJSON:      response.RawResponseJSON,
+		Status:            response.Status,
+		ProviderReference: response.ProviderReference,
+	}); err != nil {
+		return err
+	}
+	if _, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+		ID:           intentID,
+		ExternalRef:  *reference,
+		ProviderCode: domain.ProviderMidtrans,
+		Amount:       *amount,
+		Currency:     *currency,
+		Status:       response.Status,
+	}); err != nil {
+		return err
+	}
+
+	fmt.Fprintln(stdout, "payment created")
+	fmt.Fprintf(stdout, "provider: %s\n", *providerCode)
+	fmt.Fprintf(stdout, "reference: %s\n", *reference)
+	fmt.Fprintf(stdout, "status: %s\n", response.Status)
+	if response.TransactionID != "" {
+		fmt.Fprintf(stdout, "transaction_id: %s\n", response.TransactionID)
+	}
+	if response.PaymentType != "" {
+		fmt.Fprintf(stdout, "payment_type: %s\n", response.PaymentType)
+	}
+	if response.VANumber != "" {
+		fmt.Fprintf(stdout, "va_number: %s\n", response.VANumber)
+	}
+	if response.ExpiryTime != "" {
+		fmt.Fprintf(stdout, "expiry_time: %s\n", response.ExpiryTime)
+	}
+	return nil
 }
 
 func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string) error {

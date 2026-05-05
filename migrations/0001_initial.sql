@@ -106,6 +106,7 @@ CREATE TABLE IF NOT EXISTS audit_logs (
 );
 
 CREATE INDEX IF NOT EXISTS idx_payment_intents_external_ref ON payment_intents(external_ref);
+CREATE UNIQUE INDEX IF NOT EXISTS idx_payment_intents_external_ref_unique ON payment_intents(external_ref);
 CREATE UNIQUE INDEX IF NOT EXISTS idx_provider_accounts_provider_environment ON provider_accounts(provider_id, environment);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_payment_intent_id ON payment_attempts(payment_intent_id);
 CREATE INDEX IF NOT EXISTS idx_payment_attempts_provider_reference ON payment_attempts(provider_reference);
