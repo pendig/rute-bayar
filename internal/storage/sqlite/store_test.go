@@ -372,6 +372,51 @@ func TestForwardingTargetLifecycle(t *testing.T) {
 	}
 }
 
+func TestGetWebhookEventByID(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	eventID, err := store.RecordWebhookEvent(ctx, domain.WebhookEvent{
+		ProviderCode:     domain.ProviderXendit,
+		ProviderEventID:  "evt-lookup-001",
+		EventType:        "payment.capture",
+		SignatureValid:   true,
+		PayloadJSON:      []byte(`{"event":"payment.capture"}`),
+		HeadersJSON:      []byte(`{"X-Test":["one"]}`),
+		ProcessingStatus: "processed",
+	})
+	if err != nil {
+		t.Fatalf("RecordWebhookEvent returned error: %v", err)
+	}
+	if eventID == "" {
+		t.Fatal("RecordWebhookEvent returned empty id")
+	}
+
+	event, err := store.GetWebhookEventByID(ctx, eventID)
+	if err != nil {
+		t.Fatalf("GetWebhookEventByID returned error: %v", err)
+	}
+	if event.ID != eventID {
+		t.Fatalf("event.ID = %q, want %q", event.ID, eventID)
+	}
+	if event.ProviderCode != domain.ProviderXendit {
+		t.Fatalf("ProviderCode = %q, want %q", event.ProviderCode, domain.ProviderXendit)
+	}
+	if event.ProviderEventID != "evt-lookup-001" {
+		t.Fatalf("ProviderEventID = %q, want evt-lookup-001", event.ProviderEventID)
+	}
+
+	if _, err := store.GetWebhookEventByID(ctx, "missing"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("GetWebhookEventByID missing error = %v, want sql.ErrNoRows", err)
+	}
+}
+
 func TestHeadersJSONCodecSupportsSingleAndMultiValues(t *testing.T) {
 	t.Parallel()
 

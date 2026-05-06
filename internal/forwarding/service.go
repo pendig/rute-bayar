@@ -7,6 +7,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strings"
 	"time"
 
 	"github.com/pendig/rute-bayar/internal/domain"
@@ -93,14 +94,92 @@ func (s *Service) Forward(ctx context.Context, inbound InboundWebhook) error {
 	if err != nil {
 		return fmt.Errorf("list forwarding targets: %w", err)
 	}
+	decodedPayload := decodePayloadObject(inbound.Body)
 
 	for _, target := range targets {
+		if !eventFilterMatch(target.EventFilter, inbound.Headers, decodedPayload) {
+			continue
+		}
 		if err := s.forwardToTarget(ctx, target, inbound); err != nil {
 			return err
 		}
 	}
 
 	return nil
+}
+
+func eventFilterMatch(eventFilter map[string]string, inboundHeaders http.Header, payload map[string]any) bool {
+	if len(eventFilter) == 0 {
+		return true
+	}
+
+	for key, expected := range eventFilter {
+		expected = strings.TrimSpace(expected)
+		if expected == "" {
+			continue
+		}
+
+		referenceKey := strings.TrimSpace(key)
+		if referenceKey == "" {
+			continue
+		}
+
+		actual := firstHeaderValue(inboundHeaders, referenceKey)
+		if actual == "" {
+			actual = scalarToString(payload[referenceKey])
+		}
+		if actual == "" {
+			return false
+		}
+		if !strings.EqualFold(actual, expected) {
+			return false
+		}
+	}
+
+	return true
+}
+
+func decodePayloadObject(raw []byte) map[string]any {
+	if len(raw) == 0 {
+		return nil
+	}
+
+	var payload map[string]any
+	if err := json.Unmarshal(raw, &payload); err != nil {
+		return nil
+	}
+	return payload
+}
+
+func firstHeaderValue(headers http.Header, key string) string {
+	if len(headers) == 0 {
+		return ""
+	}
+	values := headers.Values(key)
+	if len(values) == 0 {
+		return ""
+	}
+	return strings.TrimSpace(values[0])
+}
+
+func scalarToString(value any) string {
+	switch v := value.(type) {
+	case nil:
+		return ""
+	case string:
+		return strings.TrimSpace(v)
+	case bool:
+		if v {
+			return "true"
+		}
+		return "false"
+	case float64:
+		return strings.TrimSpace(fmt.Sprintf("%v", v))
+	case fmt.Stringer:
+		return strings.TrimSpace(v.String())
+	default:
+		return strings.TrimSpace(fmt.Sprintf("%v", v))
+	}
 }
 
 func (s *Service) forwardToTarget(ctx context.Context, target Target, inbound InboundWebhook) error {

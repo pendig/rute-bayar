@@ -2,9 +2,11 @@ package cli
 
 import (
 	"context"
+	"encoding/json"
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 
 	"github.com/pendig/rute-bayar/internal/config"
@@ -55,8 +57,7 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 		fmt.Fprintf(stdout, "SQLite database: %s\n", *dbPath)
 		return srv.ListenAndServe()
 	case "replay":
-		fmt.Fprintln(stdout, "webhook replay scaffold is ready.")
-		return nil
+		return webhookReplayCommand(ctx, stdout, stderr, args[1:])
 	case "forward":
 		return webhookForwardCommand(ctx, stdout, stderr, args[1:])
 	default:
@@ -281,4 +282,98 @@ func webhookForwardRemove(ctx context.Context, stdout, stderr io.Writer, args []
 	}
 	fmt.Fprintf(stdout, "forwarding target removed: %s\n", targetID)
 	return nil
+}
+
+func webhookReplayCommand(ctx context.Context, stdout, stderr io.Writer, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("webhook replay requires --event-id")
+	}
+
+	cfg := config.Load()
+	fs := flag.NewFlagSet("webhook replay", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	providerCode := fs.String("provider", "", "provider code: midtrans or xendit")
+	eventID := fs.String("event-id", "", "webhook event id stored in webhook_events")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	trimmedEventID := strings.TrimSpace(*eventID)
+	if trimmedEventID == "" {
+		return fmt.Errorf("webhook replay requires --event-id")
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	event, err := store.GetWebhookEventByID(ctx, trimmedEventID)
+	if err != nil {
+		return fmt.Errorf("get webhook event %q: %w", trimmedEventID, err)
+	}
+
+	if strings.TrimSpace(*providerCode) != "" {
+		requestedProvider, err := parseProvider(*providerCode)
+		if err != nil {
+			return err
+		}
+		if event.ProviderCode != requestedProvider {
+			return fmt.Errorf("webhook event %s is for provider %q, not %q", trimmedEventID, event.ProviderCode, requestedProvider)
+		}
+	}
+
+	headers := http.Header{}
+	if len(event.HeadersJSON) > 0 {
+		headers, err = parseHeadersJSON(event.HeadersJSON)
+		if err != nil {
+			return fmt.Errorf("parse stored webhook headers: %w", err)
+		}
+	}
+
+	forwarder := forwarding.NewService(store)
+	inbound := forwarding.InboundWebhook{
+		WebhookEventID: trimmedEventID,
+		Provider:       event.ProviderCode,
+		Headers:        headers,
+		Body:           event.PayloadJSON,
+	}
+
+	if err := forwarder.Forward(ctx, inbound); err != nil {
+		return fmt.Errorf("webhook replay failed: %w", err)
+	}
+
+	fmt.Fprintf(stdout, "webhook replayed\nid: %s\nprovider: %s\n", trimmedEventID, event.ProviderCode)
+	return nil
+}
+
+func parseHeadersJSON(raw json.RawMessage) (http.Header, error) {
+	if len(raw) == 0 {
+		return http.Header{}, nil
+	}
+
+	rawEntries := make(map[string]json.RawMessage)
+	if err := json.Unmarshal(raw, &rawEntries); err != nil {
+		return nil, err
+	}
+
+	headers := make(http.Header, len(rawEntries))
+	for key, rawValue := range rawEntries {
+		var multiValues []string
+		if err := json.Unmarshal(rawValue, &multiValues); err == nil {
+			for _, value := range multiValues {
+				headers.Add(key, value)
+			}
+			continue
+		}
+
+		var singleValue string
+		if err := json.Unmarshal(rawValue, &singleValue); err == nil {
+			headers.Set(key, singleValue)
+		}
+	}
+
+	return headers, nil
 }

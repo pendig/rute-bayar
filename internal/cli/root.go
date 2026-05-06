@@ -58,6 +58,7 @@ Usage:
   rute-bayar pay status --provider midtrans --reference rb-0001
   rute-bayar pay refund --provider xendit --reference rb-0001
 	rute-bayar webhook serve --addr :8080
+	rute-bayar webhook replay --event-id <id>
 	rute-bayar webhook forward list
 	rute-bayar webhook forward add
 	rute-bayar webhook forward update

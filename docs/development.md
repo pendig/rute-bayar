@@ -26,7 +26,19 @@ go run ./cmd/rute-bayar provider accounts
 go run ./cmd/rute-bayar provider test xendit
 go run ./cmd/rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
 go run ./cmd/rute-bayar provider test midtrans
+go run ./cmd/rute-bayar webhook forward add --provider midtrans --name orders --url https://example.com/webhooks/orders --event-filter event=payment_session.created
+go run ./cmd/rute-bayar webhook forward list --provider midtrans
+go run ./cmd/rute-bayar webhook replay --event-id webhook_0001 --provider midtrans
 ```
+
+## Checklist Daemon & Forwarding
+
+Untuk memverifikasi operasional forwarding:
+
+1. Migrasi DB dan jalankan daemon.
+2. Simulasikan webhook inbound.
+3. Gunakan `webhook replay` untuk memaksa eksekusi ulang event yang tersimpan.
+4. Cek `webhook_forwarding_attempts` untuk memastikan status attempt tersimpan.
 
 ## Health Check Webhook Daemon
 
@@ -80,6 +92,13 @@ curl -i -X POST http://localhost:8080/webhooks/midtrans \
 
 Untuk payload yang valid dan lolos verifikasi provider (jika konfigurasi tersedia), kedua endpoint di atas seharusnya mengembalikan `202 Accepted`.
 Jika verifikasi gagal (misalnya signature/token tidak cocok), daemon akan mengembalikan `400`.
+
+### Query cepat untuk diagnosa
+
+```bash
+sqlite3 ./rute-bayar.sqlite3 \
+  "SELECT id, provider_id, provider_event_id, event_type, processing_status, signature_valid, received_at FROM webhook_events ORDER BY received_at DESC LIMIT 20;"
+```
 
 ## Troubleshooting Khusus Provider
 
@@ -159,7 +178,7 @@ Migration ini mencakup:
 
 ## Catatan Implementasi Berikutnya
 
-- Tambahkan driver SQLite untuk Go.
-- Implementasikan storage SQLite berdasarkan migration awal.
-- Hubungkan CLI onboarding ke storage SQLite.
-- Implementasikan adapter Midtrans dan Xendit sesuai dokumentasi resmi provider.
+- Tambahkan CI GitHub Actions (test + lint + build matrix).
+- Dokumentasikan hardening webhook lebih dalam (verifikasi error edge-case, observability).
+- Evaluasi policy keamanan untuk header token/storage rotation.
+- Kembangkan command `pay webhook test` untuk simulasi event yang konsisten.

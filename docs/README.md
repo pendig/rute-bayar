@@ -13,6 +13,7 @@ Kumpulan dokumentasi awal untuk proyek **Rute Bayar**, payment router berbasis G
 - [Release Readiness](./release-readiness.md)
 - [Implementation Plan](./implementation-plan.md)
 - [Webhook Forwarding](./webhook-forwarding.md)
+- [Operations Runbook](./operations-runbook.md)
 - [Development](./development.md)
 - [Xendit Sandbox Simulation](./xendit-sandbox-simulation.md)
 - [Midtrans Sandbox Simulation](./midtrans-sandbox-simulation.md)
