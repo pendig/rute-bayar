@@ -486,6 +486,14 @@ func (a *Adapter) ParseWebhook(_ context.Context, req provider.WebhookRequest) (
 	if reference == "" {
 		reference = providerEventID
 	}
+	switch {
+	case providerEventID != "":
+		providerEventID = provider.BuildWebhookEventID(eventType, providerEventID)
+	case reference != "":
+		providerEventID = provider.BuildWebhookEventID(eventType, reference)
+	default:
+		providerEventID = ""
+	}
 
 	return provider.WebhookEvent{
 		ProviderEventID: strings.TrimSpace(providerEventID),
@@ -581,7 +589,7 @@ func mapXenditSessionStatus(status string) domain.PaymentStatus {
 		return domain.PaymentStatusFailed
 	case "PENDING":
 		return domain.PaymentStatusPending
-	case "SUCCEEDED", "PAID":
+	case "SUCCEEDDED", "SUCCEEDED", "PAID":
 		return domain.PaymentStatusPaid
 	case "AUTHORIZED":
 		return domain.PaymentStatusAuthorized

@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/pendig/rute-bayar/internal/domain"
 )
@@ -90,6 +91,17 @@ type WebhookEvent struct {
 	Status          domain.PaymentStatus
 	RawPayloadJSON  []byte
 	RawHeadersJSON  []byte
+}
+
+// BuildWebhookEventID joins non-empty parts with colon separators.
+func BuildWebhookEventID(parts ...string) string {
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			cleaned = append(cleaned, trimmed)
+		}
+	}
+	return strings.Join(cleaned, ":")
 }
 
 type Adapter interface {

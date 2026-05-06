@@ -364,8 +364,8 @@ func TestParseWebhookMapsStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseWebhook returned error: %v", err)
 	}
-	if event.ProviderEventID != "tx-123" {
-		t.Fatalf("ProviderEventID = %q, want tx-123", event.ProviderEventID)
+	if event.ProviderEventID != "capture:order-123:tx-123" {
+		t.Fatalf("ProviderEventID = %q, want capture:order-123:tx-123", event.ProviderEventID)
 	}
 	if event.EventType != "capture" {
 		t.Fatalf("EventType = %q, want capture", event.EventType)
@@ -392,8 +392,38 @@ func TestParseWebhookFallsBackPaymentReference(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseWebhook returned error: %v", err)
 	}
+	if event.ProviderEventID != "pending:tx-456" {
+		t.Fatalf("ProviderEventID = %q, want pending:tx-456", event.ProviderEventID)
+	}
 	if event.PaymentRef != "tx-456" {
 		t.Fatalf("PaymentRef = %q, want tx-456", event.PaymentRef)
+	}
+	if event.EventType != "pending" {
+		t.Fatalf("EventType = %q, want pending", event.EventType)
+	}
+}
+
+func TestParseWebhookLeavesProviderEventIDEmptyWithoutIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	payload, _ := json.Marshal(map[string]any{
+		"transaction_status": "pending",
+		"fraud_status":       "accept",
+		"payment_type":       "bank_transfer",
+	})
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"))
+	event, err := adapter.ParseWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	})
+	if err != nil {
+		t.Fatalf("ParseWebhook returned error: %v", err)
+	}
+	if event.ProviderEventID != "" {
+		t.Fatalf("ProviderEventID = %q, want empty", event.ProviderEventID)
+	}
+	if event.PaymentRef != "" {
+		t.Fatalf("PaymentRef = %q, want empty", event.PaymentRef)
 	}
 	if event.EventType != "pending" {
 		t.Fatalf("EventType = %q, want pending", event.EventType)

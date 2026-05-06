@@ -514,9 +514,14 @@ func (a *Adapter) ParseWebhook(_ context.Context, req provider.WebhookRequest) (
 	if reference == "" {
 		reference = strings.TrimSpace(webhook.TransactionID)
 	}
+	eventKey := provider.BuildWebhookEventID(webhook.OrderID, webhook.TransactionID)
+	eventID := ""
+	if eventKey != "" {
+		eventID = provider.BuildWebhookEventID(eventType, eventKey)
+	}
 
 	return provider.WebhookEvent{
-		ProviderEventID: strings.TrimSpace(webhook.TransactionID),
+		ProviderEventID: eventID,
 		EventType:       eventType,
 		PaymentRef:      reference,
 		Status:          MapTransactionStatus(webhook.TransactionStatus, webhook.FraudStatus),
