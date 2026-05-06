@@ -9,6 +9,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"strconv"
 	"strings"
 	"time"
 
@@ -379,19 +380,19 @@ func (a *Adapter) VerifyWebhook(_ context.Context, req provider.WebhookRequest) 
 		return errors.New("midtrans server key is required")
 	}
 
-	payload := struct {
-		OrderID      string `json:"order_id"`
-		StatusCode   string `json:"status_code"`
-		GrossAmount  string `json:"gross_amount"`
+	var payload struct {
+		OrderID      any    `json:"order_id"`
+		StatusCode   any    `json:"status_code"`
+		GrossAmount  any    `json:"gross_amount"`
 		SignatureKey string `json:"signature_key"`
-	}{}
+	}
 	if err := json.Unmarshal(req.Body, &payload); err != nil {
 		return fmt.Errorf("parse midtrans webhook payload: %w", err)
 	}
 
-	orderID := strings.TrimSpace(payload.OrderID)
-	statusCode := strings.TrimSpace(payload.StatusCode)
-	grossAmount := strings.TrimSpace(payload.GrossAmount)
+	orderID := normalizeMidtransField(payload.OrderID)
+	statusCode := normalizeMidtransField(payload.StatusCode)
+	grossAmount := normalizeMidtransField(payload.GrossAmount)
 	signatureKey := strings.TrimSpace(payload.SignatureKey)
 
 	if orderID == "" || statusCode == "" || signatureKey == "" {
@@ -445,6 +446,24 @@ func (a *Adapter) ParseWebhook(_ context.Context, req provider.WebhookRequest) (
 func sha512Hex(value string) string {
 	raw := sha512.Sum512([]byte(value))
 	return hex.EncodeToString(raw[:])
+}
+
+func normalizeMidtransField(value any) string {
+	switch v := value.(type) {
+	case string:
+		return strings.TrimSpace(v)
+	case float64:
+		if strings.ContainsAny(fmt.Sprintf("%v", v), ".eE") {
+			return strings.TrimRight(strings.TrimRight(strconv.FormatFloat(v, 'f', -1, 64), "0"), ".")
+		}
+		return strconv.FormatFloat(v, 'f', 0, 64)
+	case json.Number:
+		return strings.TrimSpace(v.String())
+	case nil:
+		return ""
+	default:
+		return strings.TrimSpace(fmt.Sprint(v))
+	}
 }
 
 func marshalHeaders(headers http.Header) []byte {
