@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/provider"
@@ -294,7 +295,7 @@ func (a *Adapter) RefundPayment(ctx context.Context, request provider.RefundRequ
 	if currency == "" {
 		currency = "IDR"
 	}
-	reason := strings.ToUpper(strings.TrimSpace(request.Reason))
+	reason := normalizeXenditRefundReason(request.Reason)
 	if reason == "" {
 		reason = "REQUESTED_BY_CUSTOMER"
 	}
@@ -608,6 +609,21 @@ func mapXenditRefundStatus(status string) domain.PaymentStatus {
 	default:
 		return domain.PaymentStatusPending
 	}
+}
+
+func normalizeXenditRefundReason(reason string) string {
+	trimmed := strings.TrimSpace(reason)
+	if trimmed == "" {
+		return ""
+	}
+
+	parts := strings.FieldsFunc(trimmed, func(r rune) bool {
+		return unicode.IsSpace(r) || r == '-' || r == '_'
+	})
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.ToUpper(strings.Join(parts, "_"))
 }
 
 func (a *Adapter) resolvePaymentRequestID(ctx context.Context, providerReference string) (string, error) {

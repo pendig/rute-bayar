@@ -229,7 +229,7 @@ func TestRefundPaymentResolvesSessionToPaymentRequestID(t *testing.T) {
 		ReferenceID:       "refund-001",
 		Amount:            5000,
 		Currency:          "IDR",
-		Reason:            "REQUESTED_BY_CUSTOMER",
+		Reason:            "requested by customer",
 	})
 	if err != nil {
 		t.Fatalf("RefundPayment returned error: %v", err)
@@ -248,6 +248,9 @@ func TestRefundPaymentResolvesSessionToPaymentRequestID(t *testing.T) {
 	}
 	if requestBody["reference_id"] != "refund-001" {
 		t.Fatalf("reference_id = %v, want refund-001", requestBody["reference_id"])
+	}
+	if requestBody["reason"] != "REQUESTED_BY_CUSTOMER" {
+		t.Fatalf("reason = %v, want REQUESTED_BY_CUSTOMER", requestBody["reason"])
 	}
 }
 

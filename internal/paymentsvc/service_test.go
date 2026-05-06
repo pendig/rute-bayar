@@ -425,6 +425,9 @@ func TestRefundXenditRecordsRefundAndUpdatesIntent(t *testing.T) {
 			if err := json.NewDecoder(req.Body).Decode(&requestBody); err != nil {
 				t.Fatalf("decode refund request: %v", err)
 			}
+			if _, ok := requestBody["amount"]; ok {
+				t.Fatalf("refund request should omit amount for full refund, got %v", requestBody["amount"])
+			}
 			return response(http.StatusOK, `{
 				"id":"rfd-001",
 				"payment_request_id":"pr-xnd-001",
@@ -445,7 +448,7 @@ func TestRefundXenditRecordsRefundAndUpdatesIntent(t *testing.T) {
 		Reference:         "rb-xnd-refund",
 		ProviderReference: "ps-xnd-001",
 		RefundReference:   "rb-xnd-refund-001",
-		Amount:            5000,
+		Amount:            0,
 		Currency:          "IDR",
 		Reason:            "requested by customer",
 	})
@@ -478,6 +481,9 @@ func TestRefundXenditRecordsRefundAndUpdatesIntent(t *testing.T) {
 	}
 	if refund.Status != domain.PaymentStatusRefunded {
 		t.Fatalf("refund status = %q, want refunded", refund.Status)
+	}
+	if refund.Amount != 15000 {
+		t.Fatalf("refund amount = %d, want intent amount 15000", refund.Amount)
 	}
 }
 

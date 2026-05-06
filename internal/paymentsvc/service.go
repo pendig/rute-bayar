@@ -356,10 +356,14 @@ func (s *Service) Refund(ctx context.Context, input RefundInput) (RefundResult, 
 	} else if recordStatus == "" {
 		recordStatus = domain.PaymentStatusPending
 	}
+	amountToRecord := input.Amount
+	if amountToRecord == 0 {
+		amountToRecord = intent.Amount
+	}
 	if _, recordErr := s.store.RecordRefund(ctx, domain.Refund{
 		PaymentIntentID:   intent.ID,
 		ProviderCode:      providerCode,
-		Amount:            input.Amount,
+		Amount:            amountToRecord,
 		Status:            recordStatus,
 		RequestJSON:       requestJSON,
 		ResponseJSON:      response.RawResponseJSON,
