@@ -275,6 +275,31 @@ func TestVerifyWebhookRejectsInvalidSignature(t *testing.T) {
 	}
 }
 
+func TestVerifyWebhookAcceptsNumericGrossAmount(t *testing.T) {
+	t.Parallel()
+
+	payload := map[string]any{
+		"order_id":     "order-321",
+		"status_code":  "200",
+		"gross_amount": 10000,
+	}
+	sum := sha512.Sum512([]byte("order-32120010000server_key"))
+	payload["signature_key"] = hex.EncodeToString(sum[:])
+
+	raw, err := json.Marshal(payload)
+	if err != nil {
+		t.Fatalf("Marshal payload returned error: %v", err)
+	}
+
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"))
+	if err := adapter.VerifyWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    raw,
+	}); err != nil {
+		t.Fatalf("VerifyWebhook returned error: %v", err)
+	}
+}
+
 func TestParseWebhookMapsStatus(t *testing.T) {
 	t.Parallel()
 
