@@ -128,7 +128,7 @@ Install into your Go binary path:
 go install github.com/pendig/rute-bayar/cmd/rute-bayar@latest
 ```
 
-For now, prefer local builds from the repository until the first tagged release is published.
+For alpha builds, prefer the latest tagged release or a local build from `main`.
 
 ## Usage
 
@@ -249,6 +249,7 @@ Read the project docs:
 - [Webhook Forwarding](./docs/webhook-forwarding.md)
 - [Operations Runbook](./docs/operations-runbook.md)
 - [Development](./docs/development.md)
+- [Changelog](./CHANGELOG.md)
 - [Xendit Sandbox Simulation](./docs/xendit-sandbox-simulation.md)
 - [Midtrans Sandbox Simulation](./docs/midtrans-sandbox-simulation.md)
 
