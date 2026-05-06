@@ -10,6 +10,7 @@ import (
 
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/provider"
+	"github.com/pendig/rute-bayar/internal/storage/sqlite"
 )
 
 func TestWebhookRejectsInvalidSignature(t *testing.T) {
@@ -84,6 +85,94 @@ func TestWebhookReturnsBadRequestOnParseFailure(t *testing.T) {
 	}
 	if payload["warning"] == nil {
 		t.Fatalf("warning expected, got nil")
+	}
+}
+
+func TestWebhookReconcilesPaymentIntentStatus(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := sqlite.Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	_, err = store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+		ExternalRef:  "rb-001",
+		ProviderCode: domain.ProviderMidtrans,
+		Amount:       10000,
+		Currency:     "IDR",
+		Status:       domain.PaymentStatusPending,
+	})
+	if err != nil {
+		t.Fatalf("UpsertPaymentIntent returned error: %v", err)
+	}
+
+	server := NewServer(":8080", store, nil, map[domain.ProviderCode]provider.Adapter{
+		domain.ProviderMidtrans: &testWebhookAdapter{
+			verifyFn: func(context.Context, provider.WebhookRequest) error {
+				return nil
+			},
+			parseFn: func(context.Context, provider.WebhookRequest) (provider.WebhookEvent, error) {
+				return provider.WebhookEvent{
+					ProviderEventID: "evt-001",
+					EventType:       "capture",
+					PaymentRef:      "rb-001",
+					Status:          domain.PaymentStatusPaid,
+				}, nil
+			},
+		},
+	})
+
+	request := httptest.NewRequest(http.MethodPost, "/webhooks/midtrans", nil)
+	recorder := httptest.NewRecorder()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /webhooks/{provider}", server.webhook)
+	mux.ServeHTTP(recorder, request)
+
+	if recorder.Code != http.StatusAccepted {
+		t.Fatalf("Status = %d, want %d", recorder.Code, http.StatusAccepted)
+	}
+
+	intent, err := store.GetPaymentIntentByExternalRef(ctx, "rb-001")
+	if err != nil {
+		t.Fatalf("GetPaymentIntentByExternalRef returned error: %v", err)
+	}
+	if intent.Status != domain.PaymentStatusPaid {
+		t.Fatalf("intent status = %q, want %q", intent.Status, domain.PaymentStatusPaid)
+	}
+}
+
+func TestWebhookMarksUnmatchedWebhookReference(t *testing.T) {
+	t.Parallel()
+
+	server := NewServer(":8080", &stubWebhookRecorder{}, nil, map[domain.ProviderCode]provider.Adapter{
+		domain.ProviderMidtrans: &testWebhookAdapter{
+			verifyFn: func(context.Context, provider.WebhookRequest) error {
+				return nil
+			},
+			parseFn: func(context.Context, provider.WebhookRequest) (provider.WebhookEvent, error) {
+				return provider.WebhookEvent{
+					ProviderEventID: "evt-002",
+					EventType:       "capture",
+					PaymentRef:      "missing-ref",
+					Status:          domain.PaymentStatusPaid,
+				}, nil
+			},
+		},
+	})
+
+	request := httptest.NewRequest(http.MethodPost, "/webhooks/midtrans", nil)
+	recorderRecorder := httptest.NewRecorder()
+
+	mux := http.NewServeMux()
+	mux.HandleFunc("POST /webhooks/{provider}", server.webhook)
+	mux.ServeHTTP(recorderRecorder, request)
+
+	if recorderRecorder.Code != http.StatusAccepted {
+		t.Fatalf("Status = %d, want %d", recorderRecorder.Code, http.StatusAccepted)
 	}
 }
 

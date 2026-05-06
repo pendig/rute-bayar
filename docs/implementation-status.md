@@ -25,12 +25,13 @@ Dokumen ini mencatat status implementasi teknis Rute Bayar agar contributor muda
 - Webhook signature verification untuk Midtrans (tergantung akun/onboarding key tersedia).
 - Webhook callback token verification untuk Xendit (jika token konfigurasi diset).
 - Webhook parsing event untuk payload Midtrans dan Xendit.
+- Webhook reconciliation dasar: event parsed berhasil meng-update status `payment_intents` bila referensi cocok.
+- Idempotency dasar: status webhook yang sama tidak mengulang update status ketika sudah sama.
 
 ## Belum Ada
 
-- Xendit Payment Session refund + webhook-to-intent reconciliation.
+- Xendit Payment Session refund.
 - Midtrans Snap/Core adapter untuk create/refund dan perluasan metode lain.
-- Status update internal dari webhook untuk `payment_intents`.
 - Forwarding target management yang persist lewat CLI.
 - CI GitHub Actions.
 

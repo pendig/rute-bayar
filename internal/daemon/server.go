@@ -2,7 +2,9 @@ package daemon
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
+	"errors"
 	"fmt"
 	"io"
 	"net/http"
@@ -23,6 +25,11 @@ type Server struct {
 
 type WebhookRecorder interface {
 	RecordWebhookEvent(context.Context, domain.WebhookEvent) (string, error)
+}
+
+type webhookReconciler interface {
+	GetPaymentIntentByExternalRef(context.Context, string) (domain.PaymentIntent, error)
+	UpsertPaymentIntent(context.Context, domain.PaymentIntent) (string, error)
 }
 
 func NewServer(addr string, recorder WebhookRecorder, forwarder *forwarding.Service, handlers map[domain.ProviderCode]provider.Adapter) *Server {
@@ -98,7 +105,26 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 		if parseErr == nil {
 			event.EventType = parsedEvent.EventType
 			event.ProviderEventID = parsedEvent.ProviderEventID
-			event.SignatureValid = true
+			event.ProcessingStatus = "processed"
+
+			processingStatus, reconcileErr := s.reconcilePaymentIntent(r.Context(), providerCode, parsedEvent)
+			if processingStatus != "" {
+				event.ProcessingStatus = processingStatus
+			}
+			if reconcileErr != nil {
+				event.ProcessingStatus = "reconcile_failed"
+				if s.webhookRecorder != nil {
+					if id, recErr := s.webhookRecorder.RecordWebhookEvent(r.Context(), event); recErr == nil {
+						webhookEventID = id
+					}
+				}
+				writeJSON(w, http.StatusInternalServerError, map[string]any{
+					"status":  "error",
+					"error":   reconcileErr.Error(),
+					"message": "webhook reconciliation failed",
+				})
+				return
+			}
 		} else {
 			event.EventType = "parse_error"
 			event.ProcessingStatus = "parse_failed"
@@ -140,6 +166,49 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 	}
 
 	writeJSON(w, http.StatusAccepted, map[string]string{"status": "accepted"})
+}
+
+func (s *Server) reconcilePaymentIntent(ctx context.Context, providerCode domain.ProviderCode, parsedEvent provider.WebhookEvent) (string, error) {
+	reconciler, ok := s.webhookRecorder.(webhookReconciler)
+	if !ok {
+		return "processed", nil
+	}
+
+	reference := strings.TrimSpace(parsedEvent.PaymentRef)
+	if reference == "" {
+		return "unmatched", nil
+	}
+
+	intent, err := reconciler.GetPaymentIntentByExternalRef(ctx, reference)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "unmatched", nil
+		}
+		return "reconcile_failed", err
+	}
+
+	if intent.ProviderCode != providerCode {
+		return "unmatched", nil
+	}
+
+	if intent.Status == parsedEvent.Status {
+		return "duplicate", nil
+	}
+
+	_, err = reconciler.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+		ID:           intent.ID,
+		ExternalRef:  intent.ExternalRef,
+		ProviderCode: intent.ProviderCode,
+		Amount:       intent.Amount,
+		Currency:     intent.Currency,
+		Status:       parsedEvent.Status,
+		MetadataJSON: intent.MetadataJSON,
+	})
+	if err != nil {
+		return "reconcile_failed", err
+	}
+
+	return "reconciled", nil
 }
 
 func writeJSON(w http.ResponseWriter, status int, payload any) {
