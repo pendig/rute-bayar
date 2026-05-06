@@ -221,3 +221,42 @@ func TestWebhookForwardCLI(t *testing.T) {
 		t.Fatalf("after remove output expected no targets, got: %q", afterRemoveOutput)
 	}
 }
+
+func TestWebhookForwardCLIUpdateRejectsZeroRetryMaxAttempts(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "rute-bayar.sqlite3")
+	runCLI := func(args ...string) (string, error) {
+		var stdout bytes.Buffer
+		err := ExecuteWithIO(ctx, args, &stdout, &stdout)
+		return stdout.String(), err
+	}
+
+	addOutput, err := runCLI(
+		"webhook", "forward", "add",
+		"--provider", "xendit",
+		"--name", "zero-flag-hook",
+		"--url", "https://example.test/hook",
+		"--db", dbPath,
+	)
+	if err != nil {
+		t.Fatalf("webhook forward add returned error: %v", err)
+	}
+	targetID := regexp.MustCompile(`(?m)^id:\s+([^\s]+)$`).FindStringSubmatch(addOutput)
+	if len(targetID) != 2 {
+		t.Fatalf("add output does not include id: %q", addOutput)
+	}
+
+	_, err = runCLI(
+		"webhook", "forward", "update", targetID[1],
+		"--retry-max-attempts", "0",
+		"--db", dbPath,
+	)
+	if err == nil {
+		t.Fatal("webhook forward update should reject retry-max-attempts=0")
+	}
+	if !strings.Contains(err.Error(), "must be greater than zero") {
+		t.Fatalf("unexpected update error: %v", err)
+	}
+}

@@ -773,13 +773,30 @@ func headersFromJSON(raw string) http.Header {
 	if raw == "" || raw == "{}" {
 		return http.Header{}
 	}
-	var values map[string]string
-	if err := json.Unmarshal([]byte(raw), &values); err != nil {
+
+	rawEntries := make(map[string]json.RawMessage)
+	if err := json.Unmarshal([]byte(raw), &rawEntries); err != nil {
 		return http.Header{}
 	}
+
 	headers := http.Header{}
-	for key, value := range values {
-		headers.Set(key, value)
+	for key, rawValue := range rawEntries {
+		var multiValues []string
+		if err := json.Unmarshal(rawValue, &multiValues); err == nil {
+			for _, value := range multiValues {
+				headers.Add(key, value)
+			}
+			continue
+		}
+
+		var singleValue string
+		if err := json.Unmarshal(rawValue, &singleValue); err == nil {
+			headers.Set(key, singleValue)
+		}
+	}
+
+	if len(headers) == 0 {
+		return http.Header{}
 	}
 	return headers
 }
@@ -802,10 +819,10 @@ func eventFilterFromJSON(raw string) map[string]string {
 }
 
 func headersToJSON(headers http.Header) string {
-	values := make(map[string]string, len(headers))
+	values := make(map[string][]string, len(headers))
 	for key, headerValues := range headers {
 		if len(headerValues) > 0 {
-			values[key] = headerValues[0]
+			values[key] = headerValues
 		}
 	}
 	raw, err := json.Marshal(values)

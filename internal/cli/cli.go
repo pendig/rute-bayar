@@ -12,6 +12,7 @@ import (
 	"os"
 	"strconv"
 	"strings"
+	"time"
 
 	"github.com/pendig/rute-bayar/internal/build"
 	"github.com/pendig/rute-bayar/internal/config"
@@ -73,9 +74,11 @@ Usage:
   rute-bayar pay create --provider xendit --method payment_link --reference rb-0001 --amount 15000
   rute-bayar pay status --provider midtrans --reference rb-0001
   rute-bayar pay refund
-  rute-bayar webhook serve --addr :8080
-  rute-bayar webhook forward list
-  rute-bayar webhook forward add
+	rute-bayar webhook serve --addr :8080
+	rute-bayar webhook forward list
+	rute-bayar webhook forward add
+	rute-bayar webhook forward update
+	rute-bayar webhook forward remove
   rute-bayar db migrate
   rute-bayar reconcile
   rute-bayar version`)
@@ -224,8 +227,9 @@ func providerCommand(ctx context.Context, w io.Writer, args []string) error {
 	}
 	switch args[0] {
 	case "list":
-		fmt.Fprintln(w, "midtrans")
-		fmt.Fprintln(w, "xendit")
+		for _, provider := range allProviders() {
+			fmt.Fprintln(w, provider)
+		}
 		return nil
 	case "accounts":
 		return providerAccounts(ctx, w)
@@ -882,7 +886,7 @@ func webhookForwardList(ctx context.Context, w io.Writer, args []string) error {
 	}
 	defer store.Close()
 
-	providers := []domain.ProviderCode{domain.ProviderMidtrans, domain.ProviderXendit}
+	providers := allProviders()
 	if trimmedProvider := strings.TrimSpace(*providerCode); trimmedProvider != "" {
 		provider, err := parseProvider(trimmedProvider)
 		if err != nil {
@@ -924,11 +928,14 @@ func webhookForwardAdd(ctx context.Context, stdout, stderr io.Writer, args []str
 	name := fs.String("name", "", "forwarding target name")
 	targetURL := fs.String("url", "", "destination webhook URL")
 	enabled := fs.Bool("enabled", true, "whether target is enabled")
-	maxAttempts := fs.Int("retry-max-attempts", forwarding.DefaultRetryPolicy().MaxAttempts, "max retry attempts")
-	retryTimeout := fs.Duration("retry-timeout", forwarding.DefaultRetryPolicy().Timeout, "retry timeout")
-	retryBackoff := fs.Duration("retry-backoff", forwarding.DefaultRetryPolicy().Backoff, "retry backoff")
+	maxAttempts := &intFlag{value: forwarding.DefaultRetryPolicy().MaxAttempts}
+	retryTimeout := &durationFlag{value: forwarding.DefaultRetryPolicy().Timeout}
+	retryBackoff := &durationFlag{value: forwarding.DefaultRetryPolicy().Backoff}
+	fs.Var(maxAttempts, "retry-max-attempts", "max retry attempts")
+	fs.Var(retryTimeout, "retry-timeout", "retry timeout")
+	fs.Var(retryBackoff, "retry-backoff", "retry backoff")
 	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
-	headerFlags := &stringMapFlag{}
+	headerFlags := &stringSliceMapFlag{}
 	filterFlags := &stringMapFlag{}
 	fs.Var(headerFlags, "header", "repeatable outbound request header in key=value form")
 	fs.Var(filterFlags, "event-filter", "repeatable outbound event filter in key=value form")
@@ -941,13 +948,13 @@ func webhookForwardAdd(ctx context.Context, stdout, stderr io.Writer, args []str
 	if strings.TrimSpace(*targetURL) == "" {
 		return fmt.Errorf("webhook forward add --url is required")
 	}
-	if *maxAttempts <= 0 {
+	if maxAttempts.value <= 0 {
 		return fmt.Errorf("webhook forward add --retry-max-attempts must be greater than zero")
 	}
-	if *retryTimeout <= 0 {
+	if retryTimeout.value <= 0 {
 		return fmt.Errorf("webhook forward add --retry-timeout must be greater than zero")
 	}
-	if *retryBackoff < 0 {
+	if retryBackoff.value < 0 {
 		return fmt.Errorf("webhook forward add --retry-backoff cannot be negative")
 	}
 
@@ -966,12 +973,12 @@ func webhookForwardAdd(ctx context.Context, stdout, stderr io.Writer, args []str
 		Name:        strings.TrimSpace(*name),
 		Provider:    provider,
 		URL:         strings.TrimSpace(*targetURL),
-		Headers:     convertMapToHeaders(headerFlags.values),
+		Headers:     convertSliceMapToHeaders(headerFlags.values),
 		EventFilter: filterFlags.values,
 		RetryPolicy: forwarding.RetryPolicy{
-			MaxAttempts: *maxAttempts,
-			Timeout:     *retryTimeout,
-			Backoff:     *retryBackoff,
+			MaxAttempts: maxAttempts.value,
+			Timeout:     retryTimeout.value,
+			Backoff:     retryBackoff.value,
 		},
 		Enabled: *enabled,
 	})
@@ -998,11 +1005,14 @@ func webhookForwardUpdate(ctx context.Context, stdout, stderr io.Writer, args []
 	name := fs.String("name", "", "forwarding target name")
 	targetURL := fs.String("url", "", "destination webhook URL")
 	enabled := &boolFlag{value: true}
-	maxAttempts := fs.Int("retry-max-attempts", 0, "max retry attempts")
-	retryTimeout := fs.Duration("retry-timeout", 0, "retry timeout")
-	retryBackoff := fs.Duration("retry-backoff", 0, "retry backoff")
+	maxAttempts := &intFlag{}
+	retryTimeout := &durationFlag{}
+	retryBackoff := &durationFlag{}
+	fs.Var(maxAttempts, "retry-max-attempts", "max retry attempts")
+	fs.Var(retryTimeout, "retry-timeout", "retry timeout")
+	fs.Var(retryBackoff, "retry-backoff", "retry backoff")
 	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
-	headerFlags := &stringMapFlag{}
+	headerFlags := &stringSliceMapFlag{}
 	filterFlags := &stringMapFlag{}
 	fs.Var(enabled, "enabled", "whether target is enabled")
 	fs.Var(headerFlags, "header", "repeatable outbound request header in key=value form")
@@ -1029,21 +1039,30 @@ func webhookForwardUpdate(ctx context.Context, stdout, stderr io.Writer, args []
 		target.URL = strings.TrimSpace(*targetURL)
 	}
 
-	if *maxAttempts > 0 {
-		target.RetryPolicy.MaxAttempts = *maxAttempts
+	if maxAttempts.set {
+		if maxAttempts.value <= 0 {
+			return fmt.Errorf("webhook forward update --retry-max-attempts must be greater than zero")
+		}
+		target.RetryPolicy.MaxAttempts = maxAttempts.value
 	}
-	if *retryTimeout > 0 {
-		target.RetryPolicy.Timeout = *retryTimeout
+	if retryTimeout.set {
+		if retryTimeout.value <= 0 {
+			return fmt.Errorf("webhook forward update --retry-timeout must be greater than zero")
+		}
+		target.RetryPolicy.Timeout = retryTimeout.value
 	}
-	if *retryBackoff > 0 {
-		target.RetryPolicy.Backoff = *retryBackoff
+	if retryBackoff.set {
+		if retryBackoff.value < 0 {
+			return fmt.Errorf("webhook forward update --retry-backoff cannot be negative")
+		}
+		target.RetryPolicy.Backoff = retryBackoff.value
 	}
 	if enabled.set {
 		target.Enabled = enabled.value
 	}
 
 	if headerFlags.set {
-		target.Headers = convertMapToHeaders(headerFlags.values)
+		target.Headers = convertSliceMapToHeaders(headerFlags.values)
 	}
 	if filterFlags.set {
 		target.EventFilter = copyStringMap(filterFlags.values)
@@ -1154,23 +1173,123 @@ func (f *stringMapFlag) String() string {
 	return "key=value"
 }
 
-func parseProvider(value string) (domain.ProviderCode, error) {
-	switch strings.ToLower(strings.TrimSpace(value)) {
-	case string(domain.ProviderMidtrans):
-		return domain.ProviderMidtrans, nil
-	case string(domain.ProviderXendit):
-		return domain.ProviderXendit, nil
-	default:
-		return "", fmt.Errorf("provider must be %q or %q", domain.ProviderMidtrans, domain.ProviderXendit)
+type stringSliceMapFlag struct {
+	values map[string][]string
+	set    bool
+}
+
+func (f *stringSliceMapFlag) Set(value string) error {
+	key, mappedValue, found := strings.Cut(value, "=")
+	if !found {
+		return fmt.Errorf("invalid key-value pair %q, expected key=value", value)
 	}
+	key = strings.TrimSpace(key)
+	mappedValue = strings.TrimSpace(mappedValue)
+	if key == "" {
+		return fmt.Errorf("invalid key-value pair %q, key cannot be empty", value)
+	}
+
+	if f.values == nil {
+		f.values = map[string][]string{}
+	}
+	f.values[key] = append(f.values[key], mappedValue)
+	f.set = true
+	return nil
+}
+
+func (f *stringSliceMapFlag) String() string {
+	if len(f.values) == 0 {
+		return ""
+	}
+	return "key=value"
+}
+
+func parseProvider(value string) (domain.ProviderCode, error) {
+	provider := strings.ToLower(strings.TrimSpace(value))
+	for _, supportedProvider := range allProviders() {
+		if provider == string(supportedProvider) {
+			return supportedProvider, nil
+		}
+	}
+
+	valid := make([]string, 0, len(allProviders()))
+	for _, supportedProvider := range allProviders() {
+		valid = append(valid, string(supportedProvider))
+	}
+	return "", fmt.Errorf("provider must be one of %q", strings.Join(valid, "\", \""))
 }
 
 func convertMapToHeaders(values map[string]string) http.Header {
 	headers := http.Header{}
 	for key, value := range values {
-		headers.Set(key, value)
+		headers.Add(key, value)
 	}
 	return headers
+}
+
+func convertSliceMapToHeaders(values map[string][]string) http.Header {
+	headers := http.Header{}
+	for key, list := range values {
+		for _, value := range list {
+			headers.Add(key, value)
+		}
+	}
+	return headers
+}
+
+func copyStringSliceMap(values map[string][]string) map[string][]string {
+	if len(values) == 0 {
+		return map[string][]string{}
+	}
+	copied := make(map[string][]string, len(values))
+	for key, list := range values {
+		copiedValues := make([]string, len(list))
+		copy(copiedValues, list)
+		copied[key] = copiedValues
+	}
+	return copied
+}
+
+type intFlag struct {
+	value int
+	set   bool
+}
+
+func (f *intFlag) Set(value string) error {
+	v, err := strconv.Atoi(strings.TrimSpace(value))
+	if err != nil {
+		return err
+	}
+	f.value = v
+	f.set = true
+	return nil
+}
+
+func (f *intFlag) String() string {
+	return strconv.Itoa(f.value)
+}
+
+type durationFlag struct {
+	value time.Duration
+	set   bool
+}
+
+func (f *durationFlag) Set(value string) error {
+	v, err := time.ParseDuration(strings.TrimSpace(value))
+	if err != nil {
+		return err
+	}
+	f.value = v
+	f.set = true
+	return nil
+}
+
+func (f *durationFlag) String() string {
+	return f.value.String()
+}
+
+func allProviders() []domain.ProviderCode {
+	return []domain.ProviderCode{domain.ProviderMidtrans, domain.ProviderXendit}
 }
 
 func copyStringMap(values map[string]string) map[string]string {

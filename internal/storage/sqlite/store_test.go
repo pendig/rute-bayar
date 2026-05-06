@@ -5,6 +5,7 @@ import (
 	"encoding/json"
 	"errors"
 	"net/http"
+	"reflect"
 	"testing"
 	"time"
 
@@ -259,5 +260,34 @@ func TestForwardingTargetLifecycle(t *testing.T) {
 
 	if _, err := store.GetForwardingTarget(ctx, targetID); err == nil {
 		t.Fatal("GetForwardingTarget returned nil error after delete")
+	}
+}
+
+func TestHeadersJSONCodecSupportsSingleAndMultiValues(t *testing.T) {
+	t.Parallel()
+
+	rawSingle := `{"Authorization":"Bearer token","X-Trace":["t1","t2"]}`
+	headers := headersFromJSON(rawSingle)
+	if len(headers["Authorization"]) != 1 || headers.Get("Authorization") != "Bearer token" {
+		t.Fatalf("headersFromJSON single value = %q, want Bearer token", headers.Get("Authorization"))
+	}
+	if !reflect.DeepEqual(headers["X-Trace"], []string{"t1", "t2"}) {
+		t.Fatalf("headersFromJSON multi value = %#v, want %#v", headers["X-Trace"], []string{"t1", "t2"})
+	}
+
+	multiple := http.Header{
+		"Authorization": {"Bearer token"},
+		"X-Trace":       {"t1", "t2"},
+	}
+	raw := headersToJSON(multiple)
+	var decoded map[string][]string
+	if err := json.Unmarshal([]byte(raw), &decoded); err != nil {
+		t.Fatalf("headersToJSON returned invalid json: %v", err)
+	}
+	if !reflect.DeepEqual(decoded["Authorization"], []string{"Bearer token"}) {
+		t.Fatalf("headersToJSON authorization = %#v, want %#v", decoded["Authorization"], []string{"Bearer token"})
+	}
+	if !reflect.DeepEqual(decoded["X-Trace"], []string{"t1", "t2"}) {
+		t.Fatalf("headersToJSON trace = %#v, want %#v", decoded["X-Trace"], []string{"t1", "t2"})
 	}
 }
