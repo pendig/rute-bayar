@@ -432,9 +432,10 @@ func (a *Adapter) ParseWebhook(_ context.Context, req provider.WebhookRequest) (
 	if reference == "" {
 		reference = strings.TrimSpace(webhook.TransactionID)
 	}
-	eventID := buildWebhookEventID(eventType, webhook.OrderID, webhook.TransactionID)
-	if eventID == "" {
-		eventID = buildWebhookEventID(webhook.OrderID, webhook.TransactionID)
+	eventKey := provider.BuildWebhookEventID(webhook.OrderID, webhook.TransactionID)
+	eventID := ""
+	if eventKey != "" {
+		eventID = provider.BuildWebhookEventID(eventType, eventKey)
 	}
 
 	return provider.WebhookEvent{
@@ -468,16 +469,6 @@ func normalizeMidtransField(value any) string {
 	default:
 		return strings.TrimSpace(fmt.Sprint(v))
 	}
-}
-
-func buildWebhookEventID(parts ...string) string {
-	cleaned := make([]string, 0, len(parts))
-	for _, part := range parts {
-		if trimmed := strings.TrimSpace(part); trimmed != "" {
-			cleaned = append(cleaned, trimmed)
-		}
-	}
-	return strings.Join(cleaned, ":")
 }
 
 func marshalHeaders(headers http.Header) []byte {

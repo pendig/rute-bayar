@@ -3,6 +3,7 @@ package provider
 import (
 	"context"
 	"net/http"
+	"strings"
 
 	"github.com/pendig/rute-bayar/internal/domain"
 )
@@ -14,15 +15,15 @@ type Capability struct {
 }
 
 type CreatePaymentRequest struct {
-	ExternalRef    string
-	Amount         int64
-	Currency       string
-	Method         string
-	Channel        string
-	CustomerName   string
-	CustomerEmail  string
-	CustomerPhone  string
-	MetadataJSON   []byte
+	ExternalRef   string
+	Amount        int64
+	Currency      string
+	Method        string
+	Channel       string
+	CustomerName  string
+	CustomerEmail string
+	CustomerPhone string
+	MetadataJSON  []byte
 }
 
 type CreatePaymentResponse struct {
@@ -82,6 +83,17 @@ type WebhookEvent struct {
 	Status          domain.PaymentStatus
 	RawPayloadJSON  []byte
 	RawHeadersJSON  []byte
+}
+
+// BuildWebhookEventID joins non-empty parts with colon separators.
+func BuildWebhookEventID(parts ...string) string {
+	cleaned := make([]string, 0, len(parts))
+	for _, part := range parts {
+		if trimmed := strings.TrimSpace(part); trimmed != "" {
+			cleaned = append(cleaned, trimmed)
+		}
+	}
+	return strings.Join(cleaned, ":")
 }
 
 type Adapter interface {

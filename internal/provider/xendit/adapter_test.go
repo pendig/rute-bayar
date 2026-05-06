@@ -326,6 +326,33 @@ func TestParseWebhookFallsBackToStatusEvent(t *testing.T) {
 	}
 }
 
+func TestParseWebhookUsesReferenceWhenProviderEventIDMissing(t *testing.T) {
+	t.Parallel()
+
+	payload, _ := json.Marshal(map[string]any{
+		"event":        "payment.completed",
+		"status":       "SUCCEEDDED",
+		"reference_id": "rb-002",
+	})
+	adapter := New(WithSecretKey("secret"))
+	event, err := adapter.ParseWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	})
+	if err != nil {
+		t.Fatalf("ParseWebhook returned error: %v", err)
+	}
+	if event.ProviderEventID != "payment.completed:rb-002" {
+		t.Fatalf("ProviderEventID = %q, want payment.completed:rb-002", event.ProviderEventID)
+	}
+	if event.PaymentRef != "rb-002" {
+		t.Fatalf("PaymentRef = %q, want rb-002", event.PaymentRef)
+	}
+	if event.Status != domain.PaymentStatusPaid {
+		t.Fatalf("Status = %q, want %q", event.Status, domain.PaymentStatusPaid)
+	}
+}
+
 type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {

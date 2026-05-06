@@ -380,7 +380,6 @@ func (a *Adapter) ParseWebhook(_ context.Context, req provider.WebhookRequest) (
 		xenditStringFromObject(data, "payment_id", "capture_id", "refund_id", "payment_request_id", "payment_token_id", "invoice_id", "id"),
 		xenditStringFromObject(payload, "payment_id", "capture_id", "refund_id", "payment_request_id", "payment_token_id", "invoice_id", "id"),
 	)
-	providerEventID = buildWebhookEventID(eventType, providerEventID)
 
 	reference := firstNonEmpty(
 		xenditStringFromObject(data, "reference_id", "external_id", "order_id", "payment_request_id", "invoice_id"),
@@ -388,6 +387,14 @@ func (a *Adapter) ParseWebhook(_ context.Context, req provider.WebhookRequest) (
 	)
 	if reference == "" {
 		reference = providerEventID
+	}
+	switch {
+	case providerEventID != "":
+		providerEventID = provider.BuildWebhookEventID(eventType, providerEventID)
+	case reference != "":
+		providerEventID = provider.BuildWebhookEventID(eventType, reference)
+	default:
+		providerEventID = ""
 	}
 
 	return provider.WebhookEvent{
@@ -484,7 +491,7 @@ func mapXenditSessionStatus(status string) domain.PaymentStatus {
 		return domain.PaymentStatusFailed
 	case "PENDING":
 		return domain.PaymentStatusPending
-	case "SUCCEEDED", "PAID":
+	case "SUCCEEDDED", "SUCCEEDED", "PAID":
 		return domain.PaymentStatusPaid
 	case "AUTHORIZED":
 		return domain.PaymentStatusAuthorized
@@ -571,14 +578,4 @@ func normalizeXenditField(value any) string {
 	default:
 		return strings.TrimSpace(fmt.Sprint(v))
 	}
-}
-
-func buildWebhookEventID(parts ...string) string {
-	cleaned := make([]string, 0, len(parts))
-	for _, part := range parts {
-		if trimmed := strings.TrimSpace(part); trimmed != "" {
-			cleaned = append(cleaned, trimmed)
-		}
-	}
-	return strings.Join(cleaned, ":")
 }

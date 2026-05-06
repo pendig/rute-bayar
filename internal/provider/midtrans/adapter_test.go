@@ -357,6 +357,33 @@ func TestParseWebhookFallsBackPaymentReference(t *testing.T) {
 	}
 }
 
+func TestParseWebhookLeavesProviderEventIDEmptyWithoutIdentifiers(t *testing.T) {
+	t.Parallel()
+
+	payload, _ := json.Marshal(map[string]any{
+		"transaction_status": "pending",
+		"fraud_status":       "accept",
+		"payment_type":       "bank_transfer",
+	})
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"))
+	event, err := adapter.ParseWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	})
+	if err != nil {
+		t.Fatalf("ParseWebhook returned error: %v", err)
+	}
+	if event.ProviderEventID != "" {
+		t.Fatalf("ProviderEventID = %q, want empty", event.ProviderEventID)
+	}
+	if event.PaymentRef != "" {
+		t.Fatalf("PaymentRef = %q, want empty", event.PaymentRef)
+	}
+	if event.EventType != "pending" {
+		t.Fatalf("EventType = %q, want pending", event.EventType)
+	}
+}
+
 func TestVerifyWebhookRejectsMissingFields(t *testing.T) {
 	t.Parallel()
 
