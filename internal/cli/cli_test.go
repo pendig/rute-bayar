@@ -4,6 +4,7 @@ import (
 	"bytes"
 	"context"
 	"encoding/json"
+	"net"
 	"net/http"
 	"net/http/httptest"
 	"path/filepath"
@@ -14,6 +15,21 @@ import (
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/storage/sqlite"
 )
+
+func newHTTPTestServer(t *testing.T, handler http.Handler) *httptest.Server {
+	t.Helper()
+
+	listener, err := net.Listen("tcp4", "127.0.0.1:0")
+	if err != nil {
+		t.Skipf("skip HTTP server test: bind to local TCP is restricted (%v)", err)
+		return nil
+	}
+
+	server := httptest.NewUnstartedServer(handler)
+	server.Listener = listener
+	server.Start()
+	return server
+}
 
 func TestMaskSecret(t *testing.T) {
 	t.Parallel()
@@ -317,7 +333,7 @@ func TestPayStatusMidtransUpdatesIntent(t *testing.T) {
 		t.Fatalf("RecordPaymentAttempt returned error: %v", err)
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newHTTPTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid method", http.StatusBadRequest)
 			return
@@ -414,7 +430,7 @@ func TestPayStatusXenditUpdatesIntent(t *testing.T) {
 		t.Fatalf("UpsertPaymentIntent returned error: %v", err)
 	}
 
-	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+	server := newHTTPTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet {
 			http.Error(w, "invalid method", http.StatusBadRequest)
 			return
