@@ -252,8 +252,8 @@ func TestParseWebhookMapsStatus(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseWebhook returned error: %v", err)
 	}
-	if event.ProviderEventID != "evt_123" {
-		t.Fatalf("ProviderEventID = %q, want evt_123", event.ProviderEventID)
+	if event.ProviderEventID != "payment.completed:evt_123" {
+		t.Fatalf("ProviderEventID = %q, want payment.completed:evt_123", event.ProviderEventID)
 	}
 	if event.EventType != "payment.completed" {
 		t.Fatalf("EventType = %q, want payment.completed", event.EventType)
@@ -288,8 +288,8 @@ func TestParseWebhookSupportsNestedEnvelope(t *testing.T) {
 	if err != nil {
 		t.Fatalf("ParseWebhook returned error: %v", err)
 	}
-	if event.ProviderEventID != "py_123" {
-		t.Fatalf("ProviderEventID = %q, want py_123", event.ProviderEventID)
+	if event.ProviderEventID != "payment.capture:py_123" {
+		t.Fatalf("ProviderEventID = %q, want payment.capture:py_123", event.ProviderEventID)
 	}
 	if event.PaymentRef != "rb-001" {
 		t.Fatalf("PaymentRef = %q, want rb-001", event.PaymentRef)
