@@ -207,6 +207,19 @@ func TestVerifyWebhookRejectsWrongToken(t *testing.T) {
 	}
 }
 
+func TestVerifyWebhookRejectsMissingToken(t *testing.T) {
+	t.Parallel()
+
+	adapter := New(WithSecretKey("secret"), WithCallbackToken("expected-token"))
+	req := httptest.NewRequest(http.MethodPost, "/webhooks/xendit", strings.NewReader(`{"status":"PAID"}`))
+	if err := adapter.VerifyWebhook(context.Background(), provider.WebhookRequest{
+		Headers: req.Header,
+		Body:    []byte(`{"status":"PAID"}`),
+	}); err == nil {
+		t.Fatal("VerifyWebhook returned nil error for missing callback token")
+	}
+}
+
 func TestParseWebhookMapsStatus(t *testing.T) {
 	t.Parallel()
 
@@ -233,6 +246,30 @@ func TestParseWebhookMapsStatus(t *testing.T) {
 	}
 	if event.Status != domain.PaymentStatusSettled {
 		t.Fatalf("Status = %q, want %q", event.Status, domain.PaymentStatusSettled)
+	}
+}
+
+func TestParseWebhookFallsBackToStatusEvent(t *testing.T) {
+	t.Parallel()
+
+	payload, _ := json.Marshal(map[string]any{
+		"id":       "evt_456",
+		"status":   "FAILED",
+		"order_id": "rb-001",
+	})
+	adapter := New(WithSecretKey("secret"))
+	event, err := adapter.ParseWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	})
+	if err != nil {
+		t.Fatalf("ParseWebhook returned error: %v", err)
+	}
+	if event.EventType != "FAILED" {
+		t.Fatalf("EventType = %q, want FAILED", event.EventType)
+	}
+	if event.Status != domain.PaymentStatusFailed {
+		t.Fatalf("Status = %q, want %q", event.Status, domain.PaymentStatusFailed)
 	}
 }
 
