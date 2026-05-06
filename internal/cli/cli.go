@@ -8,7 +8,9 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"os"
+	"strconv"
 	"strings"
 
 	"github.com/pendig/rute-bayar/internal/build"
@@ -817,7 +819,7 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 		fmt.Fprintln(stdout, "webhook replay scaffold is ready.")
 		return nil
 	case "forward":
-		return webhookForwardCommand(ctx, stdout, args[1:])
+		return webhookForwardCommand(ctx, stdout, stderr, args[1:])
 	default:
 		return fmt.Errorf("unknown webhook subcommand %q", args[0])
 	}
@@ -844,24 +846,342 @@ func dbCommand(ctx context.Context, w io.Writer, args []string) error {
 	}
 }
 
-func webhookForwardCommand(_ context.Context, w io.Writer, args []string) error {
+func webhookForwardCommand(ctx context.Context, stdout, stderr io.Writer, args []string) error {
 	if len(args) == 0 {
 		return fmt.Errorf("webhook forward command requires a subcommand")
 	}
 
 	switch args[0] {
 	case "list":
-		fmt.Fprintln(w, "no forwarding targets configured yet")
+		return webhookForwardList(ctx, stdout, args[1:])
 	case "add":
-		fmt.Fprintln(w, "webhook forwarding target add scaffold is ready.")
+		return webhookForwardAdd(ctx, stdout, stderr, args[1:])
 	case "update":
-		fmt.Fprintln(w, "webhook forwarding target update scaffold is ready.")
+		return webhookForwardUpdate(ctx, stdout, stderr, args[1:])
 	case "remove":
-		fmt.Fprintln(w, "webhook forwarding target remove scaffold is ready.")
+		return webhookForwardRemove(ctx, stdout, stderr, args[1:])
 	default:
 		return fmt.Errorf("unknown webhook forward subcommand %q", strings.Join(args, " "))
 	}
+}
+
+func webhookForwardList(ctx context.Context, w io.Writer, args []string) error {
+	cfg := config.Load()
+	fs := flag.NewFlagSet("webhook forward list", flag.ContinueOnError)
+	fs.SetOutput(w)
+	providerCode := fs.String("provider", "", "filter by provider code: midtrans or xendit")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	includeDisabled := fs.Bool("all", false, "include disabled targets")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	providers := []domain.ProviderCode{domain.ProviderMidtrans, domain.ProviderXendit}
+	if trimmedProvider := strings.TrimSpace(*providerCode); trimmedProvider != "" {
+		provider, err := parseProvider(trimmedProvider)
+		if err != nil {
+			return err
+		}
+		providers = []domain.ProviderCode{provider}
+	}
+
+	itemsPrinted := 0
+	for _, provider := range providers {
+		targets, err := store.ListForwardingTargets(ctx, provider)
+		if err != nil {
+			return err
+		}
+		for _, target := range targets {
+			if !*includeDisabled && !target.Enabled {
+				continue
+			}
+			if itemsPrinted == 0 {
+				fmt.Fprintln(w, "ID                                      PROVIDER    NAME               URL                                 ENABLED")
+				fmt.Fprintln(w, "-------------------------------------------------------------------------------")
+			}
+			itemsPrinted++
+			fmt.Fprintf(w, "%-40s %-10s %-17s %-35s %t\n", target.ID, target.Provider, target.Name, target.URL, target.Enabled)
+		}
+	}
+
+	if itemsPrinted == 0 {
+		fmt.Fprintln(w, "no forwarding targets found")
+	}
 	return nil
+}
+
+func webhookForwardAdd(ctx context.Context, stdout, stderr io.Writer, args []string) error {
+	cfg := config.Load()
+	fs := flag.NewFlagSet("webhook forward add", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	providerCode := fs.String("provider", "midtrans", "provider code: midtrans or xendit")
+	name := fs.String("name", "", "forwarding target name")
+	targetURL := fs.String("url", "", "destination webhook URL")
+	enabled := fs.Bool("enabled", true, "whether target is enabled")
+	maxAttempts := fs.Int("retry-max-attempts", forwarding.DefaultRetryPolicy().MaxAttempts, "max retry attempts")
+	retryTimeout := fs.Duration("retry-timeout", forwarding.DefaultRetryPolicy().Timeout, "retry timeout")
+	retryBackoff := fs.Duration("retry-backoff", forwarding.DefaultRetryPolicy().Backoff, "retry backoff")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	headerFlags := &stringMapFlag{}
+	filterFlags := &stringMapFlag{}
+	fs.Var(headerFlags, "header", "repeatable outbound request header in key=value form")
+	fs.Var(filterFlags, "event-filter", "repeatable outbound event filter in key=value form")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*name) == "" {
+		return fmt.Errorf("webhook forward add --name is required")
+	}
+	if strings.TrimSpace(*targetURL) == "" {
+		return fmt.Errorf("webhook forward add --url is required")
+	}
+	if *maxAttempts <= 0 {
+		return fmt.Errorf("webhook forward add --retry-max-attempts must be greater than zero")
+	}
+	if *retryTimeout <= 0 {
+		return fmt.Errorf("webhook forward add --retry-timeout must be greater than zero")
+	}
+	if *retryBackoff < 0 {
+		return fmt.Errorf("webhook forward add --retry-backoff cannot be negative")
+	}
+
+	provider, err := parseProvider(*providerCode)
+	if err != nil {
+		return err
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	id, err := store.AddForwardingTarget(ctx, forwarding.Target{
+		Name:        strings.TrimSpace(*name),
+		Provider:    provider,
+		URL:         strings.TrimSpace(*targetURL),
+		Headers:     convertMapToHeaders(headerFlags.values),
+		EventFilter: filterFlags.values,
+		RetryPolicy: forwarding.RetryPolicy{
+			MaxAttempts: *maxAttempts,
+			Timeout:     *retryTimeout,
+			Backoff:     *retryBackoff,
+		},
+		Enabled: *enabled,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(stdout, "forwarding target added\nid: %s\n", id)
+	return nil
+}
+
+func webhookForwardUpdate(ctx context.Context, stdout, stderr io.Writer, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("webhook forward update requires target id")
+	}
+	targetID := strings.TrimSpace(args[0])
+	if targetID == "" {
+		return fmt.Errorf("webhook forward update target id is required")
+	}
+
+	cfg := config.Load()
+	fs := flag.NewFlagSet("webhook forward update", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	name := fs.String("name", "", "forwarding target name")
+	targetURL := fs.String("url", "", "destination webhook URL")
+	enabled := &boolFlag{value: true}
+	maxAttempts := fs.Int("retry-max-attempts", 0, "max retry attempts")
+	retryTimeout := fs.Duration("retry-timeout", 0, "retry timeout")
+	retryBackoff := fs.Duration("retry-backoff", 0, "retry backoff")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	headerFlags := &stringMapFlag{}
+	filterFlags := &stringMapFlag{}
+	fs.Var(enabled, "enabled", "whether target is enabled")
+	fs.Var(headerFlags, "header", "repeatable outbound request header in key=value form")
+	fs.Var(filterFlags, "event-filter", "repeatable outbound event filter in key=value form")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	target, err := store.GetForwardingTarget(ctx, targetID)
+	if err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(*name) != "" {
+		target.Name = strings.TrimSpace(*name)
+	}
+	if strings.TrimSpace(*targetURL) != "" {
+		target.URL = strings.TrimSpace(*targetURL)
+	}
+
+	if *maxAttempts > 0 {
+		target.RetryPolicy.MaxAttempts = *maxAttempts
+	}
+	if *retryTimeout > 0 {
+		target.RetryPolicy.Timeout = *retryTimeout
+	}
+	if *retryBackoff > 0 {
+		target.RetryPolicy.Backoff = *retryBackoff
+	}
+	if enabled.set {
+		target.Enabled = enabled.value
+	}
+
+	if headerFlags.set {
+		target.Headers = convertMapToHeaders(headerFlags.values)
+	}
+	if filterFlags.set {
+		target.EventFilter = copyStringMap(filterFlags.values)
+	}
+
+	if strings.TrimSpace(target.Name) == "" {
+		return fmt.Errorf("webhook forward update cannot set empty name")
+	}
+	if strings.TrimSpace(target.URL) == "" {
+		return fmt.Errorf("webhook forward update cannot set empty target URL")
+	}
+
+	defaultPolicy := forwarding.DefaultRetryPolicy()
+	if target.RetryPolicy.MaxAttempts <= 0 {
+		target.RetryPolicy.MaxAttempts = defaultPolicy.MaxAttempts
+	}
+	if target.RetryPolicy.Timeout <= 0 {
+		target.RetryPolicy.Timeout = defaultPolicy.Timeout
+	}
+	if target.RetryPolicy.Backoff < 0 {
+		target.RetryPolicy.Backoff = defaultPolicy.Backoff
+	}
+
+	if err := store.UpdateForwardingTarget(ctx, target); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "forwarding target updated: %s\n", targetID)
+	return nil
+}
+
+func webhookForwardRemove(ctx context.Context, stdout, stderr io.Writer, args []string) error {
+	if len(args) == 0 {
+		return fmt.Errorf("webhook forward remove requires target id")
+	}
+	targetID := strings.TrimSpace(args[0])
+	if targetID == "" {
+		return fmt.Errorf("webhook forward remove target id is required")
+	}
+
+	cfg := config.Load()
+	fs := flag.NewFlagSet("webhook forward remove", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	if err := fs.Parse(args[1:]); err != nil {
+		return err
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	if err := store.DeleteForwardingTarget(ctx, targetID); err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "forwarding target removed: %s\n", targetID)
+	return nil
+}
+
+type boolFlag struct {
+	value bool
+	set   bool
+}
+
+func (f *boolFlag) Set(value string) error {
+	parsed, err := strconv.ParseBool(strings.TrimSpace(value))
+	if err != nil {
+		return err
+	}
+	f.value = parsed
+	f.set = true
+	return nil
+}
+
+func (f *boolFlag) String() string {
+	return strconv.FormatBool(f.value)
+}
+
+type stringMapFlag struct {
+	values map[string]string
+	set    bool
+}
+
+func (f *stringMapFlag) Set(value string) error {
+	key, mappedValue, found := strings.Cut(value, "=")
+	if !found {
+		return fmt.Errorf("invalid key-value pair %q, expected key=value", value)
+	}
+	key = strings.TrimSpace(key)
+	mappedValue = strings.TrimSpace(mappedValue)
+	if key == "" {
+		return fmt.Errorf("invalid key-value pair %q, key cannot be empty", value)
+	}
+
+	if f.values == nil {
+		f.values = map[string]string{}
+	}
+	f.values[key] = mappedValue
+	f.set = true
+	return nil
+}
+
+func (f *stringMapFlag) String() string {
+	if len(f.values) == 0 {
+		return ""
+	}
+	return "key=value"
+}
+
+func parseProvider(value string) (domain.ProviderCode, error) {
+	switch strings.ToLower(strings.TrimSpace(value)) {
+	case string(domain.ProviderMidtrans):
+		return domain.ProviderMidtrans, nil
+	case string(domain.ProviderXendit):
+		return domain.ProviderXendit, nil
+	default:
+		return "", fmt.Errorf("provider must be %q or %q", domain.ProviderMidtrans, domain.ProviderXendit)
+	}
+}
+
+func convertMapToHeaders(values map[string]string) http.Header {
+	headers := http.Header{}
+	for key, value := range values {
+		headers.Set(key, value)
+	}
+	return headers
+}
+
+func copyStringMap(values map[string]string) map[string]string {
+	if len(values) == 0 {
+		return map[string]string{}
+	}
+	copied := make(map[string]string, len(values))
+	for key, value := range values {
+		copied[key] = value
+	}
+	return copied
 }
 
 func buildWebhookHandlers(ctx context.Context, store *sqlite.Store, environment domain.Environment) (map[domain.ProviderCode]provider.Adapter, error) {

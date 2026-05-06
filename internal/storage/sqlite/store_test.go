@@ -4,9 +4,12 @@ import (
 	"context"
 	"encoding/json"
 	"errors"
+	"net/http"
 	"testing"
+	"time"
 
 	"github.com/pendig/rute-bayar/internal/domain"
+	"github.com/pendig/rute-bayar/internal/forwarding"
 )
 
 func TestProviderAccountUpsertListAndGet(t *testing.T) {
@@ -147,5 +150,114 @@ func TestPaymentIntentAttemptAndStatusCheckStorage(t *testing.T) {
 	}
 	if checkID == "" {
 		t.Fatal("RecordPaymentStatusCheck returned empty id")
+	}
+}
+
+func TestForwardingTargetLifecycle(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	targetID, err := store.AddForwardingTarget(ctx, forwarding.Target{
+		Name:     "xendit-webhook",
+		Provider: domain.ProviderXendit,
+		URL:      "https://example.test/callback",
+		Headers: http.Header{
+			"Authorization": []string{"Bearer token"},
+			"X-Trace":       []string{"first"},
+		},
+		EventFilter: map[string]string{
+			"event": "payment_session.created",
+			"env":   "sandbox",
+		},
+		RetryPolicy: forwarding.RetryPolicy{
+			MaxAttempts: 5,
+			Timeout:     8 * time.Second,
+			Backoff:     1 * time.Second,
+		},
+		Enabled: true,
+	})
+	if err != nil {
+		t.Fatalf("AddForwardingTarget returned error: %v", err)
+	}
+	if targetID == "" {
+		t.Fatal("AddForwardingTarget returned empty id")
+	}
+
+	targets, err := store.ListForwardingTargets(ctx, domain.ProviderXendit)
+	if err != nil {
+		t.Fatalf("ListForwardingTargets returned error: %v", err)
+	}
+	if len(targets) != 1 {
+		t.Fatalf("ListForwardingTargets length = %d, want 1", len(targets))
+	}
+	if targets[0].Headers.Get("Authorization") != "Bearer token" {
+		t.Fatalf("stored header Authorization = %q, want token", targets[0].Headers.Get("Authorization"))
+	}
+	if got := targets[0].EventFilter["event"]; got != "payment_session.created" {
+		t.Fatalf("stored event filter event = %q, want payment_session.created", got)
+	}
+
+	target, err := store.GetForwardingTarget(ctx, targetID)
+	if err != nil {
+		t.Fatalf("GetForwardingTarget returned error: %v", err)
+	}
+	if target.Name != "xendit-webhook" {
+		t.Fatalf("GetForwardingTarget Name = %q, want xendit-webhook", target.Name)
+	}
+
+	updatedHeaders := http.Header{"Authorization": []string{"Bearer updated"}}
+	target.Name = "xendit-webhook-v2"
+	target.URL = "https://example.test/callback-v2"
+	target.Headers = updatedHeaders
+	target.Enabled = false
+	target.RetryPolicy = forwarding.RetryPolicy{
+		MaxAttempts: 7,
+		Timeout:     10 * time.Second,
+		Backoff:     2 * time.Second,
+	}
+	if err := store.UpdateForwardingTarget(ctx, target); err != nil {
+		t.Fatalf("UpdateForwardingTarget returned error: %v", err)
+	}
+
+	target, err = store.GetForwardingTarget(ctx, targetID)
+	if err != nil {
+		t.Fatalf("GetForwardingTarget after update returned error: %v", err)
+	}
+	if target.Name != "xendit-webhook-v2" {
+		t.Fatalf("updated Name = %q, want xendit-webhook-v2", target.Name)
+	}
+	if target.URL != "https://example.test/callback-v2" {
+		t.Fatalf("updated URL = %q, want https://example.test/callback-v2", target.URL)
+	}
+	if target.Headers.Get("Authorization") != "Bearer updated" {
+		t.Fatalf("updated Authorization = %q, want updated", target.Headers.Get("Authorization"))
+	}
+	if target.Enabled {
+		t.Fatal("target should be disabled after update")
+	}
+	if target.RetryPolicy.MaxAttempts != 7 {
+		t.Fatalf("updated retry max attempts = %d, want 7", target.RetryPolicy.MaxAttempts)
+	}
+
+	enabledTargets, err := store.ListEnabledTargets(ctx, domain.ProviderXendit)
+	if err != nil {
+		t.Fatalf("ListEnabledTargets returned error: %v", err)
+	}
+	if len(enabledTargets) != 0 {
+		t.Fatalf("ListEnabledTargets length = %d, want 0", len(enabledTargets))
+	}
+
+	if err := store.DeleteForwardingTarget(ctx, targetID); err != nil {
+		t.Fatalf("DeleteForwardingTarget returned error: %v", err)
+	}
+
+	if _, err := store.GetForwardingTarget(ctx, targetID); err == nil {
+		t.Fatal("GetForwardingTarget returned nil error after delete")
 	}
 }

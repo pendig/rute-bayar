@@ -1,7 +1,11 @@
 package cli
 
 import (
+	"bytes"
 	"context"
+	"path/filepath"
+	"regexp"
+	"strings"
 	"testing"
 
 	"github.com/pendig/rute-bayar/internal/domain"
@@ -138,5 +142,82 @@ func TestBuildWebhookHandlersReturnsMalformedCredentialError(t *testing.T) {
 
 	if _, err := buildWebhookHandlers(ctx, store, domain.EnvironmentSandbox); err == nil {
 		t.Fatal("buildWebhookHandlers returned nil error for malformed credential")
+	}
+}
+
+func TestWebhookForwardCLI(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "rute-bayar.sqlite3")
+
+	runCLI := func(args ...string) (string, error) {
+		var stdout bytes.Buffer
+		err := ExecuteWithIO(ctx, args, &stdout, &stdout)
+		return stdout.String(), err
+	}
+
+	addOutput, err := runCLI(
+		"webhook", "forward", "add",
+		"--provider", "midtrans",
+		"--name", "orders-hook",
+		"--url", "https://example.test/hook",
+		"--header", "X-Token=abc",
+		"--event-filter", "event=payment",
+		"--db", dbPath,
+		"--retry-max-attempts", "4",
+		"--retry-timeout", "15s",
+		"--retry-backoff", "3s",
+	)
+	if err != nil {
+		t.Fatalf("webhook forward add returned error: %v", err)
+	}
+	match := regexp.MustCompile(`(?m)^id:\s+([^\s]+)$`).FindStringSubmatch(addOutput)
+	if len(match) != 2 {
+		t.Fatalf("unexpected add output, missing id: %q", addOutput)
+	}
+	targetID := match[1]
+
+	listOutput, err := runCLI("webhook", "forward", "list", "--provider", "midtrans", "--db", dbPath)
+	if err != nil {
+		t.Fatalf("webhook forward list returned error: %v", err)
+	}
+	if !strings.Contains(listOutput, targetID) || !strings.Contains(listOutput, "orders-hook") {
+		t.Fatalf("list output does not include target: %q", listOutput)
+	}
+
+	_, err = runCLI(
+		"webhook", "forward", "update", targetID,
+		"--name", "orders-hook-v2",
+		"--url", "https://example.test/hook-v2",
+		"--enabled", "false",
+		"--db", dbPath,
+	)
+	if err != nil {
+		t.Fatalf("webhook forward update returned error: %v", err)
+	}
+
+	disabledListOutput, err := runCLI("webhook", "forward", "list", "--provider", "midtrans", "--all", "--db", dbPath)
+	if err != nil {
+		t.Fatalf("webhook forward list --all returned error: %v", err)
+	}
+	if !strings.Contains(disabledListOutput, "orders-hook-v2") || !strings.Contains(disabledListOutput, "false") {
+		t.Fatalf("list --all output does not show updated target: %q", disabledListOutput)
+	}
+
+	removeOutput, err := runCLI("webhook", "forward", "remove", targetID, "--db", dbPath)
+	if err != nil {
+		t.Fatalf("webhook forward remove returned error: %v", err)
+	}
+	if !strings.Contains(removeOutput, targetID) {
+		t.Fatalf("remove output missing target id: %q", removeOutput)
+	}
+
+	afterRemoveOutput, err := runCLI("webhook", "forward", "list", "--provider", "midtrans", "--db", dbPath)
+	if err != nil {
+		t.Fatalf("webhook forward list after remove returned error: %v", err)
+	}
+	if !strings.Contains(afterRemoveOutput, "no forwarding targets found") {
+		t.Fatalf("after remove output expected no targets, got: %q", afterRemoveOutput)
 	}
 }

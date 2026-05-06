@@ -27,12 +27,13 @@ Dokumen ini mencatat status implementasi teknis Rute Bayar agar contributor muda
 - Webhook parsing event untuk payload Midtrans dan Xendit.
 - Webhook reconciliation dasar: event parsed berhasil meng-update status `payment_intents` bila referensi cocok.
 - Idempotency dasar: status webhook yang sama tidak mengulang update status ketika sudah sama.
+- Forwarding target management lewat CLI (`webhook forward list|add|update|remove`) dengan penyimpanan konfigurasi di SQLite.
+- Penyimpanan konfigurasi forward (headers, filter event, retry policy, enabled flag) dalam format JSON untuk kemudahan debugging.
 
 ## Belum Ada
 
 - Xendit Payment Session refund.
 - Midtrans Snap/Core adapter untuk create/refund dan perluasan metode lain.
-- Forwarding target management yang persist lewat CLI.
 - CI GitHub Actions.
 
 ## Command yang Sudah Ditargetkan
@@ -45,6 +46,10 @@ rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "
 rute-bayar provider test midtrans
 rute-bayar pay create --provider midtrans --method bank_transfer --bank bca --reference rb-0001 --amount 15000
 rute-bayar pay create --provider xendit --method payment_link --reference rb-xnd-001 --amount 15000
+rute-bayar webhook forward add --provider midtrans --name orders --url https://example.com/webhooks/events --retry-max-attempts 4 --retry-timeout 10s --retry-backoff 2s
+rute-bayar webhook forward list --provider midtrans
+rute-bayar webhook forward update <target-id> --name orders-v2 --enabled=false
+rute-bayar webhook forward remove <target-id>
 ```
 
 ## Catatan Verifikasi Lokal
