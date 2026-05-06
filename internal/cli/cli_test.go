@@ -146,7 +146,7 @@ func TestWebhookForwardCLI(t *testing.T) {
 	}
 }
 
-func TestWebhookForwardCLIUpdateRejectsZeroRetryMaxAttempts(t *testing.T) {
+func TestWebhookForwardCLIUpdateRejectsNegativeRetryMaxAttempts(t *testing.T) {
 	t.Parallel()
 
 	ctx := context.Background()
@@ -174,13 +174,13 @@ func TestWebhookForwardCLIUpdateRejectsZeroRetryMaxAttempts(t *testing.T) {
 
 	_, err = runCLI(
 		"webhook", "forward", "update", targetID[1],
-		"--retry-max-attempts", "0",
+		"--retry-max-attempts", "-1",
 		"--db", dbPath,
 	)
 	if err == nil {
-		t.Fatal("webhook forward update should reject retry-max-attempts=0")
+		t.Fatal("webhook forward update should reject retry-max-attempts=-1")
 	}
-	if !strings.Contains(err.Error(), "must be greater than zero") {
+	if !strings.Contains(err.Error(), "cannot be negative") {
 		t.Fatalf("unexpected update error: %v", err)
 	}
 }

@@ -148,14 +148,6 @@ func parseProvider(value string) (domain.ProviderCode, error) {
 	return "", fmt.Errorf("provider must be one of %q", strings.Join(valid, "\", \""))
 }
 
-func convertMapToHeaders(values map[string]string) http.Header {
-	headers := http.Header{}
-	for key, value := range values {
-		headers.Add(key, value)
-	}
-	return headers
-}
-
 func convertSliceMapToHeaders(values map[string][]string) http.Header {
 	headers := http.Header{}
 	for key, list := range values {
@@ -173,19 +165,6 @@ func copyStringMap(values map[string]string) map[string]string {
 	copied := make(map[string]string, len(values))
 	for key, value := range values {
 		copied[key] = value
-	}
-	return copied
-}
-
-func copyStringSliceMap(values map[string][]string) map[string][]string {
-	if len(values) == 0 {
-		return map[string][]string{}
-	}
-	copied := make(map[string][]string, len(values))
-	for key, list := range values {
-		copiedValues := make([]string, len(list))
-		copy(copiedValues, list)
-		copied[key] = copiedValues
 	}
 	return copied
 }
