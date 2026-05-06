@@ -60,6 +60,8 @@ Output:
 
 - user bisa menambah, melihat, mengubah, dan menghapus target forwarding lewat CLI
 
+Rujukan detail: [Forwarding Feature Plan](./forwarding-feature-plan.md).
+
 ## Milestone 4: Operational Hardening
 
 Tujuan:
