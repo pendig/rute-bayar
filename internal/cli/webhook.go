@@ -312,7 +312,7 @@ func webhookReplayCommand(ctx context.Context, stdout, stderr io.Writer, args []
 
 	event, err := store.GetWebhookEventByID(ctx, trimmedEventID)
 	if err != nil {
-		return err
+		return fmt.Errorf("get webhook event %q: %w", trimmedEventID, err)
 	}
 
 	if strings.TrimSpace(*providerCode) != "" {
@@ -363,7 +363,9 @@ func parseHeadersJSON(raw json.RawMessage) (http.Header, error) {
 	for key, rawValue := range rawEntries {
 		var multiValues []string
 		if err := json.Unmarshal(rawValue, &multiValues); err == nil {
-			headers[key] = append([]string(nil), multiValues...)
+			for _, value := range multiValues {
+				headers.Add(key, value)
+			}
 			continue
 		}
 

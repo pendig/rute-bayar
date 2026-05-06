@@ -174,7 +174,7 @@ func scalarToString(value any) string {
 		}
 		return "false"
 	case float64:
-		return strings.TrimRight(strings.TrimRight(fmt.Sprintf("%v", v), "0"), ".")
+		return strings.TrimSpace(fmt.Sprintf("%v", v))
 	case fmt.Stringer:
 		return strings.TrimSpace(v.String())
 	default:

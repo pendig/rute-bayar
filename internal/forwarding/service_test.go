@@ -81,6 +81,9 @@ func TestScalarToString(t *testing.T) {
 	if got := scalarToString(123); got != "123" {
 		t.Fatalf("scalarToString(123) = %q, want 123", got)
 	}
+	if got := scalarToString(float64(1000)); got != "1000" {
+		t.Fatalf("scalarToString(float64(1000)) = %q, want 1000", got)
+	}
 	if got := scalarToString(nil); got != "" {
 		t.Fatalf("scalarToString(nil) = %q, want empty", got)
 	}
