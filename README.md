@@ -4,7 +4,7 @@ Rute Bayar is an open source payment router for Indonesian payment gateways.
 
 The project provides one internal interface for multiple providers, starting with **Xendit** and **Midtrans**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
 
-> Status: alpha preview. The repository already includes webhook signature verification for Midtrans and callback-token verification for Xendit (for inbound callbacks that support/enable those checks), plus Midtrans dan Xendit `pay create`, `pay status`, dan SQLite persistence. Full webhook-driven status reconciliation and forwarding target management are still in progress.
+> Status: alpha preview. The repository already includes webhook signature verification for Midtrans and callback-token verification for Xendit (for inbound callbacks that support/enable those checks), plus Midtrans dan Xendit `pay create`, `pay status`, `pay refund`, `reconcile`, and SQLite persistence. Webhook forwarding target management is also available via CLI.
 
 ## Features
 

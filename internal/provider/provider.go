@@ -28,6 +28,8 @@ type CreatePaymentRequest struct {
 
 type CreatePaymentResponse struct {
 	ProviderReference string
+	PaymentSessionID  string
+	PaymentRequestID  string
 	TransactionID     string
 	OrderID           string
 	PaymentType       string
@@ -43,6 +45,8 @@ type CreatePaymentResponse struct {
 
 type PaymentStatusResponse struct {
 	ProviderReference string
+	PaymentSessionID  string
+	PaymentRequestID  string
 	TransactionID     string
 	OrderID           string
 	PaymentType       string
@@ -60,12 +64,16 @@ type PaymentStatusResponse struct {
 
 type RefundRequest struct {
 	ProviderReference string
+	ReferenceID       string
 	Amount            int64
+	Currency          string
 	Reason            string
 }
 
 type RefundResponse struct {
 	ProviderReference string
+	PaymentSessionID  string
+	PaymentRequestID  string
 	Status            domain.PaymentStatus
 	RawRequestJSON    []byte
 	RawResponseJSON   []byte

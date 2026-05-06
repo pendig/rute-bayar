@@ -155,6 +155,61 @@ func TestPaymentIntentAttemptAndStatusCheckStorage(t *testing.T) {
 	}
 }
 
+func TestRefundStorageLifecycle(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	intentID, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+		ExternalRef:  "rb-refund-001",
+		ProviderCode: domain.ProviderXendit,
+		Amount:       15000,
+		Currency:     "IDR",
+		Status:       domain.PaymentStatusSettled,
+	})
+	if err != nil {
+		t.Fatalf("UpsertPaymentIntent returned error: %v", err)
+	}
+
+	refundID, err := store.RecordRefund(ctx, domain.Refund{
+		PaymentIntentID:   intentID,
+		ProviderCode:      domain.ProviderXendit,
+		Amount:            5000,
+		Status:            domain.PaymentStatusRefunded,
+		RequestJSON:       []byte(`{"payment_request_id":"pr-001"}`),
+		ResponseJSON:      []byte(`{"status":"SUCCEEDED"}`),
+		ProviderReference: "ps-001",
+	})
+	if err != nil {
+		t.Fatalf("RecordRefund returned error: %v", err)
+	}
+	if refundID == "" {
+		t.Fatal("RecordRefund returned empty id")
+	}
+
+	refund, err := store.GetLatestRefundByIntent(ctx, intentID, domain.ProviderXendit)
+	if err != nil {
+		t.Fatalf("GetLatestRefundByIntent returned error: %v", err)
+	}
+	if refund.ProviderReference != "ps-001" {
+		t.Fatalf("ProviderReference = %q, want ps-001", refund.ProviderReference)
+	}
+	if refund.Status != domain.PaymentStatusRefunded {
+		t.Fatalf("Status = %q, want refunded", refund.Status)
+	}
+	if string(refund.RequestJSON) != `{"payment_request_id":"pr-001"}` {
+		t.Fatalf("RequestJSON = %s, want original request", refund.RequestJSON)
+	}
+	if string(refund.ResponseJSON) != `{"status":"SUCCEEDED"}` {
+		t.Fatalf("ResponseJSON = %s, want original response", refund.ResponseJSON)
+	}
+}
+
 func TestWebhookEventStorageLifecycle(t *testing.T) {
 	t.Parallel()
 
