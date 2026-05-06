@@ -2,8 +2,6 @@ package cli
 
 import (
 	"context"
-	"encoding/json"
-	"errors"
 	"flag"
 	"fmt"
 	"io"
@@ -13,9 +11,8 @@ import (
 	"github.com/pendig/rute-bayar/internal/daemon"
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/forwarding"
-	"github.com/pendig/rute-bayar/internal/provider"
-	"github.com/pendig/rute-bayar/internal/provider/midtrans"
-	"github.com/pendig/rute-bayar/internal/provider/xendit"
+	"github.com/pendig/rute-bayar/internal/forwardingsvc"
+	"github.com/pendig/rute-bayar/internal/providerfactory"
 	"github.com/pendig/rute-bayar/internal/storage/sqlite"
 )
 
@@ -35,7 +32,8 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
-		if err := validateEnvironment(*environment); err != nil {
+		environmentValue := strings.TrimSpace(*environment)
+		if err := validateEnvironment(environmentValue); err != nil {
 			return err
 		}
 
@@ -44,15 +42,16 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 			return err
 		}
 		defer store.Close()
+		factory := providerfactory.New(store)
 
-		handlers, err := buildWebhookHandlers(ctx, store, domain.Environment(*environment))
+		handlers, err := factory.WebhookHandlers(ctx, domain.Environment(environmentValue))
 		if err != nil {
 			return err
 		}
 
 		srv := daemon.NewServer(*addr, store, forwarding.NewService(store), handlers)
 		fmt.Fprintf(stdout, "Rute Bayar webhook daemon listening on %s\n", *addr)
-		fmt.Fprintf(stdout, "webhook environment: %s\n", *environment)
+		fmt.Fprintf(stdout, "webhook environment: %s\n", environmentValue)
 		fmt.Fprintf(stdout, "SQLite database: %s\n", *dbPath)
 		return srv.ListenAndServe()
 	case "replay":
@@ -101,36 +100,31 @@ func webhookForwardList(ctx context.Context, w io.Writer, args []string) error {
 	}
 	defer store.Close()
 
-	providers := allProviders()
+	svc := forwardingsvc.New(store)
+	var providerFilter domain.ProviderCode
 	if trimmedProvider := strings.TrimSpace(*providerCode); trimmedProvider != "" {
 		parsed, err := parseProvider(trimmedProvider)
 		if err != nil {
 			return err
 		}
-		providers = []domain.ProviderCode{parsed}
+		providerFilter = parsed
 	}
 
-	itemsPrinted := 0
-	for _, provider := range providers {
-		targets, err := store.ListForwardingTargets(ctx, provider)
-		if err != nil {
-			return err
-		}
-		for _, target := range targets {
-			if !*includeDisabled && !target.Enabled {
-				continue
-			}
-			if itemsPrinted == 0 {
-				fmt.Fprintln(w, "ID                                      PROVIDER    NAME               URL                                 ENABLED")
-				fmt.Fprintln(w, "-------------------------------------------------------------------------------")
-			}
-			itemsPrinted++
-			fmt.Fprintf(w, "%-40s %-10s %-17s %-35s %t\n", target.ID, target.Provider, target.Name, target.URL, target.Enabled)
-		}
+	targets, err := svc.List(ctx, forwardingsvc.ListInput{
+		Provider:        providerFilter,
+		IncludeDisabled: *includeDisabled,
+	})
+	if err != nil {
+		return err
 	}
-
-	if itemsPrinted == 0 {
+	if len(targets) == 0 {
 		fmt.Fprintln(w, "no forwarding targets found")
+		return nil
+	}
+	fmt.Fprintln(w, "ID                                      PROVIDER    NAME               URL                                 ENABLED")
+	fmt.Fprintln(w, "-------------------------------------------------------------------------------")
+	for _, target := range targets {
+		fmt.Fprintf(w, "%-40s %-10s %-17s %-35s %t\n", target.ID, target.Provider, target.Name, target.URL, target.Enabled)
 	}
 	return nil
 }
@@ -157,21 +151,6 @@ func webhookForwardAdd(ctx context.Context, stdout, stderr io.Writer, args []str
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if strings.TrimSpace(*name) == "" {
-		return fmt.Errorf("webhook forward add --name is required")
-	}
-	if strings.TrimSpace(*targetURL) == "" {
-		return fmt.Errorf("webhook forward add --url is required")
-	}
-	if maxAttempts.value <= 0 {
-		return fmt.Errorf("webhook forward add --retry-max-attempts must be greater than zero")
-	}
-	if retryTimeout.value <= 0 {
-		return fmt.Errorf("webhook forward add --retry-timeout must be greater than zero")
-	}
-	if retryBackoff.value < 0 {
-		return fmt.Errorf("webhook forward add --retry-backoff cannot be negative")
-	}
 
 	provider, err := parseProvider(*providerCode)
 	if err != nil {
@@ -184,10 +163,12 @@ func webhookForwardAdd(ctx context.Context, stdout, stderr io.Writer, args []str
 	}
 	defer store.Close()
 
-	id, err := store.AddForwardingTarget(ctx, forwarding.Target{
-		Name:        strings.TrimSpace(*name),
+	svc := forwardingsvc.New(store)
+	id, err := svc.Add(ctx, forwardingsvc.AddInput{
 		Provider:    provider,
-		URL:         strings.TrimSpace(*targetURL),
+		Name:        *name,
+		URL:         *targetURL,
+		Enabled:     *enabled,
 		Headers:     convertSliceMapToHeaders(headerFlags.values),
 		EventFilter: filterFlags.values,
 		RetryPolicy: forwarding.RetryPolicy{
@@ -195,7 +176,6 @@ func webhookForwardAdd(ctx context.Context, stdout, stderr io.Writer, args []str
 			Timeout:     retryTimeout.value,
 			Backoff:     retryBackoff.value,
 		},
-		Enabled: *enabled,
 	})
 	if err != nil {
 		return err
@@ -242,66 +222,30 @@ func webhookForwardUpdate(ctx context.Context, stdout, stderr io.Writer, args []
 	}
 	defer store.Close()
 
-	target, err := store.GetForwardingTarget(ctx, targetID)
-	if err != nil {
-		return err
-	}
-
-	if strings.TrimSpace(*name) != "" {
-		target.Name = strings.TrimSpace(*name)
-	}
-	if strings.TrimSpace(*targetURL) != "" {
-		target.URL = strings.TrimSpace(*targetURL)
-	}
-
+	svc := forwardingsvc.New(store)
+	var retryPolicy forwarding.RetryPolicy
 	if maxAttempts.set {
-		if maxAttempts.value <= 0 {
-			return fmt.Errorf("webhook forward update --retry-max-attempts must be greater than zero")
-		}
-		target.RetryPolicy.MaxAttempts = maxAttempts.value
+		retryPolicy.MaxAttempts = maxAttempts.value
 	}
 	if retryTimeout.set {
-		if retryTimeout.value <= 0 {
-			return fmt.Errorf("webhook forward update --retry-timeout must be greater than zero")
-		}
-		target.RetryPolicy.Timeout = retryTimeout.value
+		retryPolicy.Timeout = retryTimeout.value
 	}
 	if retryBackoff.set {
-		if retryBackoff.value < 0 {
-			return fmt.Errorf("webhook forward update --retry-backoff cannot be negative")
-		}
-		target.RetryPolicy.Backoff = retryBackoff.value
+		retryPolicy.Backoff = retryBackoff.value
 	}
-	if enabled.set {
-		target.Enabled = enabled.value
-	}
-
-	if headerFlags.set {
-		target.Headers = convertSliceMapToHeaders(headerFlags.values)
-	}
-	if filterFlags.set {
-		target.EventFilter = copyStringMap(filterFlags.values)
-	}
-
-	if strings.TrimSpace(target.Name) == "" {
-		return fmt.Errorf("webhook forward update cannot set empty name")
-	}
-	if strings.TrimSpace(target.URL) == "" {
-		return fmt.Errorf("webhook forward update cannot set empty target URL")
-	}
-
-	defaultPolicy := forwarding.DefaultRetryPolicy()
-	if target.RetryPolicy.MaxAttempts <= 0 {
-		target.RetryPolicy.MaxAttempts = defaultPolicy.MaxAttempts
-	}
-	if target.RetryPolicy.Timeout <= 0 {
-		target.RetryPolicy.Timeout = defaultPolicy.Timeout
-	}
-	if target.RetryPolicy.Backoff < 0 {
-		target.RetryPolicy.Backoff = defaultPolicy.Backoff
-	}
-
-	if err := store.UpdateForwardingTarget(ctx, target); err != nil {
+	if err := svc.Update(ctx, forwardingsvc.UpdateInput{
+		ID:             targetID,
+		Name:           *name,
+		URL:            *targetURL,
+		Enabled:        enabled.value,
+		EnabledSet:     enabled.set,
+		Headers:        convertSliceMapToHeaders(headerFlags.values),
+		HeadersSet:     headerFlags.set,
+		EventFilter:    filterFlags.values,
+		EventFilterSet: filterFlags.set,
+		RetryPolicy:    retryPolicy,
+		RetryPolicySet: maxAttempts.set || retryTimeout.set || retryBackoff.set,
+	}); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "forwarding target updated: %s\n", targetID)
@@ -331,59 +275,10 @@ func webhookForwardRemove(ctx context.Context, stdout, stderr io.Writer, args []
 	}
 	defer store.Close()
 
-	if err := store.DeleteForwardingTarget(ctx, targetID); err != nil {
+	svc := forwardingsvc.New(store)
+	if err := svc.Remove(ctx, targetID); err != nil {
 		return err
 	}
 	fmt.Fprintf(stdout, "forwarding target removed: %s\n", targetID)
 	return nil
-}
-
-func buildWebhookHandlers(ctx context.Context, store *sqlite.Store, environment domain.Environment) (map[domain.ProviderCode]provider.Adapter, error) {
-	handlers := make(map[domain.ProviderCode]provider.Adapter)
-
-	midtransAccount, err := store.GetProviderAccount(ctx, domain.ProviderMidtrans, environment)
-	if err != nil && !errors.Is(err, sqlite.ErrProviderAccountNotConfigured) {
-		return nil, fmt.Errorf("load midtrans webhook account: %w", err)
-	}
-	if err == nil {
-		credential, err := midtransCredentialFromJSON(midtransAccount.CredentialJSON)
-		if err != nil {
-			return nil, fmt.Errorf("load midtrans webhook credential: %w", err)
-		}
-		handlers[domain.ProviderMidtrans] = midtrans.New(
-			midtrans.WithServerKey(credential.ServerKey),
-			midtrans.WithBaseURL(midtrans.BaseURLForEnvironment(environment)),
-		)
-	}
-
-	xenditAccount, err := store.GetProviderAccount(ctx, domain.ProviderXendit, environment)
-	if err != nil && !errors.Is(err, sqlite.ErrProviderAccountNotConfigured) {
-		return nil, fmt.Errorf("load xendit webhook account: %w", err)
-	}
-	if err == nil {
-		secretKey, err := secretKeyFromCredential(xenditAccount.CredentialJSON)
-		if err != nil {
-			return nil, fmt.Errorf("load xendit webhook credential: %w", err)
-		}
-		options := []xendit.Option{xendit.WithSecretKey(secretKey)}
-		token, err := xenditWebhookTokenFromConfig(xenditAccount.ConfigJSON)
-		if err != nil {
-			return nil, fmt.Errorf("load xendit webhook config: %w", err)
-		}
-		if token != "" {
-			options = append(options, xendit.WithCallbackToken(token))
-		}
-		handlers[domain.ProviderXendit] = xendit.New(options...)
-	}
-	return handlers, nil
-}
-
-func xenditWebhookTokenFromConfig(raw json.RawMessage) (string, error) {
-	var config struct {
-		WebhookToken string `json:"webhook_token"`
-	}
-	if err := json.Unmarshal(raw, &config); err != nil {
-		return "", fmt.Errorf("read xendit config json: %w", err)
-	}
-	return strings.TrimSpace(config.WebhookToken), nil
 }

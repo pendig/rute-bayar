@@ -59,7 +59,11 @@ func onboardMidtrans(ctx context.Context, stdout, stderr io.Writer, args []strin
 		return err
 	}
 
-	credentialJSON, err := json.Marshal(midtransCredential{
+	credentialJSON, err := json.Marshal(struct {
+		MerchantID string `json:"merchant_id"`
+		ClientKey  string `json:"client_key"`
+		ServerKey  string `json:"server_key"`
+	}{
 		MerchantID: strings.TrimSpace(*merchantID),
 		ClientKey:  strings.TrimSpace(*clientKey),
 		ServerKey:  strings.TrimSpace(*serverKey),
