@@ -102,6 +102,7 @@ func (s *Store) ListEnabledTargets(ctx context.Context, provider domain.Provider
 			name,
 			target_url,
 			auth_json,
+			event_filter_json,
 			retry_policy_json,
 			enabled
 		FROM webhook_forwarding_targets
@@ -119,16 +120,18 @@ func (s *Store) ListEnabledTargets(ctx context.Context, provider domain.Provider
 		var (
 			target          forwarding.Target
 			authJSON        string
+			eventFilterJSON string
 			retryPolicyJSON string
 			enabled         int
 		)
-		if err := rows.Scan(&target.ID, &target.Name, &target.URL, &authJSON, &retryPolicyJSON, &enabled); err != nil {
+		if err := rows.Scan(&target.ID, &target.Name, &target.URL, &authJSON, &eventFilterJSON, &retryPolicyJSON, &enabled); err != nil {
 			return nil, fmt.Errorf("scan forwarding target: %w", err)
 		}
 
 		target.Provider = provider
 		target.Enabled = enabled == 1
 		target.Headers = headersFromJSON(authJSON)
+		target.EventFilter = eventFilterFromJSON(eventFilterJSON)
 		target.RetryPolicy = retryPolicyFromJSON(retryPolicyJSON)
 		targets = append(targets, target)
 	}
@@ -607,6 +610,7 @@ func (s *Store) AddForwardingTarget(ctx context.Context, target forwarding.Targe
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
 	authJSON := headersToJSON(target.Headers)
+	eventFilterJSON := eventFilterToJSON(target.EventFilter)
 	retryPolicyJSON := retryPolicyToJSON(target.RetryPolicy)
 	enabled := boolInt(target.Enabled)
 	if !target.Enabled {
@@ -626,8 +630,8 @@ func (s *Store) AddForwardingTarget(ctx context.Context, target forwarding.Targe
 			created_at,
 			updated_at
 		)
-		VALUES (?, ?, (SELECT id FROM providers WHERE code = ?), '{}', ?, ?, ?, ?, ?, ?)
-	`, id, target.Name, string(target.Provider), target.URL, authJSON, retryPolicyJSON, enabled, now, now)
+		VALUES (?, ?, (SELECT id FROM providers WHERE code = ?), ?, ?, ?, ?, ?, ?, ?)
+	`, id, target.Name, string(target.Provider), eventFilterJSON, target.URL, authJSON, retryPolicyJSON, enabled, now, now)
 	if err != nil {
 		return "", fmt.Errorf("add forwarding target: %w", err)
 	}
@@ -635,27 +639,211 @@ func (s *Store) AddForwardingTarget(ctx context.Context, target forwarding.Targe
 	return id, nil
 }
 
+func (s *Store) ListForwardingTargets(ctx context.Context, provider domain.ProviderCode) ([]forwarding.Target, error) {
+	rows, err := s.db.QueryContext(ctx, `
+		SELECT
+			id,
+			name,
+			target_url,
+			auth_json,
+			event_filter_json,
+			retry_policy_json,
+			enabled
+		FROM webhook_forwarding_targets
+		WHERE provider_id = (SELECT id FROM providers WHERE code = ?)
+		ORDER BY created_at ASC
+	`, string(provider))
+	if err != nil {
+		return nil, fmt.Errorf("query forwarding targets: %w", err)
+	}
+	defer rows.Close()
+
+	targets := make([]forwarding.Target, 0)
+	for rows.Next() {
+		var (
+			target          forwarding.Target
+			authJSON        string
+			eventFilterJSON string
+			retryPolicyJSON string
+			enabled         int
+		)
+		if err := rows.Scan(&target.ID, &target.Name, &target.URL, &authJSON, &eventFilterJSON, &retryPolicyJSON, &enabled); err != nil {
+			return nil, fmt.Errorf("scan forwarding target: %w", err)
+		}
+
+		target.Provider = provider
+		target.Enabled = enabled == 1
+		target.Headers = headersFromJSON(authJSON)
+		target.EventFilter = eventFilterFromJSON(eventFilterJSON)
+		target.RetryPolicy = retryPolicyFromJSON(retryPolicyJSON)
+		targets = append(targets, target)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate forwarding targets: %w", err)
+	}
+
+	return targets, nil
+}
+
+func (s *Store) GetForwardingTarget(ctx context.Context, targetID string) (forwarding.Target, error) {
+	var (
+		target          forwarding.Target
+		providerCode    string
+		authJSON        string
+		eventFilterJSON string
+		retryPolicyJSON string
+		enabled         int
+	)
+	err := s.db.QueryRowContext(ctx, `
+		SELECT
+			wt.id,
+			p.code,
+			wt.name,
+			wt.target_url,
+			wt.auth_json,
+			wt.event_filter_json,
+			wt.retry_policy_json,
+			wt.enabled
+		FROM webhook_forwarding_targets wt
+		JOIN providers p ON p.id = wt.provider_id
+		WHERE wt.id = ?
+	`, targetID).Scan(&target.ID, &providerCode, &target.Name, &target.URL, &authJSON, &eventFilterJSON, &retryPolicyJSON, &enabled)
+	if err != nil {
+		return forwarding.Target{}, fmt.Errorf("get forwarding target: %w", err)
+	}
+
+	target.Provider = domain.ProviderCode(providerCode)
+	target.Enabled = enabled == 1
+	target.Headers = headersFromJSON(authJSON)
+	target.EventFilter = eventFilterFromJSON(eventFilterJSON)
+	target.RetryPolicy = retryPolicyFromJSON(retryPolicyJSON)
+	return target, nil
+}
+
+func (s *Store) UpdateForwardingTarget(ctx context.Context, target forwarding.Target) error {
+	if strings.TrimSpace(target.ID) == "" {
+		return fmt.Errorf("forwarding target id is required")
+	}
+
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE webhook_forwarding_targets
+		SET
+			name = ?,
+			target_url = ?,
+			auth_json = ?,
+			event_filter_json = ?,
+			retry_policy_json = ?,
+			enabled = ?,
+			updated_at = ?
+		WHERE id = ?
+	`, target.Name, target.URL, headersToJSON(target.Headers), eventFilterToJSON(target.EventFilter), retryPolicyToJSON(target.RetryPolicy), boolInt(target.Enabled), time.Now().UTC().Format(time.RFC3339Nano), target.ID)
+	if err != nil {
+		return fmt.Errorf("update forwarding target: %w", err)
+	}
+
+	count, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check forwarding target update: %w", err)
+	}
+	if count == 0 {
+		return fmt.Errorf("forwarding target %q not found", target.ID)
+	}
+	return nil
+}
+
+func (s *Store) DeleteForwardingTarget(ctx context.Context, targetID string) error {
+	result, err := s.db.ExecContext(ctx, `
+		DELETE FROM webhook_forwarding_targets
+		WHERE id = ?
+	`, targetID)
+	if err != nil {
+		return fmt.Errorf("delete forwarding target: %w", err)
+	}
+	count, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check forwarding target delete: %w", err)
+	}
+	if count == 0 {
+		return fmt.Errorf("forwarding target %q not found", targetID)
+	}
+	return nil
+}
+
 func headersFromJSON(raw string) http.Header {
 	if raw == "" || raw == "{}" {
 		return http.Header{}
 	}
-	var values map[string]string
-	if err := json.Unmarshal([]byte(raw), &values); err != nil {
+
+	rawEntries := make(map[string]json.RawMessage)
+	if err := json.Unmarshal([]byte(raw), &rawEntries); err != nil {
 		return http.Header{}
 	}
+
 	headers := http.Header{}
-	for key, value := range values {
-		headers.Set(key, value)
+	for key, rawValue := range rawEntries {
+		var multiValues []string
+		if err := json.Unmarshal(rawValue, &multiValues); err == nil {
+			for _, value := range multiValues {
+				headers.Add(key, value)
+			}
+			continue
+		}
+
+		var singleValue string
+		if err := json.Unmarshal(rawValue, &singleValue); err == nil {
+			headers.Set(key, singleValue)
+		}
+	}
+
+	if len(headers) == 0 {
+		return http.Header{}
 	}
 	return headers
 }
 
+func eventFilterFromJSON(raw string) map[string]string {
+	if raw == "" || raw == "{}" {
+		return map[string]string{}
+	}
+
+	var values map[string]string
+	if err := json.Unmarshal([]byte(raw), &values); err != nil {
+		return map[string]string{}
+	}
+
+	filter := make(map[string]string, len(values))
+	for key, value := range values {
+		filter[key] = value
+	}
+	return filter
+}
+
 func headersToJSON(headers http.Header) string {
-	values := make(map[string]string, len(headers))
+	values := make(map[string][]string, len(headers))
 	for key, headerValues := range headers {
 		if len(headerValues) > 0 {
-			values[key] = headerValues[0]
+			values[key] = headerValues
 		}
+	}
+	raw, err := json.Marshal(values)
+	if err != nil {
+		return "{}"
+	}
+	return string(raw)
+}
+
+func eventFilterToJSON(filter map[string]string) string {
+	if len(filter) == 0 {
+		return "{}"
+	}
+	values := make(map[string]string, len(filter))
+	for key, value := range filter {
+		key = strings.TrimSpace(key)
+		value = strings.TrimSpace(value)
+		if key == "" || value == "" {
+			continue
+		}
+		values[key] = value
 	}
 	raw, err := json.Marshal(values)
 	if err != nil {
