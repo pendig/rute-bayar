@@ -10,6 +10,7 @@ import (
 	"path/filepath"
 	"regexp"
 	"strings"
+	"sync/atomic"
 	"testing"
 
 	"github.com/pendig/rute-bayar/internal/domain"
@@ -182,6 +183,101 @@ func TestWebhookForwardCLIUpdateRejectsNegativeRetryMaxAttempts(t *testing.T) {
 	}
 	if !strings.Contains(err.Error(), "cannot be negative") {
 		t.Fatalf("unexpected update error: %v", err)
+	}
+}
+
+func TestWebhookReplayCLI(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "rute-bayar.sqlite3")
+	runCLI := func(args ...string) (string, error) {
+		var stdout bytes.Buffer
+		err := ExecuteWithIO(ctx, args, &stdout, &stdout)
+		return stdout.String(), err
+	}
+
+	forwardCount := int32(0)
+	blockCount := int32(0)
+	createdServer := newHTTPTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "invalid method", http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		atomic.AddInt32(&forwardCount, 1)
+	}))
+	if createdServer != nil {
+		defer createdServer.Close()
+	}
+	failedServer := newHTTPTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodPost {
+			http.Error(w, "invalid method", http.StatusBadRequest)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		atomic.AddInt32(&blockCount, 1)
+	}))
+	if failedServer != nil {
+		defer failedServer.Close()
+	}
+
+	if createdServer == nil || failedServer == nil {
+		t.Skip("skip replay CLI test: webhook replay requires local HTTP server")
+	}
+
+	_, err := runCLI(
+		"webhook", "forward", "add",
+		"--provider", "midtrans",
+		"--name", "midtrans-created",
+		"--url", createdServer.URL,
+		"--event-filter", "event=payment_session.created",
+		"--db", dbPath,
+	)
+	if err != nil {
+		t.Fatalf("webhook forward add for created target returned error: %v", err)
+	}
+
+	_, err = runCLI(
+		"webhook", "forward", "add",
+		"--provider", "midtrans",
+		"--name", "midtrans-failed",
+		"--url", failedServer.URL,
+		"--event-filter", "event=payment_session.failed",
+		"--db", dbPath,
+	)
+	if err != nil {
+		t.Fatalf("webhook forward add for failed target returned error: %v", err)
+	}
+
+	store, err := sqlite.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	eventID, err := store.RecordWebhookEvent(ctx, domain.WebhookEvent{
+		ProviderCode:    domain.ProviderMidtrans,
+		ProviderEventID: "replay-event-001",
+		EventType:       "payment_session.created",
+		SignatureValid:  true,
+		PayloadJSON:     []byte(`{"event":"payment_session.created","reference_id":"rb-001"}`),
+		HeadersJSON:     []byte(`{"X-Trace":["one"]}`),
+	})
+	if err != nil {
+		t.Fatalf("RecordWebhookEvent returned error: %v", err)
+	}
+
+	_, err = runCLI("webhook", "replay", "--event-id", eventID, "--db", dbPath)
+	if err != nil {
+		t.Fatalf("webhook replay returned error: %v", err)
+	}
+
+	if got := atomic.LoadInt32(&forwardCount); got != 1 {
+		t.Fatalf("forwardCount = %d, want 1", got)
+	}
+	if got := atomic.LoadInt32(&blockCount); got != 0 {
+		t.Fatalf("blockCount = %d, want 0", got)
 	}
 }
 

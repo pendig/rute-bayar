@@ -147,17 +147,17 @@ rute-bayar pay create --provider midtrans --method bank_transfer --bank bca --re
 rute-bayar pay status --provider midtrans --reference rb-0001
 rute-bayar pay refund
 rute-bayar webhook serve --addr :8080
-rute-bayar webhook replay
 rute-bayar webhook forward list
 rute-bayar webhook forward add
 rute-bayar webhook forward update
 rute-bayar webhook forward remove
+rute-bayar webhook replay --event-id <id> [--provider midtrans|xendit]
 rute-bayar db migrate
 rute-bayar reconcile
 rute-bayar version
 ```
 
-These commands establish the intended user experience. The next implementation milestone is wiring them to SQLite and provider adapters.
+These commands establish the current user experience for alpha internal usage.
 
 ## Configuration
 
@@ -247,6 +247,7 @@ Read the project docs:
 - [Provider Integration](./docs/provider-integration.md)
 - [Implementation Status](./docs/implementation-status.md)
 - [Webhook Forwarding](./docs/webhook-forwarding.md)
+- [Operations Runbook](./docs/operations-runbook.md)
 - [Development](./docs/development.md)
 - [Xendit Sandbox Simulation](./docs/xendit-sandbox-simulation.md)
 - [Midtrans Sandbox Simulation](./docs/midtrans-sandbox-simulation.md)

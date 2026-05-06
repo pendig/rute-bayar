@@ -123,6 +123,61 @@ func (s *Store) GetWebhookEventByProviderEventID(ctx context.Context, provider d
 	return event, nil
 }
 
+func (s *Store) GetWebhookEventByID(ctx context.Context, eventID string) (domain.WebhookEvent, error) {
+	var (
+		event          domain.WebhookEvent
+		providerCode   string
+		signatureValid int
+		receivedAt     string
+		processedAt    sql.NullString
+		payloadJSON    string
+		headersJSON    string
+	)
+
+	err := s.db.QueryRowContext(ctx, `
+		SELECT
+			we.id,
+			p.code,
+			we.provider_event_id,
+			we.event_type,
+			we.signature_valid,
+			we.payload_json,
+			we.headers_json,
+			we.received_at,
+			we.processed_at,
+			we.processing_status
+		FROM webhook_events we
+		JOIN providers p ON p.id = we.provider_id
+		WHERE we.id = ?
+	`, eventID).Scan(
+		&event.ID,
+		&providerCode,
+		&event.ProviderEventID,
+		&event.EventType,
+		&signatureValid,
+		&payloadJSON,
+		&headersJSON,
+		&receivedAt,
+		&processedAt,
+		&event.ProcessingStatus,
+	)
+	if err != nil {
+		return domain.WebhookEvent{}, err
+	}
+
+	event.ProviderCode = domain.ProviderCode(providerCode)
+	event.SignatureValid = signatureValid == 1
+	event.PayloadJSON = []byte(payloadJSON)
+	event.HeadersJSON = []byte(headersJSON)
+	event.ReceivedAt = parseTime(receivedAt)
+	if processedAt.Valid {
+		parsed := parseTime(processedAt.String)
+		event.ProcessedAt = &parsed
+	}
+
+	return event, nil
+}
+
 func parseTime(raw string) time.Time {
 	parsed, err := time.Parse(time.RFC3339Nano, raw)
 	if err != nil {

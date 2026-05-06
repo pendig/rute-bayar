@@ -43,7 +43,9 @@ Rute Bayar belum siap untuk release publik stabil karena beberapa komponen inti 
 - CRUD target forwarding lewat CLI.
 - Persist forwarding target di SQLite.
 - Retry policy yang bisa dikonfigurasi dari CLI.
-- Replay/diagnostic command untuk forwarding gagal.
+- Replay/diagnostic command untuk forwarding gagal (`webhook replay`).
+- Event filter forwarding untuk seleksi event berdasarkan header/payload.
+- Diagnostik operasional tersimpan di `docs/operations-runbook.md`.
 
 ### Operasional
 
@@ -75,5 +77,9 @@ Release pertama dianggap siap jika:
 1. Ikuti [Implementation Plan](./implementation-plan.md).
 2. Implement webhook verification dan parsing.
 3. Tambahkan forwarding target CLI.
-4. Tambahkan CI GitHub Actions.
-5. Rapikan release notes dan tag `v0.1.0`.
+4. Kunci hardening webhook:
+   - batasan retry policy yang eksplisit untuk failure class
+   - pengamanan signature/token edge case
+   - observability untuk retry/response body lengkap
+5. Tambahkan CI GitHub Actions.
+6. Rapikan release notes dan tag `v0.1.0`.
