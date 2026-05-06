@@ -22,6 +22,7 @@ Rute Bayar belum siap untuk release publik stabil karena beberapa komponen inti 
 - `pay create` Xendit Payment Session sudah bisa digunakan.
 - Dokumentasi produk, arsitektur, onboarding, dan integrasi provider.
 - PR workflow dasar di GitHub.
+- Webhook reconciliation dasar (status intent sinkron dari event yang tervalidasi).
 
 ## Wajib Selesai Sebelum `v0.1.0`
 
@@ -35,7 +36,6 @@ Rute Bayar belum siap untuk release publik stabil karena beberapa komponen inti 
 - Verifikasi signature Midtrans.
 - Verifikasi webhook Xendit.
 - Parsing webhook menjadi event internal.
-- Update payment intent berdasarkan webhook.
 - Idempotency webhook yang aman untuk retry.
 
 ### Forwarding
