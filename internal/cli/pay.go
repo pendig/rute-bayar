@@ -13,8 +13,7 @@ import (
 	"github.com/pendig/rute-bayar/internal/config"
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/provider"
-	"github.com/pendig/rute-bayar/internal/provider/midtrans"
-	"github.com/pendig/rute-bayar/internal/provider/xendit"
+	"github.com/pendig/rute-bayar/internal/providerfactory"
 	"github.com/pendig/rute-bayar/internal/storage/sqlite"
 )
 
@@ -60,7 +59,8 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	if *amount <= 0 {
 		return fmt.Errorf("pay create --amount must be greater than zero")
 	}
-	if err := validateEnvironment(*environment); err != nil {
+	environmentValue := strings.TrimSpace(*environment)
+	if err := validateEnvironment(environmentValue); err != nil {
 		return err
 	}
 
@@ -69,6 +69,7 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 		return err
 	}
 	defer store.Close()
+	factory := providerfactory.New(store)
 
 	request := provider.CreatePaymentRequest{
 		ExternalRef:   strings.TrimSpace(*reference),
@@ -82,45 +83,27 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	}
 	normalizedProvider := strings.ToLower(strings.TrimSpace(*providerCode))
 
-	var adapter provider.Adapter
 	switch normalizedProvider {
-	case "midtrans":
-		account, err := store.GetProviderAccount(ctx, domain.ProviderMidtrans, domain.Environment(*environment))
-		if err != nil {
-			return err
-		}
-		credential, err := midtransCredentialFromJSON(account.CredentialJSON)
-		if err != nil {
-			return err
-		}
-
-		options := []midtrans.Option{midtrans.WithServerKey(credential.ServerKey)}
-		if strings.TrimSpace(*baseURL) != "" {
-			options = append(options, midtrans.WithBaseURL(*baseURL))
-		} else {
-			options = append(options, midtrans.WithBaseURL(midtrans.BaseURLForEnvironment(domain.Environment(*environment))))
-		}
-		adapter = midtrans.New(options...)
 	case "xendit":
-		secretKey, err := secretKeyFromCredentialFromStore(store, ctx, domain.ProviderXendit, domain.Environment(*environment))
-		if err != nil {
-			return err
-		}
-
 		if request.Method == "" || strings.EqualFold(request.Method, "bank_transfer") {
 			request.Method = "payment_link"
 		}
 		if !isXenditPayMethodSupported(request.Method) {
 			return fmt.Errorf("pay create for xendit supports --method payment_link only")
 		}
-
-		options := []xendit.Option{xendit.WithSecretKey(secretKey)}
-		if strings.TrimSpace(*baseURL) != "" {
-			options = append(options, xendit.WithBaseURL(*baseURL))
-		}
-		adapter = xendit.New(options...)
+	case "midtrans":
 	default:
 		return fmt.Errorf("pay create for provider %q is not implemented yet", *providerCode)
+	}
+
+	adapter, err := factory.AdapterForStoredAccount(
+		ctx,
+		domain.ProviderCode(normalizedProvider),
+		domain.Environment(environmentValue),
+		*baseURL,
+	)
+	if err != nil {
+		return err
 	}
 
 	intentID, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
@@ -212,7 +195,8 @@ func payStatus(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	if strings.TrimSpace(*reference) == "" {
 		return fmt.Errorf("pay status --reference is required")
 	}
-	if err := validateEnvironment(*environment); err != nil {
+	environmentValue := strings.TrimSpace(*environment)
+	if err := validateEnvironment(environmentValue); err != nil {
 		return err
 	}
 
@@ -221,6 +205,7 @@ func payStatus(ctx context.Context, stdout, stderr io.Writer, args []string) err
 		return err
 	}
 	defer store.Close()
+	factory := providerfactory.New(store)
 
 	intent, intentFound, err := lookupPaymentIntent(ctx, store, *reference)
 	if err != nil {
@@ -241,23 +226,15 @@ func payStatus(ctx context.Context, stdout, stderr io.Writer, args []string) err
 
 	switch strings.ToLower(strings.TrimSpace(*providerCode)) {
 	case "midtrans":
-		account, err := store.GetProviderAccount(ctx, domain.ProviderMidtrans, domain.Environment(*environment))
+		adapter, err := factory.AdapterForStoredAccount(
+			ctx,
+			domain.ProviderMidtrans,
+			domain.Environment(environmentValue),
+			*baseURL,
+		)
 		if err != nil {
 			return err
 		}
-		credential, err := midtransCredentialFromJSON(account.CredentialJSON)
-		if err != nil {
-			return err
-		}
-
-		options := []midtrans.Option{midtrans.WithServerKey(credential.ServerKey)}
-		if strings.TrimSpace(*baseURL) != "" {
-			options = append(options, midtrans.WithBaseURL(*baseURL))
-		} else {
-			options = append(options, midtrans.WithBaseURL(midtrans.BaseURLForEnvironment(domain.Environment(*environment))))
-		}
-
-		adapter := midtrans.New(options...)
 		statusResponse, err := adapter.GetPaymentStatus(ctx, providerRef)
 		if err != nil {
 			if intentFound {
@@ -300,21 +277,15 @@ func payStatus(ctx context.Context, stdout, stderr io.Writer, args []string) err
 		printPaymentStatus(stdout, "midtrans", referenceValueForStatus(intentFound, intent, *reference), providerRef, statusResponse)
 		return nil
 	case "xendit":
-		account, err := store.GetProviderAccount(ctx, domain.ProviderXendit, domain.Environment(*environment))
+		adapter, err := factory.AdapterForStoredAccount(
+			ctx,
+			domain.ProviderXendit,
+			domain.Environment(environmentValue),
+			*baseURL,
+		)
 		if err != nil {
 			return err
 		}
-		secretKey, err := secretKeyFromCredential(account.CredentialJSON)
-		if err != nil {
-			return err
-		}
-
-		options := []xendit.Option{xendit.WithSecretKey(secretKey)}
-		if strings.TrimSpace(*baseURL) != "" {
-			options = append(options, xendit.WithBaseURL(*baseURL))
-		}
-
-		adapter := xendit.New(options...)
 		statusResponse, err := adapter.GetPaymentStatus(ctx, providerRef)
 		if err != nil {
 			if intentFound {

@@ -1,8 +1,6 @@
 package cli
 
 import (
-	"context"
-	"encoding/json"
 	"fmt"
 	"net/http"
 	"strconv"
@@ -10,7 +8,6 @@ import (
 	"time"
 
 	"github.com/pendig/rute-bayar/internal/domain"
-	"github.com/pendig/rute-bayar/internal/storage/sqlite"
 )
 
 type boolFlag struct {
@@ -210,57 +207,9 @@ func maskSecret(value string) string {
 	return value[:4] + strings.Repeat("*", len(value)-8) + value[len(value)-4:]
 }
 
-func secretKeyFromCredential(raw []byte) (string, error) {
-	var credential struct {
-		SecretKey string `json:"secret_key"`
-	}
-	if err := json.Unmarshal(raw, &credential); err != nil {
-		return "", fmt.Errorf("read credential json: %w", err)
-	}
-	secretKey := strings.TrimSpace(credential.SecretKey)
-	if secretKey == "" {
-		return "", fmt.Errorf("xendit secret key is not configured")
-	}
-	return secretKey, nil
-}
-
-func secretKeyFromCredentialFromStore(store *sqlite.Store, ctx context.Context, providerCode domain.ProviderCode, environment domain.Environment) (string, error) {
-	account, err := store.GetProviderAccount(ctx, providerCode, environment)
-	if err != nil {
-		return "", err
-	}
-	return secretKeyFromCredential(account.CredentialJSON)
-}
-
 func isXenditPayMethodSupported(method string) bool {
 	return strings.EqualFold(strings.TrimSpace(method), "payment_link") ||
 		strings.EqualFold(strings.TrimSpace(method), "payment-link") ||
 		strings.EqualFold(strings.TrimSpace(method), "paymentlink") ||
 		strings.EqualFold(strings.TrimSpace(method), "")
-}
-
-type midtransCredential struct {
-	MerchantID string `json:"merchant_id"`
-	ClientKey  string `json:"client_key"`
-	ServerKey  string `json:"server_key"`
-}
-
-func midtransCredentialFromJSON(raw []byte) (midtransCredential, error) {
-	var credential midtransCredential
-	if err := json.Unmarshal(raw, &credential); err != nil {
-		return midtransCredential{}, fmt.Errorf("read midtrans credential json: %w", err)
-	}
-	credential.MerchantID = strings.TrimSpace(credential.MerchantID)
-	credential.ClientKey = strings.TrimSpace(credential.ClientKey)
-	credential.ServerKey = strings.TrimSpace(credential.ServerKey)
-	if credential.MerchantID == "" {
-		return midtransCredential{}, fmt.Errorf("midtrans merchant id is not configured")
-	}
-	if credential.ClientKey == "" {
-		return midtransCredential{}, fmt.Errorf("midtrans client key is not configured")
-	}
-	if credential.ServerKey == "" {
-		return midtransCredential{}, fmt.Errorf("midtrans server key is not configured")
-	}
-	return credential, nil
 }

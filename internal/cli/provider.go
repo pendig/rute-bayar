@@ -9,8 +9,7 @@ import (
 
 	"github.com/pendig/rute-bayar/internal/config"
 	"github.com/pendig/rute-bayar/internal/domain"
-	"github.com/pendig/rute-bayar/internal/provider/midtrans"
-	"github.com/pendig/rute-bayar/internal/provider/xendit"
+	"github.com/pendig/rute-bayar/internal/providerfactory"
 	"github.com/pendig/rute-bayar/internal/storage/sqlite"
 )
 
@@ -58,7 +57,8 @@ func providerTestMidtrans(ctx context.Context, w io.Writer, args []string) error
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if err := validateEnvironment(*environment); err != nil {
+	environmentValue := strings.TrimSpace(*environment)
+	if err := validateEnvironment(environmentValue); err != nil {
 		return err
 	}
 
@@ -68,30 +68,18 @@ func providerTestMidtrans(ctx context.Context, w io.Writer, args []string) error
 	}
 	defer store.Close()
 
-	account, err := store.GetProviderAccount(ctx, domain.ProviderMidtrans, domain.Environment(*environment))
+	factory := providerfactory.New(store)
+	adapter, err := factory.MidtransAdapterForStoredAccount(ctx, domain.Environment(environmentValue), *baseURL)
 	if err != nil {
 		return err
 	}
-
-	credential, err := midtransCredentialFromJSON(account.CredentialJSON)
-	if err != nil {
-		return err
-	}
-
-	options := []midtrans.Option{midtrans.WithServerKey(credential.ServerKey)}
-	if strings.TrimSpace(*baseURL) != "" {
-		options = append(options, midtrans.WithBaseURL(*baseURL))
-	} else {
-		options = append(options, midtrans.WithBaseURL(midtrans.BaseURLForEnvironment(domain.Environment(*environment))))
-	}
-	adapter := midtrans.New(options...)
 	info, err := adapter.TestAuth(ctx)
 	if err != nil {
 		return err
 	}
 
 	fmt.Fprintln(w, "midtrans auth ok")
-	fmt.Fprintf(w, "environment: %s\n", *environment)
+	fmt.Fprintf(w, "environment: %s\n", environmentValue)
 	if info.StatusCode != "" {
 		fmt.Fprintf(w, "status_code: %s\n", info.StatusCode)
 	}
@@ -111,7 +99,8 @@ func providerTestXendit(ctx context.Context, w io.Writer, args []string) error {
 	if err := fs.Parse(args); err != nil {
 		return err
 	}
-	if err := validateEnvironment(*environment); err != nil {
+	environmentValue := strings.TrimSpace(*environment)
+	if err := validateEnvironment(environmentValue); err != nil {
 		return err
 	}
 
@@ -121,28 +110,18 @@ func providerTestXendit(ctx context.Context, w io.Writer, args []string) error {
 	}
 	defer store.Close()
 
-	account, err := store.GetProviderAccount(ctx, domain.ProviderXendit, domain.Environment(*environment))
+	factory := providerfactory.New(store)
+	adapter, err := factory.XenditAdapterForStoredAccount(ctx, domain.Environment(environmentValue), *baseURL)
 	if err != nil {
 		return err
 	}
-
-	secretKey, err := secretKeyFromCredential(account.CredentialJSON)
-	if err != nil {
-		return err
-	}
-
-	options := []xendit.Option{xendit.WithSecretKey(secretKey)}
-	if strings.TrimSpace(*baseURL) != "" {
-		options = append(options, xendit.WithBaseURL(*baseURL))
-	}
-	adapter := xendit.New(options...)
 	info, err := adapter.TestAuth(ctx)
 	if err != nil {
 		return err
 	}
 
 	fmt.Fprintln(w, "xendit auth ok")
-	fmt.Fprintf(w, "environment: %s\n", *environment)
+	fmt.Fprintf(w, "environment: %s\n", environmentValue)
 	if info.PermissionWarning != "" {
 		fmt.Fprintf(w, "warning: %s\n", info.PermissionWarning)
 	}
