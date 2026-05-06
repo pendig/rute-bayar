@@ -14,19 +14,21 @@ type Capability struct {
 }
 
 type CreatePaymentRequest struct {
-	ExternalRef    string
-	Amount         int64
-	Currency       string
-	Method         string
-	Channel        string
-	CustomerName   string
-	CustomerEmail  string
-	CustomerPhone  string
-	MetadataJSON   []byte
+	ExternalRef   string
+	Amount        int64
+	Currency      string
+	Method        string
+	Channel       string
+	CustomerName  string
+	CustomerEmail string
+	CustomerPhone string
+	MetadataJSON  []byte
 }
 
 type CreatePaymentResponse struct {
 	ProviderReference string
+	PaymentSessionID  string
+	PaymentRequestID  string
 	TransactionID     string
 	OrderID           string
 	PaymentType       string
@@ -42,6 +44,8 @@ type CreatePaymentResponse struct {
 
 type PaymentStatusResponse struct {
 	ProviderReference string
+	PaymentSessionID  string
+	PaymentRequestID  string
 	TransactionID     string
 	OrderID           string
 	PaymentType       string
@@ -59,12 +63,16 @@ type PaymentStatusResponse struct {
 
 type RefundRequest struct {
 	ProviderReference string
+	ReferenceID       string
 	Amount            int64
+	Currency          string
 	Reason            string
 }
 
 type RefundResponse struct {
 	ProviderReference string
+	PaymentSessionID  string
+	PaymentRequestID  string
 	Status            domain.PaymentStatus
 	RawRequestJSON    []byte
 	RawResponseJSON   []byte

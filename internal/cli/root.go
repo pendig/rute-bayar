@@ -37,8 +37,7 @@ func ExecuteWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 	case "db":
 		return dbCommand(ctx, stdout, args[1:])
 	case "reconcile":
-		fmt.Fprintln(stdout, "reconcile command scaffold is ready; implementation comes next.")
-		return nil
+		return reconcileCommand(ctx, stdout, stderr, args[1:])
 	default:
 		return fmt.Errorf("unknown command %q", args[0])
 	}
@@ -57,13 +56,13 @@ Usage:
   rute-bayar pay create --provider midtrans --method bank_transfer --bank bca
   rute-bayar pay create --provider xendit --method payment_link --reference rb-0001 --amount 15000
   rute-bayar pay status --provider midtrans --reference rb-0001
-  rute-bayar pay refund
+  rute-bayar pay refund --provider xendit --reference rb-0001
 	rute-bayar webhook serve --addr :8080
 	rute-bayar webhook forward list
 	rute-bayar webhook forward add
 	rute-bayar webhook forward update
 	rute-bayar webhook forward remove
   rute-bayar db migrate
-  rute-bayar reconcile
+  rute-bayar reconcile --provider midtrans --reference rb-0001
   rute-bayar version`)
 }
