@@ -109,9 +109,76 @@ func TestProcessReconcilesAndForwards(t *testing.T) {
 	if forwarder.inbounds[0].WebhookEventID == "" {
 		t.Fatal("WebhookEventID should be populated")
 	}
+	if got := string(forwarder.inbounds[0].Body); got != `{"order_id":"rb-001"}` {
+		t.Fatalf("forwarded body = %s, want original payload", got)
+	}
+	if got := forwarder.inbounds[0].Headers.Get("X-Test"); got != "one" {
+		t.Fatalf("forwarded header X-Test = %q, want one", got)
+	}
 	intent := recorder.intents["rb-001"]
 	if intent.Status != domain.PaymentStatusPaid {
 		t.Fatalf("intent status = %q, want paid", intent.Status)
+	}
+}
+
+func TestProcessRejectsDuplicateWebhookEvent(t *testing.T) {
+	t.Parallel()
+
+	recorder := &stubWebhookRecorder{
+		webhookEvents: map[string]domain.WebhookEvent{
+			webhookEventLookupKey(domain.ProviderMidtrans, "evt-001"): {
+				ID:               "webhook-previous",
+				ProviderCode:     domain.ProviderMidtrans,
+				ProviderEventID:  "evt-001",
+				EventType:        "capture",
+				ProcessingStatus: "processed",
+			},
+		},
+	}
+	forwarder := &stubForwarder{}
+	svc := New(recorder, forwarder, map[domain.ProviderCode]provider.Adapter{
+		domain.ProviderMidtrans: &testWebhookAdapter{
+			verifyFn: func(context.Context, provider.WebhookRequest) error {
+				return nil
+			},
+			parseFn: func(context.Context, provider.WebhookRequest) (provider.WebhookEvent, error) {
+				return provider.WebhookEvent{
+					ProviderEventID: "evt-001",
+					EventType:       "capture",
+					PaymentRef:      "rb-001",
+					Status:          domain.PaymentStatusPaid,
+				}, nil
+			},
+		},
+	})
+
+	result, err := svc.Process(context.Background(), Input{
+		Provider: domain.ProviderMidtrans,
+		Request: provider.WebhookRequest{
+			Headers: http.Header{"X-Test": []string{"one"}},
+			Body:    []byte(`{"order_id":"rb-001"}`),
+		},
+	})
+	if err != nil {
+		t.Fatalf("Process returned error: %v", err)
+	}
+	if result.StatusCode != http.StatusAccepted {
+		t.Fatalf("StatusCode = %d, want %d", result.StatusCode, http.StatusAccepted)
+	}
+	if got := result.Body["warning"]; got != "duplicate webhook event ignored" {
+		t.Fatalf("warning = %v, want duplicate webhook event ignored", got)
+	}
+	if len(recorder.events) != 1 {
+		t.Fatalf("RecordWebhookEvent calls = %d, want 1", len(recorder.events))
+	}
+	if recorder.events[0].ProcessingStatus != "duplicate" {
+		t.Fatalf("ProcessingStatus = %q, want duplicate", recorder.events[0].ProcessingStatus)
+	}
+	if recorder.events[0].ProcessedAt == nil {
+		t.Fatal("ProcessedAt should be populated for duplicate event")
+	}
+	if len(forwarder.inbounds) != 0 {
+		t.Fatalf("Forward calls = %d, want 0", len(forwarder.inbounds))
 	}
 }
 
@@ -193,13 +260,25 @@ func TestProcessPassesThroughWithoutHandler(t *testing.T) {
 }
 
 type stubWebhookRecorder struct {
-	intents map[string]domain.PaymentIntent
-	events  []domain.WebhookEvent
+	intents       map[string]domain.PaymentIntent
+	events        []domain.WebhookEvent
+	webhookEvents map[string]domain.WebhookEvent
 }
 
 func (s *stubWebhookRecorder) RecordWebhookEvent(_ context.Context, event domain.WebhookEvent) (string, error) {
 	s.events = append(s.events, event)
 	return "webhook-123", nil
+}
+
+func (s *stubWebhookRecorder) GetWebhookEventByProviderEventID(_ context.Context, providerCode domain.ProviderCode, providerEventID string) (domain.WebhookEvent, error) {
+	if s.webhookEvents == nil {
+		return domain.WebhookEvent{}, sql.ErrNoRows
+	}
+	event, ok := s.webhookEvents[webhookEventLookupKey(providerCode, providerEventID)]
+	if !ok {
+		return domain.WebhookEvent{}, sql.ErrNoRows
+	}
+	return event, nil
 }
 
 func (s *stubWebhookRecorder) GetPaymentIntentByExternalRef(_ context.Context, externalRef string) (domain.PaymentIntent, error) {
@@ -267,4 +346,8 @@ func (a *testWebhookAdapter) Code() domain.ProviderCode {
 
 func (a *testWebhookAdapter) Capabilities() []provider.Capability {
 	return nil
+}
+
+func webhookEventLookupKey(providerCode domain.ProviderCode, providerEventID string) string {
+	return string(providerCode) + ":" + providerEventID
 }

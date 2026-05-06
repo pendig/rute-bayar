@@ -25,12 +25,16 @@ type Reconciler interface {
 	UpsertPaymentIntent(context.Context, domain.PaymentIntent) (string, error)
 }
 
+type WebhookEventLookup interface {
+	GetWebhookEventByProviderEventID(context.Context, domain.ProviderCode, string) (domain.WebhookEvent, error)
+}
+
 type Forwarder interface {
 	Forward(context.Context, forwarding.InboundWebhook) error
 }
 
 type Service struct {
-	recorder Recorder
+	recorder  Recorder
 	forwarder Forwarder
 	handlers  map[domain.ProviderCode]provider.Adapter
 	now       func() time.Time
@@ -52,7 +56,7 @@ func New(recorder Recorder, forwarder Forwarder, handlers map[domain.ProviderCod
 		handlers = make(map[domain.ProviderCode]provider.Adapter)
 	}
 	return &Service{
-		recorder: recorder,
+		recorder:  recorder,
 		forwarder: forwarder,
 		handlers:  handlers,
 		now:       time.Now,
@@ -126,6 +130,52 @@ func (s *Service) Process(ctx context.Context, input Input) (Result, error) {
 
 		event.EventType = parsedEvent.EventType
 		event.ProviderEventID = parsedEvent.ProviderEventID
+
+		duplicate, err := s.isDuplicateWebhookEvent(ctx, providerCode, parsedEvent.ProviderEventID)
+		if err != nil {
+			event.ProcessingStatus = "duplicate_lookup_failed"
+			eventID, recordErr := s.recordEvent(ctx, event)
+			if recordErr != nil {
+				return Result{
+					StatusCode: http.StatusInternalServerError,
+					Body: map[string]any{
+						"error": "failed to record webhook event",
+					},
+				}, recordErr
+			}
+
+			return Result{
+				StatusCode: http.StatusInternalServerError,
+				Body: map[string]any{
+					"status":  "error",
+					"error":   err.Error(),
+					"message": "webhook duplicate lookup failed",
+				},
+				EventID: eventID,
+			}, err
+		}
+		if duplicate {
+			event.ProcessingStatus = "duplicate"
+			eventID, recordErr := s.recordEvent(ctx, event)
+			if recordErr != nil {
+				return Result{
+					StatusCode: http.StatusInternalServerError,
+					Body: map[string]any{
+						"error": "failed to record webhook event",
+					},
+				}, recordErr
+			}
+
+			return Result{
+				StatusCode: http.StatusAccepted,
+				Body: map[string]any{
+					"status":  "accepted",
+					"warning": "duplicate webhook event ignored",
+				},
+				EventID: eventID,
+			}, nil
+		}
+
 		processingStatus, err := s.reconcilePaymentIntent(ctx, providerCode, parsedEvent)
 		event.ProcessingStatus = processingStatus
 		if err != nil {
@@ -196,11 +246,42 @@ func (s *Service) recordEvent(ctx context.Context, event domain.WebhookEvent) (s
 		return "", nil
 	}
 
+	if event.ProcessedAt == nil {
+		processedAt := s.now().UTC()
+		event.ProcessedAt = &processedAt
+	}
+
 	id, err := s.recorder.RecordWebhookEvent(ctx, event)
 	if err != nil {
 		return "", fmt.Errorf("record webhook event: %w", err)
 	}
 	return id, nil
+}
+
+func (s *Service) isDuplicateWebhookEvent(ctx context.Context, providerCode domain.ProviderCode, providerEventID string) (bool, error) {
+	if s == nil || s.recorder == nil {
+		return false, nil
+	}
+
+	providerEventID = strings.TrimSpace(providerEventID)
+	if providerEventID == "" {
+		return false, nil
+	}
+
+	lookup, ok := s.recorder.(WebhookEventLookup)
+	if !ok {
+		return false, nil
+	}
+
+	_, err := lookup.GetWebhookEventByProviderEventID(ctx, providerCode, providerEventID)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return false, nil
+		}
+		return false, fmt.Errorf("lookup webhook event by provider event id: %w", err)
+	}
+
+	return true, nil
 }
 
 func (s *Service) reconcilePaymentIntent(ctx context.Context, providerCode domain.ProviderCode, parsedEvent provider.WebhookEvent) (string, error) {

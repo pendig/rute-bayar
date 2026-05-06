@@ -2,6 +2,7 @@ package sqlite
 
 import (
 	"context"
+	"database/sql"
 	"encoding/json"
 	"errors"
 	"net/http"
@@ -151,6 +152,59 @@ func TestPaymentIntentAttemptAndStatusCheckStorage(t *testing.T) {
 	}
 	if checkID == "" {
 		t.Fatal("RecordPaymentStatusCheck returned empty id")
+	}
+}
+
+func TestWebhookEventStorageLifecycle(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	receivedAt := time.Date(2026, 5, 6, 9, 0, 0, 0, time.UTC)
+	processedAt := time.Date(2026, 5, 6, 9, 0, 1, 0, time.UTC)
+
+	eventID, err := store.RecordWebhookEvent(ctx, domain.WebhookEvent{
+		ProviderCode:     domain.ProviderXendit,
+		ProviderEventID:  "evt-123",
+		EventType:        "payment.capture",
+		SignatureValid:   true,
+		PayloadJSON:      []byte(`{"event":"payment.capture"}`),
+		HeadersJSON:      []byte(`{"X-Test":["one"]}`),
+		ReceivedAt:       receivedAt,
+		ProcessedAt:      &processedAt,
+		ProcessingStatus: "processed",
+	})
+	if err != nil {
+		t.Fatalf("RecordWebhookEvent returned error: %v", err)
+	}
+	if eventID == "" {
+		t.Fatal("RecordWebhookEvent returned empty id")
+	}
+
+	event, err := store.GetWebhookEventByProviderEventID(ctx, domain.ProviderXendit, "evt-123")
+	if err != nil {
+		t.Fatalf("GetWebhookEventByProviderEventID returned error: %v", err)
+	}
+	if event.ProviderEventID != "evt-123" {
+		t.Fatalf("ProviderEventID = %q, want evt-123", event.ProviderEventID)
+	}
+	if !event.SignatureValid {
+		t.Fatal("SignatureValid = false, want true")
+	}
+	if event.ProcessedAt == nil {
+		t.Fatal("ProcessedAt is nil, want populated value")
+	}
+	if !event.ProcessedAt.Equal(processedAt) {
+		t.Fatalf("ProcessedAt = %v, want %v", event.ProcessedAt, processedAt)
+	}
+
+	if _, err := store.GetWebhookEventByProviderEventID(ctx, domain.ProviderMidtrans, "missing"); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("GetWebhookEventByProviderEventID missing error = %v, want sql.ErrNoRows", err)
 	}
 }
 
