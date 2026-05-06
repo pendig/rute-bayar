@@ -1,6 +1,7 @@
 package midtrans
 
 import (
+	"bytes"
 	"context"
 	"crypto/sha512"
 	"encoding/hex"
@@ -9,6 +10,7 @@ import (
 	"fmt"
 	"io"
 	"net/http"
+	"net/url"
 	"strconv"
 	"strings"
 	"time"
@@ -312,8 +314,73 @@ func (a *Adapter) GetPaymentStatus(ctx context.Context, orderID string) (provide
 	return response, nil
 }
 
-func (a *Adapter) RefundPayment(context.Context, provider.RefundRequest) (provider.RefundResponse, error) {
-	return provider.RefundResponse{}, errors.New("midtrans refund is not implemented yet")
+func (a *Adapter) RefundPayment(ctx context.Context, request provider.RefundRequest) (provider.RefundResponse, error) {
+	if a.serverKey == "" {
+		return provider.RefundResponse{}, errors.New("midtrans server key is required")
+	}
+
+	orderID := strings.TrimSpace(request.ProviderReference)
+	if orderID == "" {
+		return provider.RefundResponse{}, errors.New("midtrans order id is required")
+	}
+
+	refundKey := strings.TrimSpace(request.ReferenceID)
+	if refundKey == "" {
+		refundKey = orderID + "-refund"
+	}
+	reason := strings.TrimSpace(request.Reason)
+	if reason == "" {
+		reason = "requested by merchant"
+	}
+
+	payload := midtransRefundRequest{
+		RefundKey: refundKey,
+		Reason:    reason,
+	}
+	if request.Amount > 0 {
+		amount := request.Amount
+		payload.Amount = &amount
+	}
+
+	rawRequest, err := json.Marshal(payload)
+	if err != nil {
+		return provider.RefundResponse{}, fmt.Errorf("marshal midtrans refund request: %w", err)
+	}
+
+	endpoint := fmt.Sprintf("%s/v2/%s/refund", a.baseURL, url.PathEscape(orderID))
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, endpoint, bytes.NewReader(rawRequest))
+	if err != nil {
+		return provider.RefundResponse{}, fmt.Errorf("create midtrans refund request: %w", err)
+	}
+	req.SetBasicAuth(a.serverKey, "")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return provider.RefundResponse{ProviderReference: orderID, RawRequestJSON: rawRequest}, fmt.Errorf("call midtrans refund: %w", err)
+	}
+	defer resp.Body.Close()
+
+	rawResponse, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return provider.RefundResponse{ProviderReference: orderID, RawRequestJSON: rawRequest}, fmt.Errorf("read midtrans refund response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return provider.RefundResponse{ProviderReference: orderID, RawRequestJSON: rawRequest, RawResponseJSON: rawResponse, Status: domain.PaymentStatusFailed}, fmt.Errorf("midtrans refund returned status %d", resp.StatusCode)
+	}
+
+	var parsed midtransRefundResponse
+	if err := json.Unmarshal(rawResponse, &parsed); err != nil {
+		return provider.RefundResponse{ProviderReference: orderID, RawRequestJSON: rawRequest, RawResponseJSON: rawResponse}, fmt.Errorf("unmarshal midtrans refund response: %w", err)
+	}
+
+	return provider.RefundResponse{
+		ProviderReference: orderID,
+		Status:            MapTransactionStatus(parsed.TransactionStatus, ""),
+		RawRequestJSON:    rawRequest,
+		RawResponseJSON:   rawResponse,
+	}, nil
 }
 
 type midtransCreateChargeRequest struct {
@@ -337,6 +404,21 @@ type midtransCustomerDetails struct {
 	LastName  string `json:"last_name,omitempty"`
 	Email     string `json:"email,omitempty"`
 	Phone     string `json:"phone,omitempty"`
+}
+
+type midtransRefundRequest struct {
+	RefundKey string `json:"refund_key,omitempty"`
+	Amount    *int64 `json:"amount,omitempty"`
+	Reason    string `json:"reason,omitempty"`
+}
+
+type midtransRefundResponse struct {
+	StatusCode        string `json:"status_code"`
+	StatusMessage     string `json:"status_message"`
+	OrderID           string `json:"order_id"`
+	TransactionID     string `json:"transaction_id"`
+	TransactionStatus string `json:"transaction_status"`
+	RefundKey         string `json:"refund_key"`
 }
 
 type midtransChargeResponse struct {

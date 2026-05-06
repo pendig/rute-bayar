@@ -195,6 +195,52 @@ func TestCreatePaymentRequiresBankTransferFields(t *testing.T) {
 	}
 }
 
+func TestRefundPaymentPostsToOrderRefund(t *testing.T) {
+	t.Parallel()
+
+	var receivedBody map[string]any
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		if r.Method != http.MethodPost {
+			t.Fatalf("request method = %s, want POST", r.Method)
+		}
+		if r.URL.Path != "/v2/order-123/refund" {
+			t.Fatalf("request path = %q, want /v2/order-123/refund", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		return response(http.StatusOK, `{
+			"status_code":"200",
+			"status_message":"Success, refund transaction is created",
+			"transaction_id":"tx-123",
+			"order_id":"order-123",
+			"transaction_status":"refund",
+			"refund_key":"refund-001"
+		}`), nil
+	})}
+
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
+	result, err := adapter.RefundPayment(context.Background(), provider.RefundRequest{
+		ProviderReference: "order-123",
+		ReferenceID:       "refund-001",
+		Amount:            5000,
+		Currency:          "IDR",
+		Reason:            "requested by customer",
+	})
+	if err != nil {
+		t.Fatalf("RefundPayment returned error: %v", err)
+	}
+	if result.Status != domain.PaymentStatusRefunded {
+		t.Fatalf("Status = %q, want refunded", result.Status)
+	}
+	if result.ProviderReference != "order-123" {
+		t.Fatalf("ProviderReference = %q, want order-123", result.ProviderReference)
+	}
+	if got := receivedBody["refund_key"]; got != "refund-001" {
+		t.Fatalf("refund_key = %v, want refund-001", got)
+	}
+}
+
 func TestGetPaymentStatusBankTransfer(t *testing.T) {
 	t.Parallel()
 

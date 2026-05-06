@@ -193,6 +193,67 @@ func TestCreatePaymentRequiresPaymentLinkMethod(t *testing.T) {
 	}
 }
 
+func TestRefundPaymentResolvesSessionToPaymentRequestID(t *testing.T) {
+	t.Parallel()
+
+	var requestBody map[string]any
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/sessions/ps_123":
+			return response(http.StatusOK, `{
+				"payment_session_id":"ps_123",
+				"reference_id":"rb-001",
+				"payment_request_id":"pr_123",
+				"status":"COMPLETED",
+				"payment_link_url":"https://example.com/pay"
+			}`), nil
+		case r.Method == http.MethodPost && r.URL.Path == "/refunds":
+			if err := json.NewDecoder(r.Body).Decode(&requestBody); err != nil {
+				t.Fatalf("decode refund request: %v", err)
+			}
+			return response(http.StatusOK, `{
+				"id":"rfd_123",
+				"payment_request_id":"pr_123",
+				"status":"SUCCEEDED",
+				"reason":"REQUESTED_BY_CUSTOMER"
+			}`), nil
+		default:
+			t.Fatalf("unexpected request %s %s", r.Method, r.URL.Path)
+			return nil, nil
+		}
+	})}
+
+	adapter := New(WithSecretKey("secret"), WithBaseURL("https://example.com"), WithHTTPClient(client))
+	result, err := adapter.RefundPayment(context.Background(), provider.RefundRequest{
+		ProviderReference: "ps_123",
+		ReferenceID:       "refund-001",
+		Amount:            5000,
+		Currency:          "IDR",
+		Reason:            "requested by customer",
+	})
+	if err != nil {
+		t.Fatalf("RefundPayment returned error: %v", err)
+	}
+	if result.Status != domain.PaymentStatusRefunded {
+		t.Fatalf("Status = %q, want refunded", result.Status)
+	}
+	if result.ProviderReference != "ps_123" {
+		t.Fatalf("ProviderReference = %q, want ps_123", result.ProviderReference)
+	}
+	if result.PaymentRequestID != "pr_123" {
+		t.Fatalf("PaymentRequestID = %q, want pr_123", result.PaymentRequestID)
+	}
+	if requestBody["payment_request_id"] != "pr_123" {
+		t.Fatalf("payment_request_id = %v, want pr_123", requestBody["payment_request_id"])
+	}
+	if requestBody["reference_id"] != "refund-001" {
+		t.Fatalf("reference_id = %v, want refund-001", requestBody["reference_id"])
+	}
+	if requestBody["reason"] != "REQUESTED_BY_CUSTOMER" {
+		t.Fatalf("reason = %v, want REQUESTED_BY_CUSTOMER", requestBody["reason"])
+	}
+}
+
 func TestVerifyWebhookRejectsWrongToken(t *testing.T) {
 	t.Parallel()
 

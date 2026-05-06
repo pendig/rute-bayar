@@ -11,6 +11,7 @@ import (
 	"net/http"
 	"strings"
 	"time"
+	"unicode"
 
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/provider"
@@ -209,8 +210,10 @@ func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaym
 	}
 
 	response := provider.CreatePaymentResponse{
-		ProviderReference: parsed.ID,
-		TransactionID:     parsed.ID,
+		ProviderReference: firstNonEmpty(parsed.PaymentSessionID, parsed.ID),
+		PaymentSessionID:  firstNonEmpty(parsed.PaymentSessionID, parsed.ID),
+		PaymentRequestID:  parsed.PaymentRequestID,
+		TransactionID:     firstNonEmpty(parsed.PaymentSessionID, parsed.ID),
 		OrderID:           parsed.ReferenceID,
 		PaymentType:       parsed.Mode,
 		TransactionStatus: parsed.Status,
@@ -260,7 +263,9 @@ func (a *Adapter) GetPaymentStatus(ctx context.Context, sessionID string) (provi
 	}
 
 	response := provider.PaymentStatusResponse{
-		ProviderReference: parsed.ID,
+		ProviderReference: firstNonEmpty(parsed.PaymentSessionID, parsed.ID),
+		PaymentSessionID:  firstNonEmpty(parsed.PaymentSessionID, parsed.ID),
+		PaymentRequestID:  parsed.PaymentRequestID,
 		OrderID:           parsed.ReferenceID,
 		PaymentType:       parsed.Mode,
 		StatusMessage:     parsed.Status,
@@ -272,8 +277,79 @@ func (a *Adapter) GetPaymentStatus(ctx context.Context, sessionID string) (provi
 	return response, nil
 }
 
-func (a *Adapter) RefundPayment(context.Context, provider.RefundRequest) (provider.RefundResponse, error) {
-	return provider.RefundResponse{}, errors.New("xendit refund is not implemented yet")
+func (a *Adapter) RefundPayment(ctx context.Context, request provider.RefundRequest) (provider.RefundResponse, error) {
+	if a.secretKey == "" {
+		return provider.RefundResponse{}, errors.New("xendit secret key is required")
+	}
+
+	originalReference := strings.TrimSpace(request.ProviderReference)
+	paymentRequestID, err := a.resolvePaymentRequestID(ctx, originalReference)
+	if err != nil {
+		return provider.RefundResponse{ProviderReference: originalReference}, err
+	}
+	if paymentRequestID == "" {
+		return provider.RefundResponse{}, errors.New("xendit payment request id is required")
+	}
+
+	currency := strings.ToUpper(strings.TrimSpace(request.Currency))
+	if currency == "" {
+		currency = "IDR"
+	}
+	reason := normalizeXenditRefundReason(request.Reason)
+	if reason == "" {
+		reason = "REQUESTED_BY_CUSTOMER"
+	}
+
+	refundRequest := xenditRefundRequest{
+		ReferenceID:      request.ReferenceID,
+		PaymentRequestID: paymentRequestID,
+		Currency:         currency,
+		Reason:           reason,
+	}
+	if request.Amount > 0 {
+		amount := request.Amount
+		refundRequest.Amount = &amount
+	}
+
+	rawRequest, err := json.Marshal(refundRequest)
+	if err != nil {
+		return provider.RefundResponse{}, fmt.Errorf("marshal xendit refund request: %w", err)
+	}
+
+	req, err := http.NewRequestWithContext(ctx, http.MethodPost, a.baseURL+"/refunds", bytes.NewReader(rawRequest))
+	if err != nil {
+		return provider.RefundResponse{}, fmt.Errorf("create xendit refund request: %w", err)
+	}
+	req.SetBasicAuth(a.secretKey, "")
+	req.Header.Set("Accept", "application/json")
+	req.Header.Set("Content-Type", "application/json")
+
+	resp, err := a.client.Do(req)
+	if err != nil {
+		return provider.RefundResponse{ProviderReference: firstNonEmpty(originalReference, paymentRequestID), PaymentRequestID: paymentRequestID, RawRequestJSON: rawRequest}, fmt.Errorf("call xendit refund: %w", err)
+	}
+	defer resp.Body.Close()
+
+	rawResponse, err := io.ReadAll(resp.Body)
+	if err != nil {
+		return provider.RefundResponse{ProviderReference: firstNonEmpty(originalReference, paymentRequestID), PaymentRequestID: paymentRequestID, RawRequestJSON: rawRequest}, fmt.Errorf("read xendit refund response: %w", err)
+	}
+	if resp.StatusCode < 200 || resp.StatusCode >= 300 {
+		return provider.RefundResponse{ProviderReference: firstNonEmpty(originalReference, paymentRequestID), PaymentRequestID: paymentRequestID, RawRequestJSON: rawRequest, RawResponseJSON: rawResponse, Status: domain.PaymentStatusFailed}, fmt.Errorf("xendit refund returned status %d", resp.StatusCode)
+	}
+
+	var parsed xenditRefundResponse
+	if err := json.Unmarshal(rawResponse, &parsed); err != nil {
+		return provider.RefundResponse{ProviderReference: firstNonEmpty(originalReference, paymentRequestID), PaymentRequestID: paymentRequestID, RawRequestJSON: rawRequest, RawResponseJSON: rawResponse}, fmt.Errorf("unmarshal xendit refund response: %w", err)
+	}
+
+	return provider.RefundResponse{
+		ProviderReference: firstNonEmpty(originalReference, parsed.PaymentRequestID, parsed.PaymentID, parsed.InvoiceID, paymentRequestID),
+		PaymentRequestID:  firstNonEmpty(parsed.PaymentRequestID, paymentRequestID),
+		Status:            mapXenditRefundStatus(parsed.Status),
+		RawRequestJSON:    rawRequest,
+		RawResponseJSON:   rawResponse,
+	}, nil
 }
 
 func numberFromMap(payload map[string]any, key string) *float64 {
@@ -326,12 +402,34 @@ type xenditSessionItem struct {
 }
 
 type xenditSessionResponse struct {
-	ID             string `json:"id"`
-	ReferenceID    string `json:"reference_id"`
-	Mode           string `json:"mode"`
-	Status         string `json:"status"`
-	PaymentLinkURL string `json:"payment_link_url"`
-	CheckoutURL    string `json:"checkout_url"`
+	PaymentSessionID string `json:"payment_session_id"`
+	ID               string `json:"id"`
+	ReferenceID      string `json:"reference_id"`
+	PaymentRequestID string `json:"payment_request_id"`
+	PaymentTokenID   string `json:"payment_token_id"`
+	PaymentID        string `json:"payment_id"`
+	Mode             string `json:"mode"`
+	Status           string `json:"status"`
+	PaymentLinkURL   string `json:"payment_link_url"`
+	CheckoutURL      string `json:"checkout_url"`
+}
+
+type xenditRefundRequest struct {
+	ReferenceID      string `json:"reference_id"`
+	PaymentRequestID string `json:"payment_request_id"`
+	Currency         string `json:"currency"`
+	Amount           *int64 `json:"amount,omitempty"`
+	Reason           string `json:"reason"`
+}
+
+type xenditRefundResponse struct {
+	ID               string `json:"id"`
+	PaymentRequestID string `json:"payment_request_id"`
+	PaymentID        string `json:"payment_id"`
+	InvoiceID        string `json:"invoice_id"`
+	Status           string `json:"status"`
+	Reason           string `json:"reason"`
+	FailureCode      string `json:"failure_code"`
 }
 
 func (a *Adapter) VerifyWebhook(_ context.Context, req provider.WebhookRequest) error {
@@ -485,8 +583,6 @@ func mapXenditSessionStatus(status string) domain.PaymentStatus {
 		return domain.PaymentStatusPending
 	case "SUCCEEDED", "PAID":
 		return domain.PaymentStatusPaid
-	case "SUCCEEDDED":
-		return domain.PaymentStatusPaid
 	case "AUTHORIZED":
 		return domain.PaymentStatusAuthorized
 	case "CAPTURED":
@@ -498,6 +594,56 @@ func mapXenditSessionStatus(status string) domain.PaymentStatus {
 	default:
 		return domain.PaymentStatusPending
 	}
+}
+
+func mapXenditRefundStatus(status string) domain.PaymentStatus {
+	switch strings.ToUpper(strings.TrimSpace(status)) {
+	case "SUCCEEDED":
+		return domain.PaymentStatusRefunded
+	case "PENDING":
+		return domain.PaymentStatusPending
+	case "FAILED":
+		return domain.PaymentStatusFailed
+	case "CANCELLED", "CANCELED":
+		return domain.PaymentStatusCancelled
+	default:
+		return domain.PaymentStatusPending
+	}
+}
+
+func normalizeXenditRefundReason(reason string) string {
+	trimmed := strings.TrimSpace(reason)
+	if trimmed == "" {
+		return ""
+	}
+
+	parts := strings.FieldsFunc(trimmed, func(r rune) bool {
+		return unicode.IsSpace(r) || r == '-' || r == '_'
+	})
+	if len(parts) == 0 {
+		return ""
+	}
+	return strings.ToUpper(strings.Join(parts, "_"))
+}
+
+func (a *Adapter) resolvePaymentRequestID(ctx context.Context, providerReference string) (string, error) {
+	providerReference = strings.TrimSpace(providerReference)
+	if providerReference == "" {
+		return "", nil
+	}
+	if strings.HasPrefix(providerReference, "pr-") || strings.HasPrefix(providerReference, "pr_") {
+		return providerReference, nil
+	}
+	if strings.HasPrefix(providerReference, "ps-") || strings.HasPrefix(providerReference, "ps_") {
+		status, err := a.GetPaymentStatus(ctx, providerReference)
+		if err != nil {
+			return "", err
+		}
+		if status.PaymentRequestID != "" {
+			return status.PaymentRequestID, nil
+		}
+	}
+	return providerReference, nil
 }
 
 func unwrapXenditObject(payload map[string]any) map[string]any {

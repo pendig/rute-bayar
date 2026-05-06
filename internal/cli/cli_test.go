@@ -396,3 +396,243 @@ func TestPayStatusXenditUpdatesIntent(t *testing.T) {
 		t.Fatalf("intent status = %q, want %q", intent.Status, domain.PaymentStatusSettled)
 	}
 }
+
+func TestPayRefundXenditRecordsRefund(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "rute-bayar.sqlite3")
+	store, err := sqlite.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	credentialJSON, err := json.Marshal(map[string]string{"secret_key": "secret"})
+	if err != nil {
+		t.Fatalf("marshal xendit credential: %v", err)
+	}
+	_, err = store.UpsertProviderAccount(ctx, domain.ProviderAccount{
+		ProviderCode:   domain.ProviderXendit,
+		Environment:    domain.EnvironmentSandbox,
+		DisplayName:    "Xendit Sandbox",
+		CredentialJSON: credentialJSON,
+		ConfigJSON:     []byte(`{}`),
+	})
+	if err != nil {
+		t.Fatalf("UpsertProviderAccount returned error: %v", err)
+	}
+
+	intentID, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+		ExternalRef:  "rb-xnd-refund",
+		ProviderCode: domain.ProviderXendit,
+		Amount:       15000,
+		Currency:     "IDR",
+		Status:       domain.PaymentStatusSettled,
+	})
+	if err != nil {
+		t.Fatalf("UpsertPaymentIntent returned error: %v", err)
+	}
+	_, err = store.RecordPaymentAttempt(ctx, domain.PaymentAttempt{
+		PaymentIntentID:   intentID,
+		ProviderCode:      domain.ProviderXendit,
+		RequestJSON:       []byte(`{"request":"create"}`),
+		ResponseJSON:      []byte(`{"response":"create"}`),
+		Status:            domain.PaymentStatusSettled,
+		ProviderReference: "ps-xnd-001",
+	})
+	if err != nil {
+		t.Fatalf("RecordPaymentAttempt returned error: %v", err)
+	}
+
+	server := newHTTPTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		switch {
+		case r.Method == http.MethodGet && r.URL.Path == "/sessions/ps-xnd-001":
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{
+				"payment_session_id":"ps-xnd-001",
+				"reference_id":"rb-xnd-refund",
+				"payment_request_id":"pr-xnd-001",
+				"status":"COMPLETED",
+				"payment_link_url":"https://example.com/pay"
+			}`))
+		case r.Method == http.MethodPost && r.URL.Path == "/refunds":
+			var payload map[string]any
+			if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+				http.Error(w, err.Error(), http.StatusBadRequest)
+				return
+			}
+			if payload["payment_request_id"] != "pr-xnd-001" {
+				http.Error(w, "unexpected payment_request_id", http.StatusBadRequest)
+				return
+			}
+			if payload["reference_id"] != "rb-xnd-refund-001" {
+				http.Error(w, "unexpected reference_id", http.StatusBadRequest)
+				return
+			}
+			w.WriteHeader(http.StatusOK)
+			_, _ = w.Write([]byte(`{
+				"id":"rfd-001",
+				"payment_request_id":"pr-xnd-001",
+				"status":"SUCCEEDED",
+				"reason":"REQUESTED_BY_CUSTOMER"
+			}`))
+		default:
+			http.NotFound(w, r)
+		}
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	err = ExecuteWithIO(ctx, []string{
+		"pay",
+		"refund",
+		"--provider",
+		"xendit",
+		"--reference",
+		"rb-xnd-refund",
+		"--refund-reference",
+		"rb-xnd-refund-001",
+		"--amount",
+		"5000",
+		"--db",
+		dbPath,
+		"--environment",
+		"sandbox",
+		"--base-url",
+		server.URL,
+	}, &stdout, &stdout)
+	if err != nil {
+		t.Fatalf("pay refund returned error: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "provider: xendit") {
+		t.Fatalf("unexpected output: %q", output)
+	}
+	if !strings.Contains(output, "status: refunded") {
+		t.Fatalf("unexpected output: %q", output)
+	}
+	if !strings.Contains(output, "refund_reference: rb-xnd-refund-001") {
+		t.Fatalf("unexpected output: %q", output)
+	}
+
+	intent, err := store.GetPaymentIntentByExternalRef(ctx, "rb-xnd-refund")
+	if err != nil {
+		t.Fatalf("GetPaymentIntentByExternalRef returned error: %v", err)
+	}
+	if intent.Status != domain.PaymentStatusRefunded {
+		t.Fatalf("intent status = %q, want refunded", intent.Status)
+	}
+}
+
+func TestReconcileMidtransUpdatesIntent(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "rute-bayar.sqlite3")
+	store, err := sqlite.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	credentialJSON, err := json.Marshal(struct {
+		MerchantID string `json:"merchant_id"`
+		ClientKey  string `json:"client_key"`
+		ServerKey  string `json:"server_key"`
+	}{
+		MerchantID: "merchant",
+		ClientKey:  "client",
+		ServerKey:  "server",
+	})
+	if err != nil {
+		t.Fatalf("marshal midtrans credential: %v", err)
+	}
+	_, err = store.UpsertProviderAccount(ctx, domain.ProviderAccount{
+		ProviderCode:   domain.ProviderMidtrans,
+		Environment:    domain.EnvironmentSandbox,
+		DisplayName:    "Midtrans Sandbox",
+		CredentialJSON: credentialJSON,
+		ConfigJSON:     []byte(`{}`),
+	})
+	if err != nil {
+		t.Fatalf("UpsertProviderAccount returned error: %v", err)
+	}
+
+	intentID, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+		ExternalRef:  "rb-mid-reconcile",
+		ProviderCode: domain.ProviderMidtrans,
+		Amount:       15000,
+		Currency:     "IDR",
+		Status:       domain.PaymentStatusPending,
+	})
+	if err != nil {
+		t.Fatalf("UpsertPaymentIntent returned error: %v", err)
+	}
+	_, err = store.RecordPaymentAttempt(ctx, domain.PaymentAttempt{
+		PaymentIntentID:   intentID,
+		ProviderCode:      domain.ProviderMidtrans,
+		RequestJSON:       []byte(`{"request":"create"}`),
+		ResponseJSON:      []byte(`{"response":"create"}`),
+		Status:            domain.PaymentStatusPending,
+		ProviderReference: "order-mid-reconcile",
+	})
+	if err != nil {
+		t.Fatalf("RecordPaymentAttempt returned error: %v", err)
+	}
+
+	server := newHTTPTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.Method != http.MethodGet || r.URL.Path != "/v2/order-mid-reconcile/status" {
+			http.NotFound(w, r)
+			return
+		}
+
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{
+			"status_code":"200",
+			"status_message":"Success, transaction is found",
+			"transaction_id":"tx-mid-reconcile",
+			"order_id":"order-mid-reconcile",
+			"transaction_status":"settlement",
+			"fraud_status":"accept",
+			"payment_type":"bank_transfer"
+		}`))
+	}))
+	defer server.Close()
+
+	var stdout bytes.Buffer
+	err = ExecuteWithIO(ctx, []string{
+		"reconcile",
+		"--provider",
+		"midtrans",
+		"--reference",
+		"rb-mid-reconcile",
+		"--db",
+		dbPath,
+		"--environment",
+		"sandbox",
+		"--base-url",
+		server.URL,
+	}, &stdout, &stdout)
+	if err != nil {
+		t.Fatalf("reconcile returned error: %v", err)
+	}
+	output := stdout.String()
+	if !strings.Contains(output, "local_status: pending") {
+		t.Fatalf("unexpected output: %q", output)
+	}
+	if !strings.Contains(output, "provider_status: settled") {
+		t.Fatalf("unexpected output: %q", output)
+	}
+	if !strings.Contains(output, "updated: true") {
+		t.Fatalf("unexpected output: %q", output)
+	}
+
+	intent, err := store.GetPaymentIntentByExternalRef(ctx, "rb-mid-reconcile")
+	if err != nil {
+		t.Fatalf("GetPaymentIntentByExternalRef returned error: %v", err)
+	}
+	if intent.Status != domain.PaymentStatusSettled {
+		t.Fatalf("intent status = %q, want settled", intent.Status)
+	}
+}

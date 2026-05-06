@@ -18,6 +18,7 @@ type Store interface {
 	UpsertPaymentIntent(context.Context, domain.PaymentIntent) (string, error)
 	RecordPaymentAttempt(context.Context, domain.PaymentAttempt) (string, error)
 	RecordPaymentStatusCheck(context.Context, domain.PaymentStatusCheck) (string, error)
+	RecordRefund(context.Context, domain.Refund) (string, error)
 	GetPaymentIntentByExternalRef(context.Context, string) (domain.PaymentIntent, error)
 	GetLatestPaymentAttemptByIntent(context.Context, string, domain.ProviderCode) (domain.PaymentAttempt, error)
 }
@@ -59,6 +60,45 @@ type StatusResult struct {
 	ProviderCode      domain.ProviderCode
 	Reference         string
 	ProviderReference string
+	Response          provider.PaymentStatusResponse
+}
+
+type RefundInput struct {
+	Provider          domain.ProviderCode
+	Environment       domain.Environment
+	BaseURL           string
+	Reference         string
+	ProviderReference string
+	RefundReference   string
+	Amount            int64
+	Currency          string
+	Reason            string
+}
+
+type RefundResult struct {
+	ProviderCode      domain.ProviderCode
+	Reference         string
+	ProviderReference string
+	RefundReference   string
+	Response          provider.RefundResponse
+}
+
+type ReconcileInput struct {
+	Provider          domain.ProviderCode
+	Environment       domain.Environment
+	BaseURL           string
+	Reference         string
+	ProviderReference string
+}
+
+type ReconcileResult struct {
+	ProviderCode      domain.ProviderCode
+	Reference         string
+	ProviderReference string
+	LocalStatus       domain.PaymentStatus
+	ProviderStatus    domain.PaymentStatus
+	Matched           bool
+	Updated           bool
 	Response          provider.PaymentStatusResponse
 }
 
@@ -184,16 +224,9 @@ func (s *Service) Status(ctx context.Context, input StatusInput) (StatusResult, 
 		return StatusResult{}, err
 	}
 
-	providerRef := strings.TrimSpace(input.ProviderReference)
-	if providerRef == "" && intentFound {
-		if attempt, err := s.store.GetLatestPaymentAttemptByIntent(ctx, intent.ID, providerCode); err == nil {
-			providerRef = strings.TrimSpace(attempt.ProviderReference)
-		} else if !isNoRowsErr(err) {
-			return StatusResult{}, err
-		}
-	}
-	if providerRef == "" {
-		providerRef = strings.TrimSpace(input.Reference)
+	providerRef, err := s.resolveProviderReference(ctx, providerCode, input.ProviderReference, input.Reference, intent.ID, intentFound)
+	if err != nil {
+		return StatusResult{}, err
 	}
 
 	adapter, err := s.factory.AdapterForStoredAccount(ctx, providerCode, input.Environment, input.BaseURL)
@@ -239,6 +272,233 @@ func (s *Service) Status(ctx context.Context, input StatusInput) (StatusResult, 
 		}); err != nil {
 			return result, err
 		}
+	}
+
+	return result, nil
+}
+
+func (s *Service) Refund(ctx context.Context, input RefundInput) (RefundResult, error) {
+	providerCode, err := normalizeProvider(input.Provider)
+	if err != nil {
+		return RefundResult{}, err
+	}
+	if err := validateEnvironment(input.Environment); err != nil {
+		return RefundResult{}, err
+	}
+	reference := strings.TrimSpace(input.Reference)
+	if reference == "" {
+		return RefundResult{}, fmt.Errorf("reference is required")
+	}
+	if input.Amount < 0 {
+		return RefundResult{}, fmt.Errorf("amount cannot be negative")
+	}
+	if s == nil || s.store == nil || s.factory == nil {
+		return RefundResult{}, fmt.Errorf("payment service is not configured")
+	}
+
+	intent, intentFound, err := s.lookupPaymentIntent(ctx, reference)
+	if err != nil {
+		return RefundResult{}, err
+	}
+	if !intentFound {
+		return RefundResult{}, fmt.Errorf("payment intent %s is not configured", reference)
+	}
+
+	providerRef, err := s.resolveProviderReference(ctx, providerCode, input.ProviderReference, intent.ExternalRef, intent.ID, true)
+	if err != nil {
+		return RefundResult{}, err
+	}
+
+	currency := strings.ToUpper(strings.TrimSpace(input.Currency))
+	if currency == "" {
+		currency = strings.TrimSpace(intent.Currency)
+	}
+	if currency == "" {
+		currency = "IDR"
+	}
+	reason := strings.TrimSpace(input.Reason)
+	if reason == "" {
+		reason = "requested by customer"
+	}
+	refundReference := strings.TrimSpace(input.RefundReference)
+	if refundReference == "" {
+		refundReference = defaultRefundReference(intent.ExternalRef, input.Amount)
+	}
+
+	adapter, err := s.factory.AdapterForStoredAccount(ctx, providerCode, input.Environment, input.BaseURL)
+	if err != nil {
+		return RefundResult{}, err
+	}
+
+	request := provider.RefundRequest{
+		ProviderReference: providerRef,
+		ReferenceID:       refundReference,
+		Amount:            input.Amount,
+		Currency:          currency,
+		Reason:            reason,
+	}
+	response, err := adapter.RefundPayment(ctx, request)
+	requestJSON := response.RawRequestJSON
+	if len(requestJSON) == 0 {
+		if marshaledRequest, marshalErr := json.Marshal(request); marshalErr == nil {
+			requestJSON = marshaledRequest
+		}
+	}
+	storedProviderReference := strings.TrimSpace(response.ProviderReference)
+	if storedProviderReference == "" {
+		storedProviderReference = providerRef
+	}
+	response.ProviderReference = storedProviderReference
+
+	recordStatus := response.Status
+	if err != nil {
+		recordStatus = domain.PaymentStatusFailed
+	} else if recordStatus == "" {
+		recordStatus = domain.PaymentStatusPending
+	}
+	amountToRecord := input.Amount
+	if amountToRecord == 0 {
+		amountToRecord = intent.Amount
+	}
+	if _, recordErr := s.store.RecordRefund(ctx, domain.Refund{
+		PaymentIntentID:   intent.ID,
+		ProviderCode:      providerCode,
+		Amount:            amountToRecord,
+		Status:            recordStatus,
+		RequestJSON:       requestJSON,
+		ResponseJSON:      response.RawResponseJSON,
+		ProviderReference: storedProviderReference,
+	}); recordErr != nil {
+		return RefundResult{
+			ProviderCode:      providerCode,
+			Reference:         intent.ExternalRef,
+			ProviderReference: storedProviderReference,
+			RefundReference:   refundReference,
+			Response:          response,
+		}, recordErr
+	}
+
+	if err != nil {
+		return RefundResult{
+			ProviderCode:      providerCode,
+			Reference:         intent.ExternalRef,
+			ProviderReference: storedProviderReference,
+			RefundReference:   refundReference,
+			Response:          response,
+		}, err
+	}
+
+	if response.Status == domain.PaymentStatusRefunded || response.Status == domain.PaymentStatusPartialRefunded {
+		if _, err := s.store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+			ID:           intent.ID,
+			ExternalRef:  intent.ExternalRef,
+			ProviderCode: intent.ProviderCode,
+			Amount:       intent.Amount,
+			Currency:     intent.Currency,
+			Status:       response.Status,
+			MetadataJSON: intent.MetadataJSON,
+		}); err != nil {
+			return RefundResult{
+				ProviderCode:      providerCode,
+				Reference:         intent.ExternalRef,
+				ProviderReference: storedProviderReference,
+				RefundReference:   refundReference,
+				Response:          response,
+			}, err
+		}
+	}
+
+	return RefundResult{
+		ProviderCode:      providerCode,
+		Reference:         intent.ExternalRef,
+		ProviderReference: storedProviderReference,
+		RefundReference:   refundReference,
+		Response:          response,
+	}, nil
+}
+
+func (s *Service) Reconcile(ctx context.Context, input ReconcileInput) (ReconcileResult, error) {
+	providerCode, err := normalizeProvider(input.Provider)
+	if err != nil {
+		return ReconcileResult{}, err
+	}
+	if err := validateEnvironment(input.Environment); err != nil {
+		return ReconcileResult{}, err
+	}
+	reference := strings.TrimSpace(input.Reference)
+	if reference == "" {
+		return ReconcileResult{}, fmt.Errorf("reference is required")
+	}
+	if s == nil || s.store == nil || s.factory == nil {
+		return ReconcileResult{}, fmt.Errorf("payment service is not configured")
+	}
+
+	intent, intentFound, err := s.lookupPaymentIntent(ctx, reference)
+	if err != nil {
+		return ReconcileResult{}, err
+	}
+	if !intentFound {
+		return ReconcileResult{}, fmt.Errorf("payment intent %s is not configured", reference)
+	}
+
+	providerRef, err := s.resolveProviderReference(ctx, providerCode, input.ProviderReference, intent.ExternalRef, intent.ID, true)
+	if err != nil {
+		return ReconcileResult{}, err
+	}
+
+	adapter, err := s.factory.AdapterForStoredAccount(ctx, providerCode, input.Environment, input.BaseURL)
+	if err != nil {
+		return ReconcileResult{}, err
+	}
+
+	statusResponse, err := adapter.GetPaymentStatus(ctx, providerRef)
+	result := ReconcileResult{
+		ProviderCode:      providerCode,
+		Reference:         intent.ExternalRef,
+		ProviderReference: providerRef,
+		LocalStatus:       intent.Status,
+		ProviderStatus:    statusResponse.Status,
+		Matched:           intent.Status == statusResponse.Status,
+		Response:          statusResponse,
+	}
+	if err != nil {
+		if _, recordErr := s.store.RecordPaymentStatusCheck(ctx, domain.PaymentStatusCheck{
+			PaymentIntentID:   intent.ID,
+			ProviderCode:      providerCode,
+			RequestJSON:       statusResponse.RawRequestJSON,
+			ResponseJSON:      statusResponse.RawResponseJSON,
+			Status:            statusResponse.Status,
+			ProviderReference: providerRef,
+		}); recordErr != nil {
+			return result, recordErr
+		}
+		return result, err
+	}
+
+	if !result.Matched {
+		if _, err := s.store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+			ID:           intent.ID,
+			ExternalRef:  intent.ExternalRef,
+			ProviderCode: intent.ProviderCode,
+			Amount:       intent.Amount,
+			Currency:     intent.Currency,
+			Status:       statusResponse.Status,
+			MetadataJSON: intent.MetadataJSON,
+		}); err != nil {
+			return result, err
+		}
+		result.Updated = true
+	}
+
+	if _, err := s.store.RecordPaymentStatusCheck(ctx, domain.PaymentStatusCheck{
+		PaymentIntentID:   intent.ID,
+		ProviderCode:      providerCode,
+		RequestJSON:       statusResponse.RawRequestJSON,
+		ResponseJSON:      statusResponse.RawResponseJSON,
+		Status:            statusResponse.Status,
+		ProviderReference: providerRef,
+	}); err != nil {
+		return result, err
 	}
 
 	return result, nil
@@ -295,6 +555,32 @@ func referenceValueForStatus(found bool, intent domain.PaymentIntent, fallback s
 		return intent.ExternalRef
 	}
 	return fallback
+}
+
+func (s *Service) resolveProviderReference(ctx context.Context, providerCode domain.ProviderCode, explicit string, fallback string, intentID string, lookupLatest bool) (string, error) {
+	providerRef := strings.TrimSpace(explicit)
+	if providerRef == "" && lookupLatest && strings.TrimSpace(intentID) != "" {
+		if attempt, err := s.store.GetLatestPaymentAttemptByIntent(ctx, intentID, providerCode); err == nil {
+			providerRef = strings.TrimSpace(attempt.ProviderReference)
+		} else if !isNoRowsErr(err) {
+			return "", err
+		}
+	}
+	if providerRef == "" {
+		providerRef = strings.TrimSpace(fallback)
+	}
+	return providerRef, nil
+}
+
+func defaultRefundReference(reference string, amount int64) string {
+	reference = strings.TrimSpace(reference)
+	if reference == "" {
+		return "refund"
+	}
+	if amount > 0 {
+		return fmt.Sprintf("%s-refund-%d", reference, amount)
+	}
+	return reference + "-refund"
 }
 
 func isNoRowsErr(err error) bool {
