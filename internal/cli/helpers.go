@@ -206,10 +206,3 @@ func maskSecret(value string) string {
 	}
 	return value[:4] + strings.Repeat("*", len(value)-8) + value[len(value)-4:]
 }
-
-func isXenditPayMethodSupported(method string) bool {
-	return strings.EqualFold(strings.TrimSpace(method), "payment_link") ||
-		strings.EqualFold(strings.TrimSpace(method), "payment-link") ||
-		strings.EqualFold(strings.TrimSpace(method), "paymentlink") ||
-		strings.EqualFold(strings.TrimSpace(method), "")
-}
