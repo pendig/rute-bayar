@@ -54,7 +54,8 @@ func onboardMidtrans(ctx context.Context, stdout, stderr io.Writer, args []strin
 	if strings.TrimSpace(*serverKey) == "" {
 		return fmt.Errorf("midtrans --server-key is required")
 	}
-	if err := validateEnvironment(*environment); err != nil {
+	midtransEnvironment := strings.TrimSpace(*environment)
+	if err := validateEnvironment(midtransEnvironment); err != nil {
 		return err
 	}
 
@@ -75,7 +76,7 @@ func onboardMidtrans(ctx context.Context, stdout, stderr io.Writer, args []strin
 
 	accountID, err := store.UpsertProviderAccount(ctx, domain.ProviderAccount{
 		ProviderCode:   domain.ProviderMidtrans,
-		Environment:    domain.Environment(*environment),
+		Environment:    domain.Environment(midtransEnvironment),
 		DisplayName:    *displayName,
 		CredentialJSON: credentialJSON,
 		ConfigJSON:     []byte(`{}`),
@@ -85,7 +86,7 @@ func onboardMidtrans(ctx context.Context, stdout, stderr io.Writer, args []strin
 	}
 
 	fmt.Fprintf(stdout, "midtrans account saved: %s\n", accountID)
-	fmt.Fprintf(stdout, "environment: %s\n", *environment)
+	fmt.Fprintf(stdout, "environment: %s\n", midtransEnvironment)
 	fmt.Fprintf(stdout, "merchant id: %s\n", strings.TrimSpace(*merchantID))
 	fmt.Fprintf(stdout, "client key: %s\n", maskSecret(*clientKey))
 	fmt.Fprintf(stdout, "server key: %s\n", maskSecret(*serverKey))
@@ -109,8 +110,9 @@ func onboardXendit(ctx context.Context, stdout, stderr io.Writer, args []string)
 	if strings.TrimSpace(*secretKey) == "" {
 		return fmt.Errorf("xendit --secret-key is required")
 	}
-	if validateEnvironment(*environment) != nil {
-		return validateEnvironment(*environment)
+	environmentVal := strings.TrimSpace(*environment)
+	if err := validateEnvironment(environmentVal); err != nil {
+		return err
 	}
 
 	credentialJSON, err := json.Marshal(map[string]string{
@@ -134,7 +136,7 @@ func onboardXendit(ctx context.Context, stdout, stderr io.Writer, args []string)
 
 	accountID, err := store.UpsertProviderAccount(ctx, domain.ProviderAccount{
 		ProviderCode:   domain.ProviderXendit,
-		Environment:    domain.Environment(*environment),
+		Environment:    domain.Environment(environmentVal),
 		DisplayName:    *displayName,
 		CredentialJSON: credentialJSON,
 		ConfigJSON:     configJSON,
@@ -144,7 +146,7 @@ func onboardXendit(ctx context.Context, stdout, stderr io.Writer, args []string)
 	}
 
 	fmt.Fprintf(stdout, "xendit account saved: %s\n", accountID)
-	fmt.Fprintf(stdout, "environment: %s\n", *environment)
+	fmt.Fprintf(stdout, "environment: %s\n", environmentVal)
 	fmt.Fprintf(stdout, "secret key: %s\n", maskSecret(*secretKey))
 	fmt.Fprintf(stdout, "database: %s\n", *dbPath)
 	return nil

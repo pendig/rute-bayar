@@ -3,6 +3,7 @@ package sqlite
 import (
 	"context"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pendig/rute-bayar/internal/domain"
@@ -174,7 +175,7 @@ func (s *Store) GetForwardingTarget(ctx context.Context, targetID string) (forwa
 }
 
 func (s *Store) UpdateForwardingTarget(ctx context.Context, target forwarding.Target) error {
-	if len(target.ID) == 0 {
+	if strings.TrimSpace(target.ID) == "" {
 		return fmt.Errorf("forwarding target id is required")
 	}
 

@@ -23,6 +23,10 @@ func dbCommand(ctx context.Context, w io.Writer, args []string) error {
 		}
 		defer store.Close()
 
+		if err := store.Migrate(ctx); err != nil {
+			return err
+		}
+
 		fmt.Fprintf(w, "database migrated: %s\n", cfg.DBPath)
 		return nil
 	default:
