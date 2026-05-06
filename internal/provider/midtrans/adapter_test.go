@@ -304,6 +304,50 @@ func TestParseWebhookMapsStatus(t *testing.T) {
 	}
 }
 
+func TestParseWebhookFallsBackPaymentReference(t *testing.T) {
+	t.Parallel()
+
+	payload, _ := json.Marshal(map[string]any{
+		"transaction_id":     "tx-456",
+		"transaction_status": "pending",
+		"fraud_status":       "accept",
+		"payment_type":       "bank_transfer",
+	})
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"))
+	event, err := adapter.ParseWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	})
+	if err != nil {
+		t.Fatalf("ParseWebhook returned error: %v", err)
+	}
+	if event.PaymentRef != "tx-456" {
+		t.Fatalf("PaymentRef = %q, want tx-456", event.PaymentRef)
+	}
+	if event.EventType != "pending" {
+		t.Fatalf("EventType = %q, want pending", event.EventType)
+	}
+}
+
+func TestVerifyWebhookRejectsMissingFields(t *testing.T) {
+	t.Parallel()
+
+	payload, _ := json.Marshal(map[string]any{
+		"order_id": "order-123",
+		// status_code intentionally omitted
+		"gross_amount":  "10000",
+		"signature_key": "abc",
+	})
+
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"))
+	if err := adapter.VerifyWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	}); err == nil {
+		t.Fatal("VerifyWebhook returned nil error for missing fields")
+	}
+}
+
 type roundTripperFunc func(*http.Request) (*http.Response, error)
 
 func (fn roundTripperFunc) RoundTrip(r *http.Request) (*http.Response, error) {
