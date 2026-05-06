@@ -220,6 +220,20 @@ func TestVerifyWebhookRejectsMissingToken(t *testing.T) {
 	}
 }
 
+func TestVerifyWebhookAcceptsMatchingToken(t *testing.T) {
+	t.Parallel()
+
+	adapter := New(WithSecretKey("secret"), WithCallbackToken("expected-token"))
+	req := httptest.NewRequest(http.MethodPost, "/webhooks/xendit", strings.NewReader(`{"status":"PAID"}`))
+	req.Header.Set("X-Callback-Token", "expected-token")
+	if err := adapter.VerifyWebhook(context.Background(), provider.WebhookRequest{
+		Headers: req.Header,
+		Body:    []byte(`{"status":"PAID"}`),
+	}); err != nil {
+		t.Fatalf("VerifyWebhook returned error for matching token: %v", err)
+	}
+}
+
 func TestParseWebhookMapsStatus(t *testing.T) {
 	t.Parallel()
 
@@ -246,6 +260,45 @@ func TestParseWebhookMapsStatus(t *testing.T) {
 	}
 	if event.Status != domain.PaymentStatusSettled {
 		t.Fatalf("Status = %q, want %q", event.Status, domain.PaymentStatusSettled)
+	}
+}
+
+func TestParseWebhookSupportsNestedEnvelope(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte(`{
+		"paymentCapture": {
+			"value": {
+				"event": "payment.capture",
+				"created": "2026-05-06T09:00:00.000Z",
+				"data": {
+					"payment_id": "py_123",
+					"reference_id": "rb-001",
+					"status": "SUCCEEDED"
+				}
+			}
+		}
+	}`)
+
+	adapter := New(WithSecretKey("secret"))
+	event, err := adapter.ParseWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	})
+	if err != nil {
+		t.Fatalf("ParseWebhook returned error: %v", err)
+	}
+	if event.ProviderEventID != "py_123" {
+		t.Fatalf("ProviderEventID = %q, want py_123", event.ProviderEventID)
+	}
+	if event.PaymentRef != "rb-001" {
+		t.Fatalf("PaymentRef = %q, want rb-001", event.PaymentRef)
+	}
+	if event.EventType != "payment.capture" {
+		t.Fatalf("EventType = %q, want payment.capture", event.EventType)
+	}
+	if event.Status != domain.PaymentStatusPaid {
+		t.Fatalf("Status = %q, want %q", event.Status, domain.PaymentStatusPaid)
 	}
 }
 

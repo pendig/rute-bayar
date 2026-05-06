@@ -350,36 +350,50 @@ func (a *Adapter) VerifyWebhook(_ context.Context, req provider.WebhookRequest) 
 }
 
 func (a *Adapter) ParseWebhook(_ context.Context, req provider.WebhookRequest) (provider.WebhookEvent, error) {
-	var payload struct {
-		ID         string `json:"id"`
-		Status     string `json:"status"`
-		Event      string `json:"event"`
-		Reference  string `json:"reference_id"`
-		ExternalID string `json:"external_id"`
-		OrderID    string `json:"order_id"`
-	}
+	var payload map[string]any
 	if err := json.Unmarshal(req.Body, &payload); err != nil {
 		return provider.WebhookEvent{}, fmt.Errorf("parse xendit webhook payload: %w", err)
 	}
-
-	eventType := strings.TrimSpace(payload.Event)
-	if eventType == "" {
-		eventType = strings.TrimSpace(payload.Status)
+	payload = unwrapXenditObject(payload)
+	data := xenditObjectChild(payload, "data")
+	if data != nil {
+		data = unwrapXenditObject(data)
 	}
+
+	eventType := firstNonEmpty(
+		xenditStringFromObject(payload, "event", "type"),
+		xenditStringFromObject(data, "event", "type"),
+		xenditStringFromObject(payload, "status"),
+		xenditStringFromObject(data, "status"),
+	)
 	if eventType == "" {
 		eventType = "notification"
 	}
 
-	reference := firstNonEmpty(payload.Reference, payload.ExternalID, payload.OrderID)
+	status := firstNonEmpty(
+		xenditStringFromObject(data, "status"),
+		xenditStringFromObject(payload, "status"),
+		eventType,
+	)
+
+	providerEventID := firstNonEmpty(
+		xenditStringFromObject(data, "payment_id", "capture_id", "refund_id", "payment_request_id", "payment_token_id", "invoice_id", "id"),
+		xenditStringFromObject(payload, "payment_id", "capture_id", "refund_id", "payment_request_id", "payment_token_id", "invoice_id", "id"),
+	)
+
+	reference := firstNonEmpty(
+		xenditStringFromObject(data, "reference_id", "external_id", "order_id", "payment_request_id", "invoice_id"),
+		xenditStringFromObject(payload, "reference_id", "external_id", "order_id", "payment_request_id", "invoice_id"),
+	)
 	if reference == "" {
-		reference = payload.ID
+		reference = providerEventID
 	}
 
 	return provider.WebhookEvent{
-		ProviderEventID: strings.TrimSpace(payload.ID),
+		ProviderEventID: strings.TrimSpace(providerEventID),
 		EventType:       eventType,
 		PaymentRef:      strings.TrimSpace(reference),
-		Status:          mapXenditSessionStatus(payload.Status),
+		Status:          mapXenditSessionStatus(status),
 		RawPayloadJSON:  req.Body,
 		RawHeadersJSON:  marshalHeaders(req.Headers),
 	}, nil
@@ -457,15 +471,105 @@ func mapXenditSessionStatus(status string) domain.PaymentStatus {
 		return domain.PaymentStatusPending
 	case "COMPLETED":
 		return domain.PaymentStatusSettled
+	case "SETTLED":
+		return domain.PaymentStatusSettled
 	case "EXPIRED":
 		return domain.PaymentStatusExpired
 	case "CANCELLED":
 		return domain.PaymentStatusCancelled
+	case "CANCELED":
+		return domain.PaymentStatusCancelled
 	case "FAILED":
 		return domain.PaymentStatusFailed
+	case "PENDING":
+		return domain.PaymentStatusPending
 	case "SUCCEEDED", "PAID":
 		return domain.PaymentStatusPaid
+	case "SUCCEEDDED":
+		return domain.PaymentStatusPaid
+	case "AUTHORIZED":
+		return domain.PaymentStatusAuthorized
+	case "CAPTURED":
+		return domain.PaymentStatusCaptured
+	case "REFUNDED":
+		return domain.PaymentStatusRefunded
+	case "PARTIAL_REFUNDED":
+		return domain.PaymentStatusPartialRefunded
 	default:
 		return domain.PaymentStatusPending
+	}
+}
+
+func unwrapXenditObject(payload map[string]any) map[string]any {
+	current := payload
+	for {
+		if child := xenditObjectChild(current, "value"); child != nil {
+			current = child
+			continue
+		}
+
+		if len(current) == 1 {
+			unwrapped := false
+			for _, value := range current {
+				child, ok := value.(map[string]any)
+				if ok {
+					current = child
+					unwrapped = true
+					break
+				}
+			}
+			if unwrapped {
+				continue
+			}
+		}
+
+		return current
+	}
+}
+
+func xenditObjectChild(payload map[string]any, key string) map[string]any {
+	if payload == nil {
+		return nil
+	}
+	for actualKey, value := range payload {
+		if !strings.EqualFold(actualKey, key) {
+			continue
+		}
+		child, ok := value.(map[string]any)
+		if !ok {
+			return nil
+		}
+		return child
+	}
+	return nil
+}
+
+func xenditStringFromObject(payload map[string]any, keys ...string) string {
+	if payload == nil {
+		return ""
+	}
+	for _, key := range keys {
+		for actualKey, value := range payload {
+			if !strings.EqualFold(actualKey, key) {
+				continue
+			}
+			return normalizeXenditField(value)
+		}
+	}
+	return ""
+}
+
+func normalizeXenditField(value any) string {
+	switch v := value.(type) {
+	case string:
+		return strings.TrimSpace(v)
+	case json.Number:
+		return strings.TrimSpace(v.String())
+	case float64:
+		return strings.TrimSpace(fmt.Sprintf("%v", v))
+	case nil:
+		return ""
+	default:
+		return strings.TrimSpace(fmt.Sprint(v))
 	}
 }
