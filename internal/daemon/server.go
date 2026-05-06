@@ -102,16 +102,14 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 
 		event.SignatureValid = true
 		parsedEvent, parseErr := handler.ParseWebhook(r.Context(), request)
-		if parseErr == nil {
+		if parseErr != nil {
+			event.EventType = "parse_error"
+			event.ProcessingStatus = "parse_failed"
+		} else {
 			event.EventType = parsedEvent.EventType
 			event.ProviderEventID = parsedEvent.ProviderEventID
-			event.ProcessingStatus = "processed"
-
-			processingStatus, reconcileErr := s.reconcilePaymentIntent(r.Context(), providerCode, parsedEvent)
-			if processingStatus != "" {
-				event.ProcessingStatus = processingStatus
-			}
-			if reconcileErr != nil {
+			event.ProcessingStatus, err = s.reconcilePaymentIntent(r.Context(), providerCode, parsedEvent)
+			if err != nil {
 				event.ProcessingStatus = "reconcile_failed"
 				if s.webhookRecorder != nil {
 					if id, recErr := s.webhookRecorder.RecordWebhookEvent(r.Context(), event); recErr == nil {
@@ -120,14 +118,11 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 				}
 				writeJSON(w, http.StatusInternalServerError, map[string]any{
 					"status":  "error",
-					"error":   reconcileErr.Error(),
+					"error":   err.Error(),
 					"message": "webhook reconciliation failed",
 				})
 				return
 			}
-		} else {
-			event.EventType = "parse_error"
-			event.ProcessingStatus = "parse_failed"
 		}
 	}
 
@@ -195,15 +190,8 @@ func (s *Server) reconcilePaymentIntent(ctx context.Context, providerCode domain
 		return "duplicate", nil
 	}
 
-	_, err = reconciler.UpsertPaymentIntent(ctx, domain.PaymentIntent{
-		ID:           intent.ID,
-		ExternalRef:  intent.ExternalRef,
-		ProviderCode: intent.ProviderCode,
-		Amount:       intent.Amount,
-		Currency:     intent.Currency,
-		Status:       parsedEvent.Status,
-		MetadataJSON: intent.MetadataJSON,
-	})
+	intent.Status = parsedEvent.Status
+	_, err = reconciler.UpsertPaymentIntent(ctx, intent)
 	if err != nil {
 		return "reconcile_failed", err
 	}
