@@ -352,6 +352,8 @@ func TestPayStatusMidtransUpdatesIntent(t *testing.T) {
 		"order-mid-001",
 		"--db",
 		dbPath,
+		"--environment",
+		"sandbox",
 		"--base-url",
 		server.URL,
 	}, &stdout, &stdout)
@@ -445,6 +447,8 @@ func TestPayStatusXenditUpdatesIntent(t *testing.T) {
 		"ps-xnd-001",
 		"--db",
 		dbPath,
+		"--environment",
+		"sandbox",
 		"--base-url",
 		server.URL,
 	}, &stdout, &stdout)
