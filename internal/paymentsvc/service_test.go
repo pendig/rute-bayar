@@ -2,8 +2,10 @@ package paymentsvc
 
 import (
 	"context"
+	"database/sql"
 	"encoding/base64"
 	"encoding/json"
+	"errors"
 	"io"
 	"net/http"
 	"strings"
@@ -234,4 +236,197 @@ func TestCreateXenditRejectsUnsupportedMethod(t *testing.T) {
 	}); err == nil {
 		t.Fatal("Create returned nil error for unsupported xendit method")
 	}
+}
+
+func TestCreateReturnsProviderResponseWhenPersistenceFails(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := &testPaymentStore{
+		account: domain.ProviderAccount{
+			ProviderCode:   domain.ProviderXendit,
+			Environment:    domain.EnvironmentSandbox,
+			DisplayName:    "Xendit Sandbox",
+			CredentialJSON: []byte(`{"secret_key":"secret"}`),
+			ConfigJSON:     []byte(`{}`),
+		},
+		recordAttemptErr: errors.New("persist failed"),
+	}
+
+	var requestPath string
+	client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		requestPath = req.URL.Path
+		return response(http.StatusOK, `{
+			"id":"ps-xnd-002",
+			"reference_id":"rb-xnd-002",
+			"mode":"PAYMENT_LINK",
+			"status":"COMPLETED",
+			"payment_link_url":"https://example.com/pay"
+		}`), nil
+	})}
+
+	svc := New(store, providerfactory.New(store, providerfactory.WithHTTPClient(client)))
+	result, err := svc.Create(ctx, CreateInput{
+		Provider:     domain.ProviderXendit,
+		Environment:  domain.EnvironmentSandbox,
+		BaseURL:      "https://example.com",
+		ExternalRef:  "rb-xnd-002",
+		Amount:       15000,
+		Currency:     "IDR",
+		Method:       "bank_transfer",
+		CustomerName: "Rute Bayar",
+	})
+	if err == nil {
+		t.Fatal("Create returned nil error when persistence failed")
+	}
+	if result.ProviderCode != domain.ProviderXendit {
+		t.Fatalf("ProviderCode = %q, want xendit", result.ProviderCode)
+	}
+	if result.Reference != "rb-xnd-002" {
+		t.Fatalf("Reference = %q, want rb-xnd-002", result.Reference)
+	}
+	if result.Response.RedirectURL != "https://example.com/pay" {
+		t.Fatalf("RedirectURL = %q, want payment link", result.Response.RedirectURL)
+	}
+	if requestPath != "/sessions" {
+		t.Fatalf("request path = %q, want /sessions", requestPath)
+	}
+	if len(store.attempts) != 1 {
+		t.Fatalf("attempts recorded = %d, want 1", len(store.attempts))
+	}
+}
+
+func TestStatusReturnsProviderStatusWhenPersistenceFails(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store := &testPaymentStore{
+		account: domain.ProviderAccount{
+			ProviderCode:   domain.ProviderMidtrans,
+			Environment:    domain.EnvironmentSandbox,
+			DisplayName:    "Midtrans Sandbox",
+			CredentialJSON: []byte(`{"merchant_id":"merchant","client_key":"client","server_key":"server"}`),
+			ConfigJSON:     []byte(`{}`),
+		},
+		intents: map[string]domain.PaymentIntent{
+			"rb-mid-002": {
+				ID:           "intent-002",
+				ExternalRef:  "rb-mid-002",
+				ProviderCode: domain.ProviderMidtrans,
+				Amount:       15000,
+				Currency:     "IDR",
+				Status:       domain.PaymentStatusPending,
+			},
+		},
+		upsertErr: errors.New("persist failed"),
+	}
+
+	var requestPath string
+	client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		requestPath = req.URL.Path
+		return response(http.StatusOK, `{
+			"status_code":"200",
+			"status_message":"Success, transaction is found",
+			"transaction_id":"tx-mid-002",
+			"order_id":"order-mid-002",
+			"transaction_status":"settlement",
+			"fraud_status":"accept",
+			"payment_type":"bank_transfer"
+		}`), nil
+	})}
+
+	svc := New(store, providerfactory.New(store, providerfactory.WithHTTPClient(client)))
+	result, err := svc.Status(ctx, StatusInput{
+		Provider:          domain.ProviderMidtrans,
+		Environment:       domain.EnvironmentSandbox,
+		BaseURL:           "https://example.com",
+		Reference:         "rb-mid-002",
+		ProviderReference: "order-mid-002",
+	})
+	if err == nil {
+		t.Fatal("Status returned nil error when persistence failed")
+	}
+	if result.ProviderCode != domain.ProviderMidtrans {
+		t.Fatalf("ProviderCode = %q, want midtrans", result.ProviderCode)
+	}
+	if result.Reference != "rb-mid-002" {
+		t.Fatalf("Reference = %q, want rb-mid-002", result.Reference)
+	}
+	if result.Response.Status != domain.PaymentStatusSettled {
+		t.Fatalf("Status = %q, want settled", result.Response.Status)
+	}
+	if requestPath != "/v2/order-mid-002/status" {
+		t.Fatalf("request path = %q, want /v2/order-mid-002/status", requestPath)
+	}
+	if len(store.statusChecks) != 0 {
+		t.Fatalf("status checks recorded = %d, want 0 when upsert fails first", len(store.statusChecks))
+	}
+}
+
+type testPaymentStore struct {
+	account          domain.ProviderAccount
+	intents          map[string]domain.PaymentIntent
+	attempts         []domain.PaymentAttempt
+	statusChecks     []domain.PaymentStatusCheck
+	upsertErr        error
+	recordAttemptErr error
+	statusCheckErr   error
+}
+
+func (s *testPaymentStore) GetProviderAccount(_ context.Context, provider domain.ProviderCode, environment domain.Environment) (domain.ProviderAccount, error) {
+	if s.account.ProviderCode != provider || s.account.Environment != environment {
+		return domain.ProviderAccount{}, sql.ErrNoRows
+	}
+	return s.account, nil
+}
+
+func (s *testPaymentStore) UpsertPaymentIntent(_ context.Context, intent domain.PaymentIntent) (string, error) {
+	if s.upsertErr != nil {
+		return "", s.upsertErr
+	}
+	if s.intents == nil {
+		s.intents = map[string]domain.PaymentIntent{}
+	}
+	if intent.ID == "" {
+		intent.ID = "intent-generated"
+	}
+	s.intents[strings.TrimSpace(intent.ExternalRef)] = intent
+	return intent.ID, nil
+}
+
+func (s *testPaymentStore) RecordPaymentAttempt(_ context.Context, attempt domain.PaymentAttempt) (string, error) {
+	s.attempts = append(s.attempts, attempt)
+	if s.recordAttemptErr != nil {
+		return "", s.recordAttemptErr
+	}
+	return "attempt-1", nil
+}
+
+func (s *testPaymentStore) RecordPaymentStatusCheck(_ context.Context, check domain.PaymentStatusCheck) (string, error) {
+	s.statusChecks = append(s.statusChecks, check)
+	if s.statusCheckErr != nil {
+		return "", s.statusCheckErr
+	}
+	return "status-check-1", nil
+}
+
+func (s *testPaymentStore) GetPaymentIntentByExternalRef(_ context.Context, externalRef string) (domain.PaymentIntent, error) {
+	if s.intents == nil {
+		return domain.PaymentIntent{}, sql.ErrNoRows
+	}
+	intent, ok := s.intents[strings.TrimSpace(externalRef)]
+	if !ok {
+		return domain.PaymentIntent{}, sql.ErrNoRows
+	}
+	return intent, nil
+}
+
+func (s *testPaymentStore) GetLatestPaymentAttemptByIntent(_ context.Context, paymentIntentID string, provider domain.ProviderCode) (domain.PaymentAttempt, error) {
+	for i := len(s.attempts) - 1; i >= 0; i-- {
+		attempt := s.attempts[i]
+		if attempt.PaymentIntentID == paymentIntentID && attempt.ProviderCode == provider {
+			return attempt, nil
+		}
+	}
+	return domain.PaymentAttempt{}, sql.ErrNoRows
 }

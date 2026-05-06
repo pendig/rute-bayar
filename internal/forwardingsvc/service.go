@@ -96,11 +96,11 @@ func (s *Service) Add(ctx context.Context, input AddInput) (string, error) {
 	}
 	name := strings.TrimSpace(input.Name)
 	if name == "" {
-		return "", fmt.Errorf("webhook forward add --name is required")
+		return "", fmt.Errorf("name is required")
 	}
 	targetURL := strings.TrimSpace(input.URL)
 	if targetURL == "" {
-		return "", fmt.Errorf("webhook forward add --url is required")
+		return "", fmt.Errorf("url is required")
 	}
 	if err := validateRetryPolicyInput(input.RetryPolicy); err != nil {
 		return "", err
@@ -127,7 +127,7 @@ func (s *Service) Update(ctx context.Context, input UpdateInput) error {
 	}
 	targetID := strings.TrimSpace(input.ID)
 	if targetID == "" {
-		return fmt.Errorf("webhook forward update target id is required")
+		return fmt.Errorf("target id is required")
 	}
 
 	target, err := s.store.GetForwardingTarget(ctx, targetID)
@@ -158,10 +158,10 @@ func (s *Service) Update(ctx context.Context, input UpdateInput) error {
 	}
 
 	if strings.TrimSpace(target.Name) == "" {
-		return fmt.Errorf("webhook forward update cannot set empty name")
+		return fmt.Errorf("name cannot be empty")
 	}
 	if strings.TrimSpace(target.URL) == "" {
-		return fmt.Errorf("webhook forward update cannot set empty target URL")
+		return fmt.Errorf("target url cannot be empty")
 	}
 	policy := applyRetryDefaults(target.RetryPolicy)
 	if err := validateRetryPolicy(policy); err != nil {
@@ -178,7 +178,7 @@ func (s *Service) Remove(ctx context.Context, targetID string) error {
 	}
 	targetID = strings.TrimSpace(targetID)
 	if targetID == "" {
-		return fmt.Errorf("webhook forward remove target id is required")
+		return fmt.Errorf("target id is required")
 	}
 	return s.store.DeleteForwardingTarget(ctx, targetID)
 }
@@ -202,7 +202,7 @@ func normalizeProviders(value domain.ProviderCode) ([]domain.ProviderCode, error
 		}
 		return []domain.ProviderCode{providerCode}, nil
 	}
-	return []domain.ProviderCode{domain.ProviderMidtrans, domain.ProviderXendit}, nil
+	return domain.SupportedProviders(), nil
 }
 
 func applyRetryDefaults(policy forwarding.RetryPolicy) forwarding.RetryPolicy {
@@ -221,26 +221,26 @@ func applyRetryDefaults(policy forwarding.RetryPolicy) forwarding.RetryPolicy {
 
 func validateRetryPolicy(policy forwarding.RetryPolicy) error {
 	if policy.MaxAttempts <= 0 {
-		return fmt.Errorf("webhook forward retry max attempts must be greater than zero")
+		return fmt.Errorf("retry max attempts must be greater than zero")
 	}
 	if policy.Timeout <= 0 {
-		return fmt.Errorf("webhook forward retry timeout must be greater than zero")
+		return fmt.Errorf("retry timeout must be greater than zero")
 	}
 	if policy.Backoff < 0 {
-		return fmt.Errorf("webhook forward retry backoff cannot be negative")
+		return fmt.Errorf("retry backoff cannot be negative")
 	}
 	return nil
 }
 
 func validateRetryPolicyInput(policy forwarding.RetryPolicy) error {
 	if policy.MaxAttempts < 0 {
-		return fmt.Errorf("webhook forward retry max attempts cannot be negative")
+		return fmt.Errorf("retry max attempts cannot be negative")
 	}
 	if policy.Timeout < 0 {
-		return fmt.Errorf("webhook forward retry timeout cannot be negative")
+		return fmt.Errorf("retry timeout cannot be negative")
 	}
 	if policy.Backoff < 0 {
-		return fmt.Errorf("webhook forward retry backoff cannot be negative")
+		return fmt.Errorf("retry backoff cannot be negative")
 	}
 	return nil
 }

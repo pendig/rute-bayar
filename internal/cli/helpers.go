@@ -129,20 +129,17 @@ func (f *durationFlag) String() string {
 	return f.value.String()
 }
 
-func allProviders() []domain.ProviderCode {
-	return []domain.ProviderCode{domain.ProviderMidtrans, domain.ProviderXendit}
-}
-
 func parseProvider(value string) (domain.ProviderCode, error) {
 	provider := strings.ToLower(strings.TrimSpace(value))
-	for _, supportedProvider := range allProviders() {
+	for _, supportedProvider := range domain.SupportedProviders() {
 		if provider == string(supportedProvider) {
 			return supportedProvider, nil
 		}
 	}
 
-	valid := make([]string, 0, len(allProviders()))
-	for _, supportedProvider := range allProviders() {
+	supported := domain.SupportedProviders()
+	valid := make([]string, 0, len(supported))
+	for _, supportedProvider := range supported {
 		valid = append(valid, string(supportedProvider))
 	}
 	return "", fmt.Errorf("provider must be one of %q", strings.Join(valid, "\", \""))

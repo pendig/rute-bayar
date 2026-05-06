@@ -19,7 +19,7 @@ func providerCommand(ctx context.Context, w io.Writer, args []string) error {
 	}
 	switch args[0] {
 	case "list":
-		for _, provider := range allProviders() {
+		for _, provider := range domain.SupportedProviders() {
 			fmt.Fprintln(w, provider)
 		}
 		return nil

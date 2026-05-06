@@ -78,10 +78,10 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (CreateResult, 
 		return CreateResult{}, err
 	}
 	if strings.TrimSpace(input.ExternalRef) == "" {
-		return CreateResult{}, fmt.Errorf("pay create --reference is required")
+		return CreateResult{}, fmt.Errorf("reference is required")
 	}
 	if input.Amount <= 0 {
-		return CreateResult{}, fmt.Errorf("pay create --amount must be greater than zero")
+		return CreateResult{}, fmt.Errorf("amount must be greater than zero")
 	}
 	if s == nil || s.store == nil || s.factory == nil {
 		return CreateResult{}, fmt.Errorf("payment service is not configured")
@@ -143,12 +143,12 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (CreateResult, 
 	if _, err := s.store.RecordPaymentAttempt(ctx, domain.PaymentAttempt{
 		PaymentIntentID:   intentID,
 		ProviderCode:      providerCode,
-		RequestJSON:       response.RawRequestJSON,
+		RequestJSON:       requestJSON,
 		ResponseJSON:      response.RawResponseJSON,
 		Status:            response.Status,
 		ProviderReference: response.ProviderReference,
 	}); err != nil {
-		return CreateResult{}, err
+		return CreateResult{ProviderCode: providerCode, Reference: request.ExternalRef, Response: response}, err
 	}
 	if _, err := s.store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
 		ID:           intentID,
@@ -158,7 +158,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (CreateResult, 
 		Currency:     request.Currency,
 		Status:       response.Status,
 	}); err != nil {
-		return CreateResult{}, err
+		return CreateResult{ProviderCode: providerCode, Reference: request.ExternalRef, Response: response}, err
 	}
 
 	return CreateResult{ProviderCode: providerCode, Reference: request.ExternalRef, Response: response}, nil
@@ -173,7 +173,7 @@ func (s *Service) Status(ctx context.Context, input StatusInput) (StatusResult, 
 		return StatusResult{}, err
 	}
 	if strings.TrimSpace(input.Reference) == "" {
-		return StatusResult{}, fmt.Errorf("pay status --reference is required")
+		return StatusResult{}, fmt.Errorf("reference is required")
 	}
 	if s == nil || s.store == nil || s.factory == nil {
 		return StatusResult{}, fmt.Errorf("payment service is not configured")
@@ -202,6 +202,7 @@ func (s *Service) Status(ctx context.Context, input StatusInput) (StatusResult, 
 	}
 
 	statusResponse, err := adapter.GetPaymentStatus(ctx, providerRef)
+	result := StatusResult{ProviderCode: providerCode, Reference: referenceValueForStatus(intentFound, intent, input.Reference), ProviderReference: providerRef, Response: statusResponse}
 	if err != nil {
 		if intentFound {
 			_, _ = s.store.RecordPaymentStatusCheck(ctx, domain.PaymentStatusCheck{
@@ -213,7 +214,7 @@ func (s *Service) Status(ctx context.Context, input StatusInput) (StatusResult, 
 				ProviderReference: providerRef,
 			})
 		}
-		return StatusResult{ProviderCode: providerCode, Reference: referenceValueForStatus(intentFound, intent, input.Reference), ProviderReference: providerRef, Response: statusResponse}, err
+		return result, err
 	}
 
 	if intentFound {
@@ -226,7 +227,7 @@ func (s *Service) Status(ctx context.Context, input StatusInput) (StatusResult, 
 			Status:       statusResponse.Status,
 			MetadataJSON: intent.MetadataJSON,
 		}); err != nil {
-			return StatusResult{}, err
+			return result, err
 		}
 		if _, err := s.store.RecordPaymentStatusCheck(ctx, domain.PaymentStatusCheck{
 			PaymentIntentID:   intent.ID,
@@ -236,11 +237,11 @@ func (s *Service) Status(ctx context.Context, input StatusInput) (StatusResult, 
 			Status:            statusResponse.Status,
 			ProviderReference: providerRef,
 		}); err != nil {
-			return StatusResult{}, err
+			return result, err
 		}
 	}
 
-	return StatusResult{ProviderCode: providerCode, Reference: referenceValueForStatus(intentFound, intent, input.Reference), ProviderReference: providerRef, Response: statusResponse}, nil
+	return result, nil
 }
 
 func (s *Service) lookupPaymentIntent(ctx context.Context, reference string) (domain.PaymentIntent, bool, error) {
@@ -283,7 +284,7 @@ func normalizeCreateRequest(providerCode domain.ProviderCode, request provider.C
 		request.Method = "payment_link"
 	}
 	if !isXenditPayMethodSupported(request.Method) {
-		return provider.CreatePaymentRequest{}, fmt.Errorf("pay create for xendit supports --method payment_link only")
+		return provider.CreatePaymentRequest{}, fmt.Errorf("xendit supports payment_link method only")
 	}
 	request.Method = "payment_link"
 	return request, nil

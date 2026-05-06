@@ -12,6 +12,10 @@ const (
 	ProviderXendit   ProviderCode = "xendit"
 )
 
+func SupportedProviders() []ProviderCode {
+	return []ProviderCode{ProviderMidtrans, ProviderXendit}
+}
+
 type Environment string
 
 const (

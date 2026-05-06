@@ -86,7 +86,7 @@ func (f *Factory) WebhookHandlers(ctx context.Context, environment domain.Enviro
 	}
 
 	handlers := make(map[domain.ProviderCode]provider.Adapter)
-	for _, providerCode := range []domain.ProviderCode{domain.ProviderMidtrans, domain.ProviderXendit} {
+	for _, providerCode := range domain.SupportedProviders() {
 		account, err := f.loader.GetProviderAccount(ctx, providerCode, environment)
 		if err != nil {
 			if errors.Is(err, sqlite.ErrProviderAccountNotConfigured) {
