@@ -571,52 +571,38 @@ func marshalHeaders(headers http.Header) []byte {
 	return raw
 }
 
+var xenditSessionStatusMap = provider.StatusMap{
+	"ACTIVE":           domain.PaymentStatusPending,
+	"COMPLETED":        domain.PaymentStatusSettled,
+	"SETTLED":          domain.PaymentStatusSettled,
+	"EXPIRED":          domain.PaymentStatusExpired,
+	"CANCELLED":        domain.PaymentStatusCancelled,
+	"CANCELED":         domain.PaymentStatusCancelled,
+	"FAILED":           domain.PaymentStatusFailed,
+	"PENDING":          domain.PaymentStatusPending,
+	"SUCCEEDDED":       domain.PaymentStatusPaid,
+	"SUCCEEDED":        domain.PaymentStatusPaid,
+	"PAID":             domain.PaymentStatusPaid,
+	"AUTHORIZED":       domain.PaymentStatusAuthorized,
+	"CAPTURED":         domain.PaymentStatusCaptured,
+	"REFUNDED":         domain.PaymentStatusRefunded,
+	"PARTIAL_REFUNDED": domain.PaymentStatusPartialRefunded,
+}
+
 func mapXenditSessionStatus(status string) domain.PaymentStatus {
-	switch strings.ToUpper(strings.TrimSpace(status)) {
-	case "ACTIVE":
-		return domain.PaymentStatusPending
-	case "COMPLETED":
-		return domain.PaymentStatusSettled
-	case "SETTLED":
-		return domain.PaymentStatusSettled
-	case "EXPIRED":
-		return domain.PaymentStatusExpired
-	case "CANCELLED":
-		return domain.PaymentStatusCancelled
-	case "CANCELED":
-		return domain.PaymentStatusCancelled
-	case "FAILED":
-		return domain.PaymentStatusFailed
-	case "PENDING":
-		return domain.PaymentStatusPending
-	case "SUCCEEDDED", "SUCCEEDED", "PAID":
-		return domain.PaymentStatusPaid
-	case "AUTHORIZED":
-		return domain.PaymentStatusAuthorized
-	case "CAPTURED":
-		return domain.PaymentStatusCaptured
-	case "REFUNDED":
-		return domain.PaymentStatusRefunded
-	case "PARTIAL_REFUNDED":
-		return domain.PaymentStatusPartialRefunded
-	default:
-		return domain.PaymentStatusPending
-	}
+	return provider.MapPaymentStatus(status, xenditSessionStatusMap, domain.PaymentStatusPending)
+}
+
+var xenditRefundStatusMap = provider.StatusMap{
+	"SUCCEEDED": domain.PaymentStatusRefunded,
+	"PENDING":   domain.PaymentStatusPending,
+	"FAILED":    domain.PaymentStatusFailed,
+	"CANCELLED": domain.PaymentStatusCancelled,
+	"CANCELED":  domain.PaymentStatusCancelled,
 }
 
 func mapXenditRefundStatus(status string) domain.PaymentStatus {
-	switch strings.ToUpper(strings.TrimSpace(status)) {
-	case "SUCCEEDED":
-		return domain.PaymentStatusRefunded
-	case "PENDING":
-		return domain.PaymentStatusPending
-	case "FAILED":
-		return domain.PaymentStatusFailed
-	case "CANCELLED", "CANCELED":
-		return domain.PaymentStatusCancelled
-	default:
-		return domain.PaymentStatusPending
-	}
+	return provider.MapPaymentStatus(status, xenditRefundStatusMap, domain.PaymentStatusPending)
 }
 
 func normalizeXenditRefundReason(reason string) string {

@@ -100,6 +100,15 @@ sqlite3 ./rute-bayar.sqlite3 \
   "SELECT id, webhook_event_id, forwarding_target_id, status, attempt_no, created_at FROM webhook_forwarding_attempts ORDER BY created_at DESC LIMIT 20;"
 ```
 
+- Alternatif lewat CLI:
+
+```bash
+rute-bayar webhook forward attempts list --limit 20
+rute-bayar webhook forward attempts list --status failed
+rute-bayar webhook forward attempts show <attempt_id>
+rute-bayar webhook forward attempts retry <attempt_id>
+```
+
 ## Troubleshooting
 
 ### Daemon tidak menerima request

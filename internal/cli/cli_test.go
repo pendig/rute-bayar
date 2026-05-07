@@ -281,6 +281,114 @@ func TestWebhookReplayCLI(t *testing.T) {
 	}
 }
 
+func TestWebhookForwardAttemptsCLI(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	dbPath := filepath.Join(t.TempDir(), "rute-bayar.sqlite3")
+	runCLI := func(args ...string) (string, error) {
+		var stdout bytes.Buffer
+		err := ExecuteWithIO(ctx, args, &stdout, &stdout)
+		return stdout.String(), err
+	}
+
+	var acceptRetry int32
+	var requestCount int32
+	server := newHTTPTestServer(t, http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		atomic.AddInt32(&requestCount, 1)
+		if atomic.LoadInt32(&acceptRetry) == 0 {
+			http.Error(w, "temporary failure", http.StatusInternalServerError)
+			return
+		}
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"ok":true}`))
+	}))
+	if server == nil {
+		t.Skip("skip forwarding attempt CLI test: local HTTP server is unavailable")
+	}
+	defer server.Close()
+
+	addOutput, err := runCLI(
+		"webhook", "forward", "add",
+		"--provider", "xendit",
+		"--name", "diagnostic-hook",
+		"--url", server.URL,
+		"--event-filter", "event=payment_session.created",
+		"--retry-max-attempts", "1",
+		"--db", dbPath,
+	)
+	if err != nil {
+		t.Fatalf("webhook forward add returned error: %v", err)
+	}
+	targetMatch := regexp.MustCompile(`(?m)^id:\s+([^\s]+)$`).FindStringSubmatch(addOutput)
+	if len(targetMatch) != 2 {
+		t.Fatalf("unexpected add output, missing target id: %q", addOutput)
+	}
+
+	store, err := sqlite.Open(ctx, dbPath)
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	eventID, err := store.RecordWebhookEvent(ctx, domain.WebhookEvent{
+		ProviderCode:     domain.ProviderXendit,
+		ProviderEventID:  "evt-forward-attempt-cli",
+		EventType:        "payment_session.created",
+		SignatureValid:   true,
+		PayloadJSON:      []byte(`{"event":"payment_session.created","status":"ACTIVE","reference_id":"rb-attempt-cli"}`),
+		HeadersJSON:      []byte(`{"X-Trace":["attempt-cli"]}`),
+		ProcessingStatus: "processed",
+	})
+	if err != nil {
+		t.Fatalf("RecordWebhookEvent returned error: %v", err)
+	}
+	if err := store.Close(); err != nil {
+		t.Fatalf("Close returned error: %v", err)
+	}
+
+	_, err = runCLI("webhook", "replay", "--event-id", eventID, "--provider", "xendit", "--db", dbPath)
+	if err == nil {
+		t.Fatal("webhook replay should fail while target returns 500")
+	}
+
+	listOutput, err := runCLI("webhook", "forward", "attempts", "list", "--status", "failed", "--db", dbPath)
+	if err != nil {
+		t.Fatalf("webhook forward attempts list returned error: %v", err)
+	}
+	attemptMatch := regexp.MustCompile(`(?m)^(fwd_attempt_[^\s]+)`).FindStringSubmatch(listOutput)
+	if len(attemptMatch) != 2 {
+		t.Fatalf("attempt list output missing attempt id: %q", listOutput)
+	}
+	attemptID := attemptMatch[1]
+
+	showOutput, err := runCLI("webhook", "forward", "attempts", "show", attemptID, "--db", dbPath)
+	if err != nil {
+		t.Fatalf("webhook forward attempts show returned error: %v", err)
+	}
+	if !strings.Contains(showOutput, "response_json:") || !strings.Contains(showOutput, "temporary failure") {
+		t.Fatalf("show output missing raw response detail: %q", showOutput)
+	}
+
+	atomic.StoreInt32(&acceptRetry, 1)
+	retryOutput, err := runCLI("webhook", "forward", "attempts", "retry", attemptID, "--db", dbPath)
+	if err != nil {
+		t.Fatalf("webhook forward attempts retry returned error: %v", err)
+	}
+	if !strings.Contains(retryOutput, "forwarding attempt retried") {
+		t.Fatalf("unexpected retry output: %q", retryOutput)
+	}
+	if got := atomic.LoadInt32(&requestCount); got != 2 {
+		t.Fatalf("requestCount = %d, want 2", got)
+	}
+
+	successOutput, err := runCLI("webhook", "forward", "attempts", "list", "--status", "success", "--db", dbPath)
+	if err != nil {
+		t.Fatalf("webhook forward attempts list success returned error: %v", err)
+	}
+	if !strings.Contains(successOutput, "success") {
+		t.Fatalf("success list output missing success attempt: %q", successOutput)
+	}
+}
+
 func TestPayStatusMidtransUpdatesIntent(t *testing.T) {
 	t.Parallel()
 

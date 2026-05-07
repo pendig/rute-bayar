@@ -152,6 +152,9 @@ rute-bayar webhook forward add
 rute-bayar webhook forward update
 rute-bayar webhook forward remove
 rute-bayar webhook replay --event-id <id> [--provider midtrans|xendit]
+rute-bayar webhook forward attempts list --status failed
+rute-bayar webhook forward attempts show <attempt-id>
+rute-bayar webhook forward attempts retry <attempt-id>
 rute-bayar db migrate
 rute-bayar reconcile
 rute-bayar version
@@ -190,6 +193,7 @@ Run formatting and tests:
 ```bash
 gofmt -w ./cmd ./internal
 go test ./...
+./scripts/smoke-local.sh
 ```
 
 Validate the SQLite migration:
@@ -247,7 +251,9 @@ Read the project docs:
 - [Provider Integration](./docs/provider-integration.md)
 - [Implementation Status](./docs/implementation-status.md)
 - [Webhook Forwarding](./docs/webhook-forwarding.md)
+- [Status Mapping](./docs/status-mapping.md)
 - [Operations Runbook](./docs/operations-runbook.md)
+- [End-to-End Smoke Test](./docs/end-to-end-smoke.md)
 - [Development](./docs/development.md)
 - [Changelog](./CHANGELOG.md)
 - [Xendit Sandbox Simulation](./docs/xendit-sandbox-simulation.md)

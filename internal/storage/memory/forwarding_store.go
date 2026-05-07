@@ -38,4 +38,3 @@ func (s *ForwardingStore) RecordAttempt(_ context.Context, attempt forwarding.At
 	s.attempts = append(s.attempts, attempt)
 	return nil
 }
-

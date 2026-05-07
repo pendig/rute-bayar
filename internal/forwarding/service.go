@@ -68,6 +68,29 @@ type Attempt struct {
 	Status         string
 }
 
+type AttemptFilter struct {
+	Provider       domain.ProviderCode
+	TargetID       string
+	WebhookEventID string
+	Status         string
+	Limit          int
+}
+
+type AttemptRecord struct {
+	ID             string
+	WebhookEventID string
+	TargetID       string
+	TargetName     string
+	TargetURL      string
+	Provider       domain.ProviderCode
+	AttemptNo      int
+	RequestJSON    []byte
+	ResponseJSON   []byte
+	Status         string
+	CreatedAt      time.Time
+	UpdatedAt      time.Time
+}
+
 type TargetStore interface {
 	ListEnabledTargets(context.Context, domain.ProviderCode) ([]Target, error)
 	RecordAttempt(context.Context, Attempt) error
@@ -106,6 +129,13 @@ func (s *Service) Forward(ctx context.Context, inbound InboundWebhook) error {
 	}
 
 	return nil
+}
+
+func (s *Service) ForwardToTarget(ctx context.Context, target Target, inbound InboundWebhook) error {
+	if s == nil || s.store == nil {
+		return nil
+	}
+	return s.forwardToTarget(ctx, target, inbound)
 }
 
 func eventFilterMatch(eventFilter map[string]string, inboundHeaders http.Header, payload map[string]any) bool {

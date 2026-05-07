@@ -104,3 +104,31 @@ CLI ini berguna untuk:
 - menguji konfigurasi forwarding tanpa menunggu event baru
 - memastikan retry policy sudah berjalan setelah perubahan target
 - simulasi lokal saat mode pengembangan
+
+## Diagnostics Attempt
+
+Lihat attempt terbaru:
+
+```bash
+rute-bayar webhook forward attempts list --limit 20
+```
+
+Filter attempt gagal:
+
+```bash
+rute-bayar webhook forward attempts list --status failed
+```
+
+Lihat raw request/response attempt:
+
+```bash
+rute-bayar webhook forward attempts show <attempt_id>
+```
+
+Retry attempt manual ke target yang sama:
+
+```bash
+rute-bayar webhook forward attempts retry <attempt_id>
+```
+
+Jika target sudah disabled, retry manual akan ditolak kecuali operator memakai `--force-disabled`.

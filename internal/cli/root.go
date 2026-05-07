@@ -63,6 +63,9 @@ Usage:
 	rute-bayar webhook forward add
 	rute-bayar webhook forward update
 	rute-bayar webhook forward remove
+	rute-bayar webhook forward attempts list
+	rute-bayar webhook forward attempts show <attempt-id>
+	rute-bayar webhook forward attempts retry <attempt-id>
   rute-bayar db migrate
   rute-bayar reconcile --provider midtrans --reference rb-0001
   rute-bayar version`)
