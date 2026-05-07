@@ -33,4 +33,3 @@ func (r *Registry) List() []Adapter {
 	}
 	return adapters
 }
-

@@ -1,6 +1,7 @@
 package forwarding
 
 import (
+	"context"
 	"net/http"
 	"testing"
 
@@ -72,6 +73,20 @@ func TestDecodePayloadObject(t *testing.T) {
 	}
 	if got, ok := payload["event"].(string); !ok || got != "payment_session.created" {
 		t.Fatalf("payload[event] = %v, want payment_session.created", payload["event"])
+	}
+}
+
+func TestForwardToTargetRequiresInitializedService(t *testing.T) {
+	t.Parallel()
+
+	var svc *Service
+	if err := svc.ForwardToTarget(context.Background(), Target{}, InboundWebhook{}); err == nil {
+		t.Fatal("ForwardToTarget returned nil error for nil service")
+	}
+
+	svc = NewService(nil)
+	if err := svc.ForwardToTarget(context.Background(), Target{}, InboundWebhook{}); err == nil {
+		t.Fatal("ForwardToTarget returned nil error without store")
 	}
 }
 

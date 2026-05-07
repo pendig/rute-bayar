@@ -372,6 +372,89 @@ func TestForwardingTargetLifecycle(t *testing.T) {
 	}
 }
 
+func TestForwardingAttemptDiagnosticsStorage(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	targetID, err := store.AddForwardingTarget(ctx, forwarding.Target{
+		Name:     "diagnostic-hook",
+		Provider: domain.ProviderMidtrans,
+		URL:      "https://example.test/diagnostic",
+		Enabled:  true,
+	})
+	if err != nil {
+		t.Fatalf("AddForwardingTarget returned error: %v", err)
+	}
+	eventID, err := store.RecordWebhookEvent(ctx, domain.WebhookEvent{
+		ProviderCode:     domain.ProviderMidtrans,
+		ProviderEventID:  "evt-diagnostic-001",
+		EventType:        "settlement",
+		SignatureValid:   true,
+		PayloadJSON:      []byte(`{"transaction_status":"settlement"}`),
+		HeadersJSON:      []byte(`{"X-Test":["one"]}`),
+		ProcessingStatus: "processed",
+	})
+	if err != nil {
+		t.Fatalf("RecordWebhookEvent returned error: %v", err)
+	}
+
+	if err := store.RecordAttempt(ctx, forwarding.Attempt{
+		WebhookEventID: eventID,
+		TargetID:       targetID,
+		AttemptNo:      1,
+		RequestJSON:    []byte(`{"target_url":"https://example.test/diagnostic"}`),
+		ResponseJSON:   []byte(`{"status_code":500}`),
+		Status:         "failed",
+	}); err != nil {
+		t.Fatalf("RecordAttempt failed returned error: %v", err)
+	}
+	if err := store.RecordAttempt(ctx, forwarding.Attempt{
+		WebhookEventID: eventID,
+		TargetID:       targetID,
+		AttemptNo:      2,
+		RequestJSON:    []byte(`{"target_url":"https://example.test/diagnostic"}`),
+		ResponseJSON:   []byte(`{"status_code":200}`),
+		Status:         "success",
+	}); err != nil {
+		t.Fatalf("RecordAttempt success returned error: %v", err)
+	}
+
+	failed, err := store.ListForwardingAttempts(ctx, forwarding.AttemptFilter{
+		Provider: domain.ProviderMidtrans,
+		Status:   "failed",
+		Limit:    10,
+	})
+	if err != nil {
+		t.Fatalf("ListForwardingAttempts returned error: %v", err)
+	}
+	if len(failed) != 1 {
+		t.Fatalf("ListForwardingAttempts failed length = %d, want 1", len(failed))
+	}
+	if failed[0].TargetName != "diagnostic-hook" {
+		t.Fatalf("TargetName = %q, want diagnostic-hook", failed[0].TargetName)
+	}
+	if failed[0].TargetURL != "https://example.test/diagnostic" {
+		t.Fatalf("TargetURL = %q, want target URL", failed[0].TargetURL)
+	}
+
+	attempt, err := store.GetForwardingAttempt(ctx, failed[0].ID)
+	if err != nil {
+		t.Fatalf("GetForwardingAttempt returned error: %v", err)
+	}
+	if attempt.Status != "failed" {
+		t.Fatalf("Status = %q, want failed", attempt.Status)
+	}
+	if string(attempt.ResponseJSON) != `{"status_code":500}` {
+		t.Fatalf("ResponseJSON = %s, want original response", attempt.ResponseJSON)
+	}
+}
+
 func TestGetWebhookEventByID(t *testing.T) {
 	t.Parallel()
 

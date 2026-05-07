@@ -29,15 +29,19 @@ Dokumen ini mencatat status implementasi teknis Rute Bayar agar contributor muda
 - Idempotency dasar: status webhook yang sama tidak mengulang update status ketika sudah sama.
 - Event filter pada forwarding untuk menyeleksi event yang akan diteruskan.
 - Replay command untuk mengeksekusi ulang webhook event yang tersimpan.
+- Diagnostic command untuk list/show/retry forwarding attempts.
 - Penyaring event forwarding sekarang diuji unit test (`internal/forwarding/service_test.go`).
 - Forwarding target management lewat CLI (`webhook forward list|add|update|remove`) dengan penyimpanan konfigurasi di SQLite.
 - Penyimpanan konfigurasi forward (headers, filter event, retry policy, enabled flag) dalam format JSON untuk kemudahan debugging.
+- CI GitHub Actions untuk format check, vet, test, dan build matrix.
+- Smoke test lokal via `scripts/smoke-local.sh`.
+- Dokumentasi status mapping provider ke `domain.PaymentStatus`.
 
 ## Belum Ada
 
 - Xendit Payment Session refund.
 - Midtrans Snap/Core adapter untuk create/refund dan perluasan metode lain.
-- CI GitHub Actions.
+- Release automation yang membuat GitHub Release asset secara otomatis.
 
 ## Catatan Rework Berjalan
 

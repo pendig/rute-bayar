@@ -12,6 +12,7 @@ Pastikan project ter-setup dan bisa ditest:
 ```bash
 go mod tidy
 go test ./...
+./scripts/smoke-local.sh
 ```
 
 ## Command Awal
@@ -39,6 +40,7 @@ Untuk memverifikasi operasional forwarding:
 2. Simulasikan webhook inbound.
 3. Gunakan `webhook replay` untuk memaksa eksekusi ulang event yang tersimpan.
 4. Cek `webhook_forwarding_attempts` untuk memastikan status attempt tersimpan.
+5. Gunakan `webhook forward attempts list/show/retry` untuk diagnosa operasional.
 
 ## Health Check Webhook Daemon
 

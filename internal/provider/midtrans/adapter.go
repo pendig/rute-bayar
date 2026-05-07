@@ -134,30 +134,25 @@ func (a *Adapter) TestAuth(ctx context.Context) (AuthTestResult, error) {
 	}, nil
 }
 
+var midtransTransactionStatusMap = provider.StatusMap{
+	"PENDING":        domain.PaymentStatusPending,
+	"SETTLEMENT":     domain.PaymentStatusSettled,
+	"DENY":           domain.PaymentStatusFailed,
+	"FAILURE":        domain.PaymentStatusFailed,
+	"CANCEL":         domain.PaymentStatusCancelled,
+	"EXPIRE":         domain.PaymentStatusExpired,
+	"REFUND":         domain.PaymentStatusRefunded,
+	"PARTIAL_REFUND": domain.PaymentStatusPartialRefunded,
+}
+
 func MapTransactionStatus(transactionStatus, fraudStatus string) domain.PaymentStatus {
-	switch strings.ToLower(strings.TrimSpace(transactionStatus)) {
-	case "pending":
-		return domain.PaymentStatusPending
-	case "settlement":
-		return domain.PaymentStatusSettled
-	case "capture":
+	if strings.EqualFold(strings.TrimSpace(transactionStatus), "capture") {
 		if strings.EqualFold(strings.TrimSpace(fraudStatus), "accept") {
 			return domain.PaymentStatusCaptured
 		}
 		return domain.PaymentStatusPending
-	case "deny", "failure":
-		return domain.PaymentStatusFailed
-	case "cancel":
-		return domain.PaymentStatusCancelled
-	case "expire":
-		return domain.PaymentStatusExpired
-	case "refund":
-		return domain.PaymentStatusRefunded
-	case "partial_refund":
-		return domain.PaymentStatusPartialRefunded
-	default:
-		return domain.PaymentStatusPending
 	}
+	return provider.MapPaymentStatus(transactionStatus, midtransTransactionStatusMap, domain.PaymentStatusPending)
 }
 
 func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaymentRequest) (provider.CreatePaymentResponse, error) {

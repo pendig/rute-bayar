@@ -250,3 +250,139 @@ func (s *Store) RecordAttempt(ctx context.Context, attempt forwarding.Attempt) e
 	}
 	return nil
 }
+
+func (s *Store) ListForwardingAttempts(ctx context.Context, filter forwarding.AttemptFilter) ([]forwarding.AttemptRecord, error) {
+	limit := filter.Limit
+	if limit <= 0 {
+		limit = 20
+	}
+	if limit > 200 {
+		limit = 200
+	}
+
+	var query strings.Builder
+	query.WriteString(`
+		SELECT
+			wfa.id,
+			wfa.webhook_event_id,
+			wfa.forwarding_target_id,
+			wft.name,
+			wft.target_url,
+			p.code,
+			wfa.request_json,
+			wfa.response_json,
+			wfa.status,
+			wfa.attempt_no,
+			wfa.created_at,
+			wfa.updated_at
+		FROM webhook_forwarding_attempts wfa
+		JOIN webhook_forwarding_targets wft ON wft.id = wfa.forwarding_target_id
+		JOIN providers p ON p.id = wft.provider_id
+		WHERE 1 = 1
+	`)
+
+	args := make([]any, 0, 5)
+	if filter.Provider != "" {
+		query.WriteString(" AND p.code = ?")
+		args = append(args, string(filter.Provider))
+	}
+	if strings.TrimSpace(filter.TargetID) != "" {
+		query.WriteString(" AND wfa.forwarding_target_id = ?")
+		args = append(args, strings.TrimSpace(filter.TargetID))
+	}
+	if strings.TrimSpace(filter.WebhookEventID) != "" {
+		query.WriteString(" AND wfa.webhook_event_id = ?")
+		args = append(args, strings.TrimSpace(filter.WebhookEventID))
+	}
+	if strings.TrimSpace(filter.Status) != "" {
+		query.WriteString(" AND wfa.status = ?")
+		args = append(args, strings.TrimSpace(filter.Status))
+	}
+	query.WriteString(" ORDER BY wfa.created_at DESC LIMIT ?")
+	args = append(args, limit)
+
+	rows, err := s.db.QueryContext(ctx, query.String(), args...)
+	if err != nil {
+		return nil, fmt.Errorf("query forwarding attempts: %w", err)
+	}
+	defer rows.Close()
+
+	attempts := make([]forwarding.AttemptRecord, 0)
+	for rows.Next() {
+		attempt, err := scanForwardingAttempt(rows)
+		if err != nil {
+			return nil, err
+		}
+		attempts = append(attempts, attempt)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate forwarding attempts: %w", err)
+	}
+	return attempts, nil
+}
+
+func (s *Store) GetForwardingAttempt(ctx context.Context, attemptID string) (forwarding.AttemptRecord, error) {
+	row := s.db.QueryRowContext(ctx, `
+		SELECT
+			wfa.id,
+			wfa.webhook_event_id,
+			wfa.forwarding_target_id,
+			wft.name,
+			wft.target_url,
+			p.code,
+			wfa.request_json,
+			wfa.response_json,
+			wfa.status,
+			wfa.attempt_no,
+			wfa.created_at,
+			wfa.updated_at
+		FROM webhook_forwarding_attempts wfa
+		JOIN webhook_forwarding_targets wft ON wft.id = wfa.forwarding_target_id
+		JOIN providers p ON p.id = wft.provider_id
+		WHERE wfa.id = ?
+	`, strings.TrimSpace(attemptID))
+
+	attempt, err := scanForwardingAttempt(row)
+	if err != nil {
+		return forwarding.AttemptRecord{}, fmt.Errorf("get forwarding attempt: %w", err)
+	}
+	return attempt, nil
+}
+
+type forwardingAttemptScanner interface {
+	Scan(dest ...any) error
+}
+
+func scanForwardingAttempt(scanner forwardingAttemptScanner) (forwarding.AttemptRecord, error) {
+	var (
+		attempt      forwarding.AttemptRecord
+		providerCode string
+		requestJSON  string
+		responseJSON string
+		createdAt    string
+		updatedAt    string
+	)
+	if err := scanner.Scan(
+		&attempt.ID,
+		&attempt.WebhookEventID,
+		&attempt.TargetID,
+		&attempt.TargetName,
+		&attempt.TargetURL,
+		&providerCode,
+		&requestJSON,
+		&responseJSON,
+		&attempt.Status,
+		&attempt.AttemptNo,
+		&createdAt,
+		&updatedAt,
+	); err != nil {
+		return forwarding.AttemptRecord{}, fmt.Errorf("scan forwarding attempt: %w", err)
+	}
+
+	attempt.Provider = domain.ProviderCode(providerCode)
+	attempt.RequestJSON = []byte(requestJSON)
+	attempt.ResponseJSON = []byte(responseJSON)
+	attempt.CreatedAt = parseTime(createdAt)
+	attempt.UpdatedAt = parseTime(updatedAt)
+	return attempt, nil
+}
