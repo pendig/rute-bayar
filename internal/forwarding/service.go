@@ -133,7 +133,7 @@ func (s *Service) Forward(ctx context.Context, inbound InboundWebhook) error {
 
 func (s *Service) ForwardToTarget(ctx context.Context, target Target, inbound InboundWebhook) error {
 	if s == nil || s.store == nil {
-		return nil
+		return fmt.Errorf("forwarding service is not initialized")
 	}
 	return s.forwardToTarget(ctx, target, inbound)
 }

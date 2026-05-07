@@ -9,6 +9,7 @@ import (
 	"io"
 	"net/http"
 	"strings"
+	"time"
 
 	"github.com/pendig/rute-bayar/internal/config"
 	"github.com/pendig/rute-bayar/internal/daemon"
@@ -358,7 +359,7 @@ func webhookForwardAttemptsList(ctx context.Context, stdout, stderr io.Writer, a
 			attempt.Status,
 			attempt.AttemptNo,
 			truncate(attempt.WebhookEventID, 37),
-			attempt.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			attempt.CreatedAt.Format(time.RFC3339),
 		)
 	}
 	return nil
@@ -405,7 +406,7 @@ func webhookForwardAttemptsShow(ctx context.Context, stdout, stderr io.Writer, a
 	fmt.Fprintf(stdout, "webhook_event_id: %s\n", attempt.WebhookEventID)
 	fmt.Fprintf(stdout, "status: %s\n", attempt.Status)
 	fmt.Fprintf(stdout, "attempt_no: %d\n", attempt.AttemptNo)
-	fmt.Fprintf(stdout, "created_at: %s\n", attempt.CreatedAt.Format("2006-01-02T15:04:05Z07:00"))
+	fmt.Fprintf(stdout, "created_at: %s\n", attempt.CreatedAt.Format(time.RFC3339))
 	fmt.Fprintln(stdout, "request_json:")
 	fmt.Fprintln(stdout, prettyJSON(attempt.RequestJSON))
 	fmt.Fprintln(stdout, "response_json:")
@@ -575,8 +576,8 @@ func printForwardingAttemptsJSON(w io.Writer, attempts []forwarding.AttemptRecor
 			WebhookEventID: attempt.WebhookEventID,
 			Status:         attempt.Status,
 			AttemptNo:      attempt.AttemptNo,
-			CreatedAt:      attempt.CreatedAt.Format("2006-01-02T15:04:05Z07:00"),
-			UpdatedAt:      attempt.UpdatedAt.Format("2006-01-02T15:04:05Z07:00"),
+			CreatedAt:      attempt.CreatedAt.Format(time.RFC3339),
+			UpdatedAt:      attempt.UpdatedAt.Format(time.RFC3339),
 		}
 		if includeRaw {
 			item.RequestJSON = rawJSONOrString(attempt.RequestJSON)
