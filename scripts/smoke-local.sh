@@ -48,6 +48,10 @@ import (
 func main() {
 	addr := os.Args[1]
 	out := os.Args[2]
+	http.HandleFunc("/healthz", func(w http.ResponseWriter, _ *http.Request) {
+		w.WriteHeader(http.StatusOK)
+		_, _ = w.Write([]byte(`{"status":"ok"}`))
+	})
 	http.HandleFunc("/forward", func(w http.ResponseWriter, r *http.Request) {
 		body, err := io.ReadAll(r.Body)
 		if err != nil {
@@ -84,7 +88,7 @@ echo "Onboarding dummy Xendit sandbox credential for local webhook parsing..."
 echo "Starting local forwarding receiver on $FORWARD_ADDR..."
 go run "$TMP_DIR/receiver.go" "$FORWARD_ADDR" "$FORWARDED_FILE" &
 receiver_pid="$!"
-sleep 0.5
+wait_for_url "http://$FORWARD_ADDR/healthz"
 
 echo "Configuring forwarding target..."
 "$BIN_PATH" webhook forward add \
