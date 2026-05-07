@@ -38,6 +38,45 @@ RUTE_BAYAR_SMOKE_FORWARD_ADDR=127.0.0.1:19081 \
 Gunakan checklist ini untuk validasi sandbox dengan credential asli yang disimpan di environment lokal, bukan di repo.
 Sebelum menjalankan checklist ini, pastikan credential yang pernah dipakai di luar secret store sudah di-rotate.
 
+### Runner Sandbox
+
+Runner ini menjalankan bagian yang bisa dibuat otomatis dari checklist sandbox:
+
+```bash
+./scripts/e2e-sandbox.sh
+```
+
+Credential dibaca dari environment:
+
+```bash
+export XENDIT_SECRET_KEY="..."
+export XENDIT_WEBHOOK_TOKEN="..." # optional
+export MIDTRANS_MERCHANT_ID="..."
+export MIDTRANS_CLIENT_KEY="..."
+export MIDTRANS_SERVER_KEY="..."
+```
+
+Kontrol provider:
+
+```bash
+RUTE_BAYAR_E2E_XENDIT=1 RUTE_BAYAR_E2E_MIDTRANS=0 ./scripts/e2e-sandbox.sh
+RUTE_BAYAR_E2E_XENDIT=0 RUTE_BAYAR_E2E_MIDTRANS=1 ./scripts/e2e-sandbox.sh
+```
+
+Refund membutuhkan transaksi sandbox yang sudah paid/settled/refundable. Untuk menjalankan refund terhadap transaksi yang sudah siap:
+
+```bash
+RUTE_BAYAR_E2E_XENDIT_REFUND_REFERENCE="rb-paid-xendit-001" \
+RUTE_BAYAR_E2E_XENDIT_REFUND_PROVIDER_REFERENCE="ps_xxx_or_pr_xxx" \
+./scripts/e2e-sandbox.sh
+```
+
+```bash
+RUTE_BAYAR_E2E_MIDTRANS_REFUND_REFERENCE="rb-paid-midtrans-001" \
+RUTE_BAYAR_E2E_MIDTRANS_REFUND_PROVIDER_REFERENCE="order-or-transaction-id" \
+./scripts/e2e-sandbox.sh
+```
+
 ### 1. Setup
 
 ```bash
