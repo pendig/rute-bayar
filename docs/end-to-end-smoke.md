@@ -63,6 +63,14 @@ RUTE_BAYAR_E2E_XENDIT=1 RUTE_BAYAR_E2E_MIDTRANS=0 ./scripts/e2e-sandbox.sh
 RUTE_BAYAR_E2E_XENDIT=0 RUTE_BAYAR_E2E_MIDTRANS=1 ./scripts/e2e-sandbox.sh
 ```
 
+Runner Xendit mengisi customer sandbox default supaya payload Payment Session valid. Nilai ini bisa dioverride jika perlu:
+
+```bash
+RUTE_BAYAR_E2E_XENDIT_CUSTOMER_NAME="Rute Bayar Tester" \
+RUTE_BAYAR_E2E_XENDIT_CUSTOMER_EMAIL="tester@example.test" \
+./scripts/e2e-sandbox.sh
+```
+
 Refund membutuhkan transaksi sandbox yang sudah paid/settled/refundable. Untuk menjalankan refund terhadap transaksi yang sudah siap:
 
 ```bash

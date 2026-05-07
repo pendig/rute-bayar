@@ -172,6 +172,13 @@ func TestCreatePaymentCreatesSession(t *testing.T) {
 	if payload["mode"] != "PAYMENT_LINK" {
 		t.Fatalf("mode = %v, want PAYMENT_LINK", payload["mode"])
 	}
+	customer, ok := payload["customer"].(map[string]any)
+	if !ok {
+		t.Fatalf("customer payload = %T, want object", payload["customer"])
+	}
+	if customer["reference_id"] != "rb-001" {
+		t.Fatalf("customer.reference_id = %v, want rb-001", customer["reference_id"])
+	}
 	if result.Status != domain.PaymentStatusPending {
 		t.Fatalf("Status = %q, want %q", result.Status, domain.PaymentStatusPending)
 	}

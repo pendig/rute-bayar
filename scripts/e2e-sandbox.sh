@@ -90,7 +90,9 @@ if [[ "$RUN_XENDIT" == "1" ]]; then
     --provider xendit \
     --method payment_link \
     --reference "$xendit_ref" \
-    --amount "$AMOUNT"
+    --amount "$AMOUNT" \
+    --customer-name "${RUTE_BAYAR_E2E_XENDIT_CUSTOMER_NAME:-Rute Bayar Tester}" \
+    --customer-email "${RUTE_BAYAR_E2E_XENDIT_CUSTOMER_EMAIL:-tester@rute-bayar.local}"
   run_step "pay status xendit" "$BIN_PATH" pay status \
     --provider xendit \
     --reference "$xendit_ref"
