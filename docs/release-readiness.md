@@ -68,6 +68,25 @@ Rute Bayar belum siap untuk release publik stabil karena beberapa komponen inti 
 - README yang jelas untuk install, konfigurasi, dan usage dasar.
 - Validasi migrasi SQLite dari fresh install.
 
+## Release Automation
+
+Release GitHub otomatis dibuat saat tag `v*` dipush.
+
+Contoh:
+
+```bash
+git tag -a v0.1.0-alpha.2 -m "v0.1.0-alpha.2"
+git push origin v0.1.0-alpha.2
+```
+
+Workflow release akan:
+
+- menjalankan format check, `go vet`, dan `go test ./...`
+- build binary Linux, macOS, dan Windows
+- membuat `checksums.txt`
+- publish GitHub Release
+- menandai release sebagai prerelease jika tag mengandung `alpha`, `beta`, atau `rc`
+
 ## Acceptance Criteria `v0.1.0`
 
 Release pertama dianggap siap jika:
