@@ -36,6 +36,7 @@ RUTE_BAYAR_SMOKE_FORWARD_ADDR=127.0.0.1:19081 \
 ## Smoke Manual Provider Sandbox
 
 Gunakan checklist ini untuk validasi sandbox dengan credential asli yang disimpan di environment lokal, bukan di repo.
+Sebelum menjalankan checklist ini, pastikan credential yang pernah dipakai di luar secret store sudah di-rotate.
 
 ### 1. Setup
 

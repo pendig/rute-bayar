@@ -2,6 +2,28 @@
 
 All notable changes to Rute Bayar will be documented in this file.
 
+## v0.1.0-alpha.2 - 2026-05-07
+
+Second alpha release focused on release automation and operational hardening.
+
+### Added
+
+- GitHub Actions CI for formatting, vet, tests, and build matrix.
+- Tag-driven GitHub Release automation for Linux, macOS, and Windows binaries.
+- SHA-256 checksum generation for release artifacts.
+- Forwarding attempt diagnostics:
+  - `webhook forward attempts list`
+  - `webhook forward attempts show <attempt-id>`
+  - `webhook forward attempts retry <attempt-id>`
+- Local smoke script for webhook daemon and forwarding diagnostics.
+- End-to-end smoke checklist documentation.
+- Provider status mapping helper and status mapping documentation.
+
+### Changed
+
+- Standardized forwarding diagnostic timestamps with RFC3339 formatting.
+- Improved forwarding retry error handling when the service is not initialized.
+
 ## v0.1.0-alpha.1 - 2026-05-07
 
 First alpha release for early testing and feedback.
@@ -32,7 +54,7 @@ First alpha release for early testing and feedback.
 ### Known Limitations
 
 - This release is alpha and not recommended as a stable production release.
-- GitHub Actions CI and automated release artifact builds are still pending.
+- Automated release artifact builds are not available in this release.
 - Webhook diagnostics are useful but still minimal; richer failed-attempt listing/export remains planned.
 - Retry policy is configurable, but failure classification is still simple.
 - More provider methods and edge-case coverage are expected before a stable `v0.1.0`.

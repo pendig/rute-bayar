@@ -1,0 +1,107 @@
+name: Release
+
+on:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: write
+
+jobs:
+  release:
+    name: Build and Publish
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Go
+        uses: actions/setup-go@v5
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Check formatting
+        run: |
+          test -z "$(gofmt -l ./cmd ./internal)"
+
+      - name: Vet
+        run: go vet ./...
+
+      - name: Test
+        run: go test ./...
+
+      - name: Build release binaries
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          mkdir -p dist
+
+          build() {
+            local goos="$1"
+            local goarch="$2"
+            local ext="${3:-}"
+            local output="dist/rute-bayar-${goos}-${goarch}${ext}"
+
+            echo "Building ${output}"
+            GOOS="${goos}" GOARCH="${goarch}" go build \
+              -trimpath \
+              -ldflags "-s -w -X github.com/pendig/rute-bayar/internal/build.Version=${VERSION}" \
+              -o "${output}" \
+              ./cmd/rute-bayar
+          }
+
+          build linux amd64
+          build linux arm64
+          build darwin amd64
+          build darwin arm64
+          build windows amd64 .exe
+
+          (cd dist && sha256sum rute-bayar-* > checksums.txt)
+
+      - name: Prepare release notes
+        env:
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+          awk -v version="## ${VERSION}" '
+            $0 == version { found = 1; print; next }
+            found && /^## / { exit }
+            found { print }
+          ' CHANGELOG.md > release-notes.md
+
+          if [ ! -s release-notes.md ]; then
+            {
+              echo "## ${VERSION}"
+              echo
+              echo "Automated release for ${VERSION}."
+              echo
+              echo "See CHANGELOG.md for details."
+            } > release-notes.md
+          fi
+
+      - name: Publish GitHub Release
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          prerelease_args=()
+          case "${VERSION}" in
+            *-alpha*|*-beta*|*-rc*) prerelease_args+=(--prerelease) ;;
+          esac
+
+          gh release create "${VERSION}" \
+            dist/rute-bayar-linux-amd64 \
+            dist/rute-bayar-linux-arm64 \
+            dist/rute-bayar-darwin-amd64 \
+            dist/rute-bayar-darwin-arm64 \
+            dist/rute-bayar-windows-amd64.exe \
+            dist/checksums.txt \
+            --repo "${GITHUB_REPOSITORY}" \
+            --title "${VERSION}" \
+            --notes-file release-notes.md \
+            "${prerelease_args[@]}"
