@@ -171,7 +171,7 @@ func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaym
 	}
 	paymentType = normalizeMidtransPaymentType(paymentType)
 	bankCode := strings.TrimSpace(request.Channel)
-	if paymentType != "bank_transfer" && paymentType != "credit_card" {
+	if paymentType != "bank_transfer" && paymentType != "credit_card" && paymentType != "qris" {
 		return provider.CreatePaymentResponse{}, fmt.Errorf("midtrans payment method %q is not implemented yet", paymentType)
 	}
 	if paymentType == "bank_transfer" && bankCode == "" {
@@ -197,6 +197,9 @@ func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaym
 			TokenID:        cardToken,
 			Authentication: true,
 		}
+	}
+	if paymentType == "qris" {
+		payload.QRIS = &midtransQRIS{Acquirer: bankCode}
 	}
 	if request.CustomerName != "" || request.CustomerEmail != "" || request.CustomerPhone != "" {
 		payload.CustomerDetails = &midtransCustomerDetails{
@@ -255,6 +258,8 @@ func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaym
 	}
 	if parsed.RedirectURL != "" {
 		response.RedirectURL = parsed.RedirectURL
+	} else if qrURL := midtransActionURL(parsed.Actions, "generate-qr-code"); qrURL != "" {
+		response.RedirectURL = qrURL
 	}
 	return response, nil
 }
@@ -403,6 +408,8 @@ func normalizeMidtransPaymentType(method string) string {
 	switch strings.ToLower(strings.TrimSpace(method)) {
 	case "card", "credit-card", "credit_card":
 		return "credit_card"
+	case "qr", "qris":
+		return "qris"
 	default:
 		return strings.TrimSpace(method)
 	}
@@ -418,6 +425,7 @@ type midtransCreateChargeRequest struct {
 	TransactionDetails midtransTransactionDetails `json:"transaction_details"`
 	BankTransfer       *midtransBankTransfer      `json:"bank_transfer,omitempty"`
 	CreditCard         *midtransCreditCard        `json:"credit_card,omitempty"`
+	QRIS               *midtransQRIS              `json:"qris,omitempty"`
 	CustomerDetails    *midtransCustomerDetails   `json:"customer_details,omitempty"`
 }
 
@@ -433,6 +441,10 @@ type midtransBankTransfer struct {
 type midtransCreditCard struct {
 	TokenID        string `json:"token_id"`
 	Authentication bool   `json:"authentication"`
+}
+
+type midtransQRIS struct {
+	Acquirer string `json:"acquirer,omitempty"`
 }
 
 type midtransCustomerDetails struct {
@@ -471,6 +483,11 @@ type midtransChargeResponse struct {
 	} `json:"va_numbers"`
 	ExpiryTime  string `json:"expiry_time"`
 	RedirectURL string `json:"redirect_url"`
+	Actions     []struct {
+		Name   string `json:"name"`
+		Method string `json:"method"`
+		URL    string `json:"url"`
+	} `json:"actions"`
 }
 
 type midtransStatusResponse struct {
@@ -491,6 +508,19 @@ type midtransStatusResponse struct {
 	BillerCode      string `json:"biller_code"`
 	ExpiryTime      string `json:"expiry_time"`
 	RedirectURL     string `json:"redirect_url"`
+}
+
+func midtransActionURL(actions []struct {
+	Name   string `json:"name"`
+	Method string `json:"method"`
+	URL    string `json:"url"`
+}, name string) string {
+	for _, action := range actions {
+		if strings.EqualFold(strings.TrimSpace(action.Name), name) && strings.TrimSpace(action.URL) != "" {
+			return strings.TrimSpace(action.URL)
+		}
+	}
+	return ""
 }
 
 func (a *Adapter) VerifyWebhook(_ context.Context, req provider.WebhookRequest) error {

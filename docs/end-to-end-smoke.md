@@ -114,6 +114,22 @@ open "docs/tools/midtrans-3ds.html?client_key=$MIDTRANS_CLIENT_KEY&redirect_url=
 
 Atau buka `docs/tools/midtrans-3ds.html` di browser, isi Client Key dan `redirect_url`, lalu klik **Start 3DS Authentication**. Helper ini memakai `MidtransNew3ds.redirect()` sesuai rekomendasi Core API Midtrans.
 
+Alternatif refundable yang lebih sederhana dari 3DS card adalah dynamic QRIS. Runner akan menampilkan QR code image URL sebagai `redirect_url`:
+
+```bash
+RUTE_BAYAR_E2E_XENDIT=0 \
+RUTE_BAYAR_E2E_MIDTRANS=1 \
+RUTE_BAYAR_E2E_MIDTRANS_METHOD=qris \
+RUTE_BAYAR_E2E_MIDTRANS_QRIS_ACQUIRER=gopay \
+./scripts/e2e-sandbox.sh
+```
+
+Untuk menyelesaikan sandbox QRIS, copy QR code image URL dari `redirect_url` lalu input ke Midtrans QRIS Simulator:
+
+```text
+https://simulator.sandbox.midtrans.com/v2/qris/index
+```
+
 ### 1. Setup
 
 ```bash

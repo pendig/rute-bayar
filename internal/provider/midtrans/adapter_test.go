@@ -268,6 +268,67 @@ func TestCreatePaymentCreditCardRequiresToken(t *testing.T) {
 	}
 }
 
+func TestCreatePaymentQRIS(t *testing.T) {
+	t.Parallel()
+
+	var receivedBody map[string]any
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path != "/v2/charge" {
+			t.Fatalf("request path = %q, want /v2/charge", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		return response(http.StatusOK, `{
+			"status_code":"201",
+			"status_message":"QRIS transaction is created",
+			"transaction_id":"tx-qris-123",
+			"order_id":"order-qris-123",
+			"payment_type":"qris",
+			"transaction_status":"pending",
+			"fraud_status":"accept",
+			"actions":[
+				{
+					"name":"generate-qr-code",
+					"method":"GET",
+					"url":"https://api.sandbox.midtrans.com/v2/qris/tx-qris-123/qr-code"
+				}
+			],
+			"acquirer":"gopay"
+		}`), nil
+	})}
+
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
+	result, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{
+		ExternalRef: "order-qris-123",
+		Amount:      15000,
+		Method:      "qris",
+		Channel:     "gopay",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment returned error: %v", err)
+	}
+	if result.PaymentType != "qris" {
+		t.Fatalf("PaymentType = %q, want qris", result.PaymentType)
+	}
+	if result.RedirectURL != "https://api.sandbox.midtrans.com/v2/qris/tx-qris-123/qr-code" {
+		t.Fatalf("RedirectURL = %q, want QR code URL", result.RedirectURL)
+	}
+	if got := receivedBody["payment_type"]; got != "qris" {
+		t.Fatalf("payment_type = %v, want qris", got)
+	}
+	qris, ok := receivedBody["qris"].(map[string]any)
+	if !ok {
+		t.Fatalf("qris = %T, want object", receivedBody["qris"])
+	}
+	if qris["acquirer"] != "gopay" {
+		t.Fatalf("qris.acquirer = %v, want gopay", qris["acquirer"])
+	}
+	if _, ok := receivedBody["bank_transfer"]; ok {
+		t.Fatalf("bank_transfer should be omitted for qris: %v", receivedBody["bank_transfer"])
+	}
+}
+
 func TestRefundPaymentPostsToOrderRefund(t *testing.T) {
 	t.Parallel()
 

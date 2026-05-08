@@ -129,6 +129,8 @@ if [[ "$RUN_MIDTRANS" == "1" ]]; then
     midtrans_create+=(--card-token "$RUTE_BAYAR_E2E_MIDTRANS_CARD_TOKEN")
     midtrans_create+=(--customer-name "${RUTE_BAYAR_E2E_MIDTRANS_CUSTOMER_NAME:-Rute Bayar Tester}")
     midtrans_create+=(--customer-email "${RUTE_BAYAR_E2E_MIDTRANS_CUSTOMER_EMAIL:-tester@rute-bayar.local}")
+  elif [[ "$midtrans_method" == "qris" || "$midtrans_method" == "qr" ]]; then
+    midtrans_create+=(--bank "${RUTE_BAYAR_E2E_MIDTRANS_QRIS_ACQUIRER:-gopay}")
   else
     midtrans_create+=(--bank "${RUTE_BAYAR_E2E_MIDTRANS_BANK:-bca}")
   fi
