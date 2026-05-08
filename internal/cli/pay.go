@@ -42,6 +42,7 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	customerName := fs.String("customer-name", "", "customer name")
 	customerEmail := fs.String("customer-email", "", "customer email")
 	customerPhone := fs.String("customer-phone", "", "customer phone")
+	cardToken := fs.String("card-token", "", "card token for Midtrans credit_card payments")
 	baseURL := fs.String("base-url", "", "override provider API base URL")
 	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
 	environment := fs.String("environment", cfg.Environment, "provider environment")
@@ -69,6 +70,7 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 		CustomerName:  strings.TrimSpace(*customerName),
 		CustomerEmail: strings.TrimSpace(*customerEmail),
 		CustomerPhone: strings.TrimSpace(*customerPhone),
+		CardToken:     strings.TrimSpace(*cardToken),
 	})
 	if err != nil {
 		return err

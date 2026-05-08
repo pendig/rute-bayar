@@ -40,6 +40,7 @@ type CreateInput struct {
 	CustomerName  string
 	CustomerEmail string
 	CustomerPhone string
+	CardToken     string
 }
 
 type CreateResult struct {
@@ -140,6 +141,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (CreateResult, 
 		CustomerName:  strings.TrimSpace(input.CustomerName),
 		CustomerEmail: strings.TrimSpace(input.CustomerEmail),
 		CustomerPhone: strings.TrimSpace(input.CustomerPhone),
+		CardToken:     strings.TrimSpace(input.CardToken),
 	}
 	request, err = normalizeCreateRequest(providerCode, request)
 	if err != nil {

@@ -85,6 +85,27 @@ RUTE_BAYAR_E2E_MIDTRANS_REFUND_PROVIDER_REFERENCE="order-or-transaction-id" \
 ./scripts/e2e-sandbox.sh
 ```
 
+Midtrans refund real membutuhkan metode yang refundable menurut Midtrans, seperti credit card/e-wallet/QRIS, dan status transaksi harus `settlement`. Untuk credit card Core API, buat `token_id` terlebih dahulu melalui Midtrans Get Token API atau MidtransNew3ds JS, lalu jalankan:
+
+```bash
+RUTE_BAYAR_E2E_XENDIT=0 \
+RUTE_BAYAR_E2E_MIDTRANS=1 \
+RUTE_BAYAR_E2E_MIDTRANS_METHOD=card \
+RUTE_BAYAR_E2E_MIDTRANS_CARD_TOKEN="<token_id>" \
+./scripts/e2e-sandbox.sh
+```
+
+Jika response menghasilkan `redirect_url`, buka URL tersebut dan selesaikan 3DS sandbox. Test card Midtrans sandbox yang umum:
+
+```text
+Card Number: 4811111111111114
+CVV: 123
+Exp Month: 02
+Exp Year: tahun future
+OTP/3DS: 112233
+Bank One Time Token: 12345678
+```
+
 ### 1. Setup
 
 ```bash

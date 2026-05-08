@@ -169,12 +169,17 @@ func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaym
 	if paymentType == "" {
 		paymentType = "bank_transfer"
 	}
+	paymentType = normalizeMidtransPaymentType(paymentType)
 	bankCode := strings.TrimSpace(request.Channel)
-	if paymentType != "bank_transfer" {
+	if paymentType != "bank_transfer" && paymentType != "credit_card" {
 		return provider.CreatePaymentResponse{}, fmt.Errorf("midtrans payment method %q is not implemented yet", paymentType)
 	}
-	if bankCode == "" {
+	if paymentType == "bank_transfer" && bankCode == "" {
 		return provider.CreatePaymentResponse{}, errors.New("midtrans bank channel is required for bank transfer")
+	}
+	cardToken := strings.TrimSpace(request.CardToken)
+	if paymentType == "credit_card" && cardToken == "" {
+		return provider.CreatePaymentResponse{}, errors.New("midtrans card token is required for credit card")
 	}
 
 	payload := midtransCreateChargeRequest{
@@ -183,7 +188,15 @@ func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaym
 			OrderID:     request.ExternalRef,
 			GrossAmount: request.Amount,
 		},
-		BankTransfer: &midtransBankTransfer{Bank: bankCode},
+	}
+	if paymentType == "bank_transfer" {
+		payload.BankTransfer = &midtransBankTransfer{Bank: bankCode}
+	}
+	if paymentType == "credit_card" {
+		payload.CreditCard = &midtransCreditCard{
+			TokenID:        cardToken,
+			Authentication: true,
+		}
 	}
 	if request.CustomerName != "" || request.CustomerEmail != "" || request.CustomerPhone != "" {
 		payload.CustomerDetails = &midtransCustomerDetails{
@@ -369,6 +382,14 @@ func (a *Adapter) RefundPayment(ctx context.Context, request provider.RefundRequ
 	if err := json.Unmarshal(rawResponse, &parsed); err != nil {
 		return provider.RefundResponse{ProviderReference: orderID, RawRequestJSON: rawRequest, RawResponseJSON: rawResponse}, fmt.Errorf("unmarshal midtrans refund response: %w", err)
 	}
+	if !midtransStatusCodeOK(parsed.StatusCode) {
+		return provider.RefundResponse{
+			ProviderReference: orderID,
+			Status:            domain.PaymentStatusFailed,
+			RawRequestJSON:    rawRequest,
+			RawResponseJSON:   rawResponse,
+		}, fmt.Errorf("midtrans refund returned status_code %s: %s", parsed.StatusCode, parsed.StatusMessage)
+	}
 
 	return provider.RefundResponse{
 		ProviderReference: orderID,
@@ -378,10 +399,25 @@ func (a *Adapter) RefundPayment(ctx context.Context, request provider.RefundRequ
 	}, nil
 }
 
+func normalizeMidtransPaymentType(method string) string {
+	switch strings.ToLower(strings.TrimSpace(method)) {
+	case "card", "credit-card", "credit_card":
+		return "credit_card"
+	default:
+		return strings.TrimSpace(method)
+	}
+}
+
+func midtransStatusCodeOK(statusCode string) bool {
+	statusCode = strings.TrimSpace(statusCode)
+	return statusCode == "" || strings.HasPrefix(statusCode, "2")
+}
+
 type midtransCreateChargeRequest struct {
 	PaymentType        string                     `json:"payment_type"`
 	TransactionDetails midtransTransactionDetails `json:"transaction_details"`
 	BankTransfer       *midtransBankTransfer      `json:"bank_transfer,omitempty"`
+	CreditCard         *midtransCreditCard        `json:"credit_card,omitempty"`
 	CustomerDetails    *midtransCustomerDetails   `json:"customer_details,omitempty"`
 }
 
@@ -392,6 +428,11 @@ type midtransTransactionDetails struct {
 
 type midtransBankTransfer struct {
 	Bank string `json:"bank"`
+}
+
+type midtransCreditCard struct {
+	TokenID        string `json:"token_id"`
+	Authentication bool   `json:"authentication"`
 }
 
 type midtransCustomerDetails struct {
