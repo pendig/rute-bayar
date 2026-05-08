@@ -1,10 +1,18 @@
 # Rute Bayar
 
+[![CI](https://github.com/pendig/rute-bayar/actions/workflows/ci.yml/badge.svg)](https://github.com/pendig/rute-bayar/actions/workflows/ci.yml)
+[![Release](https://github.com/pendig/rute-bayar/actions/workflows/release.yml/badge.svg)](https://github.com/pendig/rute-bayar/actions/workflows/release.yml)
+[![GitHub Release](https://img.shields.io/github/v/release/pendig/rute-bayar?include_prereleases)](https://github.com/pendig/rute-bayar/releases)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](./LICENSE)
+[![Go Reference](https://pkg.go.dev/badge/github.com/pendig/rute-bayar.svg)](https://pkg.go.dev/github.com/pendig/rute-bayar)
+
 Rute Bayar is an open source payment router for Indonesian payment gateways.
 
 The project provides one internal interface for multiple providers, starting with **Xendit** and **Midtrans**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
 
-> Status: alpha preview. The repository already includes webhook signature verification for Midtrans and callback-token verification for Xendit (for inbound callbacks that support/enable those checks), plus Midtrans dan Xendit `pay create`, `pay status`, `pay refund`, `reconcile`, and SQLite persistence. Webhook forwarding target management is also available via CLI.
+> Status: alpha preview. The repository already includes webhook signature verification for Midtrans and callback-token verification for Xendit, plus Midtrans and Xendit `pay create`, `pay status`, `pay refund`, `reconcile`, and SQLite persistence. Webhook forwarding target management is also available via CLI.
+
+Latest alpha release: [v0.1.0-alpha.3](https://github.com/pendig/rute-bayar/releases/tag/v0.1.0-alpha.3)
 
 ## Features
 
@@ -259,27 +267,24 @@ Read the project docs:
 - [Xendit Sandbox Simulation](./docs/xendit-sandbox-simulation.md)
 - [Midtrans Sandbox Simulation](./docs/midtrans-sandbox-simulation.md)
 
-## Roadmap
+## Community
 
-- Implement SQLite storage layer.
-- Wire CLI onboarding to provider account storage.
-- Implement Xendit Payment Session create/status/refund.
-- Implement webhook-driven payment intent status update.
-- Persist raw inbound/outbound JSON for every provider operation.
-- Add webhook forwarding target management via CLI.
-
-## Contributing
-
-Issues, ideas, and pull requests are welcome. For larger changes, please open an issue first so the design can stay aligned with the provider adapter model.
-
-Before opening a pull request:
-
-- Run `gofmt -w ./cmd ./internal`.
-- Run `go test ./...`.
-- Avoid committing provider credentials, `.env`, local SQLite files, or raw secret-bearing payloads.
+- [Contributing](./CONTRIBUTING.md)
+- [Code of Conduct](./CODE_OF_CONDUCT.md)
+- [Security Policy](./SECURITY.md)
+- [Support](./SUPPORT.md)
+- [Issues](https://github.com/pendig/rute-bayar/issues)
+- [Releases](https://github.com/pendig/rute-bayar/releases)
 
 ## License
 
-Rute Bayar is open source under the [MIT License](./LICENSE).
+Rute Bayar is released under the [MIT License](./LICENSE).
 
 Copyright (c) 2026 Wahyu Adi Putra Pena Digital.
+
+## Roadmap
+
+- Stabilize Midtrans refund E2E when sandbox payable balance is available.
+- Add more Midtrans payment methods and provider-specific diagnostics.
+- Improve operational observability for webhook forwarding and replay.
+- Prepare stable `v0.1.0` once release-readiness checks are complete.
