@@ -545,10 +545,6 @@ func xenditSessionCustomerFromRequest(request provider.CreatePaymentRequest) xen
 		customer.IndividualDetail.Surname = "Rute Bayar"
 	}
 
-	if customer.Email == "" && customer.MobileNumber == "" {
-		customer.ReferenceID = ""
-	}
-
 	return customer
 }
 

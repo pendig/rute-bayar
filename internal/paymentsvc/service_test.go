@@ -217,6 +217,81 @@ func TestStatusMidtransUsesLatestAttemptReference(t *testing.T) {
 	}
 }
 
+func TestStatusDoesNotDowngradeRefundedIntent(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := sqlite.Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	_, err = store.UpsertProviderAccount(ctx, domain.ProviderAccount{
+		ProviderCode:   domain.ProviderXendit,
+		Environment:    domain.EnvironmentSandbox,
+		DisplayName:    "Xendit Sandbox",
+		CredentialJSON: []byte(`{"secret_key":"secret"}`),
+		ConfigJSON:     []byte(`{}`),
+	})
+	if err != nil {
+		t.Fatalf("UpsertProviderAccount returned error: %v", err)
+	}
+
+	intentID, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+		ExternalRef:  "rb-xnd-refunded",
+		ProviderCode: domain.ProviderXendit,
+		Amount:       15000,
+		Currency:     "IDR",
+		Status:       domain.PaymentStatusRefunded,
+	})
+	if err != nil {
+		t.Fatalf("UpsertPaymentIntent returned error: %v", err)
+	}
+	_, err = store.RecordPaymentAttempt(ctx, domain.PaymentAttempt{
+		PaymentIntentID:   intentID,
+		ProviderCode:      domain.ProviderXendit,
+		RequestJSON:       []byte(`{"request":"create"}`),
+		ResponseJSON:      []byte(`{"response":"create"}`),
+		Status:            domain.PaymentStatusPending,
+		ProviderReference: "ps_refunded",
+	})
+	if err != nil {
+		t.Fatalf("RecordPaymentAttempt returned error: %v", err)
+	}
+
+	client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		return response(http.StatusOK, `{
+			"payment_session_id":"ps_refunded",
+			"reference_id":"rb-xnd-refunded",
+			"status":"COMPLETED",
+			"mode":"PAYMENT_LINK"
+		}`), nil
+	})}
+
+	svc := New(store, providerfactory.New(store, providerfactory.WithHTTPClient(client)))
+	result, err := svc.Status(ctx, StatusInput{
+		Provider:    domain.ProviderXendit,
+		Environment: domain.EnvironmentSandbox,
+		BaseURL:     "https://example.com",
+		Reference:   "rb-xnd-refunded",
+	})
+	if err != nil {
+		t.Fatalf("Status returned error: %v", err)
+	}
+	if result.Response.Status != domain.PaymentStatusSettled {
+		t.Fatalf("provider status = %q, want settled", result.Response.Status)
+	}
+
+	intent, err := store.GetPaymentIntentByExternalRef(ctx, "rb-xnd-refunded")
+	if err != nil {
+		t.Fatalf("GetPaymentIntentByExternalRef returned error: %v", err)
+	}
+	if intent.Status != domain.PaymentStatusRefunded {
+		t.Fatalf("intent status = %q, want refunded", intent.Status)
+	}
+}
+
 func TestCreateXenditRejectsUnsupportedMethod(t *testing.T) {
 	t.Parallel()
 
@@ -634,6 +709,87 @@ func TestReconcileUpdatesMismatchedIntentStatus(t *testing.T) {
 	}
 	if intent.Status != domain.PaymentStatusSettled {
 		t.Fatalf("intent status = %q, want settled", intent.Status)
+	}
+}
+
+func TestReconcileDoesNotDowngradeRefundedIntent(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := sqlite.Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	_, err = store.UpsertProviderAccount(ctx, domain.ProviderAccount{
+		ProviderCode:   domain.ProviderXendit,
+		Environment:    domain.EnvironmentSandbox,
+		DisplayName:    "Xendit Sandbox",
+		CredentialJSON: []byte(`{"secret_key":"secret"}`),
+		ConfigJSON:     []byte(`{}`),
+	})
+	if err != nil {
+		t.Fatalf("UpsertProviderAccount returned error: %v", err)
+	}
+
+	intentID, err := store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+		ExternalRef:  "rb-xnd-reconcile-refunded",
+		ProviderCode: domain.ProviderXendit,
+		Amount:       15000,
+		Currency:     "IDR",
+		Status:       domain.PaymentStatusRefunded,
+	})
+	if err != nil {
+		t.Fatalf("UpsertPaymentIntent returned error: %v", err)
+	}
+	_, err = store.RecordPaymentAttempt(ctx, domain.PaymentAttempt{
+		PaymentIntentID:   intentID,
+		ProviderCode:      domain.ProviderXendit,
+		RequestJSON:       []byte(`{"request":"create"}`),
+		ResponseJSON:      []byte(`{"response":"create"}`),
+		Status:            domain.PaymentStatusPending,
+		ProviderReference: "ps_reconcile_refunded",
+	})
+	if err != nil {
+		t.Fatalf("RecordPaymentAttempt returned error: %v", err)
+	}
+
+	client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		return response(http.StatusOK, `{
+			"payment_session_id":"ps_reconcile_refunded",
+			"reference_id":"rb-xnd-reconcile-refunded",
+			"status":"COMPLETED",
+			"mode":"PAYMENT_LINK"
+		}`), nil
+	})}
+
+	svc := New(store, providerfactory.New(store, providerfactory.WithHTTPClient(client)))
+	result, err := svc.Reconcile(ctx, ReconcileInput{
+		Provider:    domain.ProviderXendit,
+		Environment: domain.EnvironmentSandbox,
+		BaseURL:     "https://example.com",
+		Reference:   "rb-xnd-reconcile-refunded",
+	})
+	if err != nil {
+		t.Fatalf("Reconcile returned error: %v", err)
+	}
+	if result.Matched {
+		t.Fatal("Matched = true, want false because provider session still reports settled")
+	}
+	if result.Updated {
+		t.Fatal("Updated = true, want false for refunded local status")
+	}
+	if result.ProviderStatus != domain.PaymentStatusSettled {
+		t.Fatalf("ProviderStatus = %q, want settled", result.ProviderStatus)
+	}
+
+	intent, err := store.GetPaymentIntentByExternalRef(ctx, "rb-xnd-reconcile-refunded")
+	if err != nil {
+		t.Fatalf("GetPaymentIntentByExternalRef returned error: %v", err)
+	}
+	if intent.Status != domain.PaymentStatusRefunded {
+		t.Fatalf("intent status = %q, want refunded", intent.Status)
 	}
 }
 

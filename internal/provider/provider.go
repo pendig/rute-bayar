@@ -23,6 +23,7 @@ type CreatePaymentRequest struct {
 	CustomerName  string
 	CustomerEmail string
 	CustomerPhone string
+	CardToken     string
 	MetadataJSON  []byte
 }
 

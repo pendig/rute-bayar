@@ -2,6 +2,37 @@
 
 All notable changes to Rute Bayar will be documented in this file.
 
+## v0.1.0-alpha.3 - 2026-05-08
+
+Third alpha release focused on sandbox E2E coverage, Midtrans refundable methods, and webhook forwarding validation.
+
+### Added
+
+- Midtrans Core API credit card create flow with `--card-token`.
+- Midtrans Core API dynamic QRIS create flow.
+- Midtrans 3DS helper page for sandbox browser authentication checks.
+- E2E runner support for Midtrans card and QRIS methods.
+- Additional sandbox E2E documentation for Midtrans card, QRIS, webhook tunnel, and refund checks.
+
+### Changed
+
+- Xendit Payment Session creation now keeps `customer.reference_id` populated for valid sandbox payloads.
+- Provider status inquiry and reconcile now preserve local refunded/partial-refunded status instead of downgrading from provider payment-session status.
+- Midtrans refund adapter now treats non-2xx business `status_code` responses as failed refund attempts.
+
+### Verified
+
+- Xendit sandbox create, payment, status, webhook, forwarding, and refund.
+- Midtrans sandbox bank transfer create/status.
+- Midtrans sandbox card create, 3DS authentication, webhook, and forwarding.
+- Midtrans sandbox QRIS create, payment simulator settlement, webhook, and forwarding.
+
+### Known Limitations
+
+- Midtrans refund success could not be completed on the tested sandbox account because the provider returned `414` merchant insufficient funds despite a settled QRIS transaction.
+- Midtrans card transactions can remain in `capture` until provider settlement; refund must wait for `settlement`.
+- This release is still alpha and should be used for integration testing rather than production workloads.
+
 ## v0.1.0-alpha.2 - 2026-05-07
 
 Second alpha release focused on release automation and operational hardening.

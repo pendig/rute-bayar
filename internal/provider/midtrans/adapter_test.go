@@ -195,6 +195,140 @@ func TestCreatePaymentRequiresBankTransferFields(t *testing.T) {
 	}
 }
 
+func TestCreatePaymentCreditCard(t *testing.T) {
+	t.Parallel()
+
+	var receivedBody map[string]any
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path != "/v2/charge" {
+			t.Fatalf("request path = %q, want /v2/charge", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		return response(http.StatusOK, `{
+			"status_code":"201",
+			"status_message":"Success, Credit Card transaction is created",
+			"transaction_id":"tx-card-123",
+			"order_id":"order-card-123",
+			"payment_type":"credit_card",
+			"transaction_status":"pending",
+			"fraud_status":"accept",
+			"redirect_url":"https://api.sandbox.midtrans.com/v2/token/rba/redirect/tx-card-123"
+		}`), nil
+	})}
+
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
+	result, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{
+		ExternalRef:   "order-card-123",
+		Amount:        15000,
+		Method:        "card",
+		CardToken:     "card-token-123",
+		CustomerName:  "Test User",
+		CustomerEmail: "test@example.test",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment returned error: %v", err)
+	}
+	if result.PaymentType != "credit_card" {
+		t.Fatalf("PaymentType = %q, want credit_card", result.PaymentType)
+	}
+	if result.RedirectURL == "" {
+		t.Fatal("RedirectURL is empty")
+	}
+
+	if got := receivedBody["payment_type"]; got != "credit_card" {
+		t.Fatalf("payment_type = %v, want credit_card", got)
+	}
+	creditCard, ok := receivedBody["credit_card"].(map[string]any)
+	if !ok {
+		t.Fatalf("credit_card = %T, want object", receivedBody["credit_card"])
+	}
+	if creditCard["token_id"] != "card-token-123" {
+		t.Fatalf("credit_card.token_id = %v, want card-token-123", creditCard["token_id"])
+	}
+	if creditCard["authentication"] != true {
+		t.Fatalf("credit_card.authentication = %v, want true", creditCard["authentication"])
+	}
+	if _, ok := receivedBody["bank_transfer"]; ok {
+		t.Fatalf("bank_transfer should be omitted for credit card: %v", receivedBody["bank_transfer"])
+	}
+}
+
+func TestCreatePaymentCreditCardRequiresToken(t *testing.T) {
+	t.Parallel()
+
+	adapter := New(WithServerKey("server_key"))
+	if _, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{
+		ExternalRef: "order-card-123",
+		Amount:      15000,
+		Method:      "credit_card",
+	}); err == nil {
+		t.Fatal("CreatePayment returned nil error without card token")
+	}
+}
+
+func TestCreatePaymentQRIS(t *testing.T) {
+	t.Parallel()
+
+	var receivedBody map[string]any
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		if r.URL.Path != "/v2/charge" {
+			t.Fatalf("request path = %q, want /v2/charge", r.URL.Path)
+		}
+		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
+			t.Fatalf("decode request body: %v", err)
+		}
+		return response(http.StatusOK, `{
+			"status_code":"201",
+			"status_message":"QRIS transaction is created",
+			"transaction_id":"tx-qris-123",
+			"order_id":"order-qris-123",
+			"payment_type":"qris",
+			"transaction_status":"pending",
+			"fraud_status":"accept",
+			"actions":[
+				{
+					"name":"generate-qr-code",
+					"method":"GET",
+					"url":"https://api.sandbox.midtrans.com/v2/qris/tx-qris-123/qr-code"
+				}
+			],
+			"acquirer":"gopay"
+		}`), nil
+	})}
+
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
+	result, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{
+		ExternalRef: "order-qris-123",
+		Amount:      15000,
+		Method:      "qris",
+		Channel:     "gopay",
+	})
+	if err != nil {
+		t.Fatalf("CreatePayment returned error: %v", err)
+	}
+	if result.PaymentType != "qris" {
+		t.Fatalf("PaymentType = %q, want qris", result.PaymentType)
+	}
+	if result.RedirectURL != "https://api.sandbox.midtrans.com/v2/qris/tx-qris-123/qr-code" {
+		t.Fatalf("RedirectURL = %q, want QR code URL", result.RedirectURL)
+	}
+	if got := receivedBody["payment_type"]; got != "qris" {
+		t.Fatalf("payment_type = %v, want qris", got)
+	}
+	qris, ok := receivedBody["qris"].(map[string]any)
+	if !ok {
+		t.Fatalf("qris = %T, want object", receivedBody["qris"])
+	}
+	if qris["acquirer"] != "gopay" {
+		t.Fatalf("qris.acquirer = %v, want gopay", qris["acquirer"])
+	}
+	if _, ok := receivedBody["bank_transfer"]; ok {
+		t.Fatalf("bank_transfer should be omitted for qris: %v", receivedBody["bank_transfer"])
+	}
+}
+
 func TestRefundPaymentPostsToOrderRefund(t *testing.T) {
 	t.Parallel()
 
@@ -238,6 +372,34 @@ func TestRefundPaymentPostsToOrderRefund(t *testing.T) {
 	}
 	if got := receivedBody["refund_key"]; got != "refund-001" {
 		t.Fatalf("refund_key = %v, want refund-001", got)
+	}
+}
+
+func TestRefundPaymentRejectsBusinessErrorStatusCode(t *testing.T) {
+	t.Parallel()
+
+	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
+		return response(http.StatusOK, `{
+			"status_code":"412",
+			"status_message":"Transaction status cannot be updated.",
+			"id":"business-error"
+		}`), nil
+	})}
+
+	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
+	result, err := adapter.RefundPayment(context.Background(), provider.RefundRequest{
+		ProviderReference: "order-123",
+		ReferenceID:       "refund-001",
+		Amount:            5000,
+	})
+	if err == nil {
+		t.Fatal("RefundPayment returned nil error for business error status_code")
+	}
+	if result.Status != domain.PaymentStatusFailed {
+		t.Fatalf("Status = %q, want failed", result.Status)
+	}
+	if len(result.RawResponseJSON) == 0 {
+		t.Fatal("RawResponseJSON is empty")
 	}
 }
 

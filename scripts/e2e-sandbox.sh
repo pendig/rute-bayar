@@ -90,7 +90,9 @@ if [[ "$RUN_XENDIT" == "1" ]]; then
     --provider xendit \
     --method payment_link \
     --reference "$xendit_ref" \
-    --amount "$AMOUNT"
+    --amount "$AMOUNT" \
+    --customer-name "${RUTE_BAYAR_E2E_XENDIT_CUSTOMER_NAME:-Rute Bayar Tester}" \
+    --customer-email "${RUTE_BAYAR_E2E_XENDIT_CUSTOMER_EMAIL:-tester@rute-bayar.local}"
   run_step "pay status xendit" "$BIN_PATH" pay status \
     --provider xendit \
     --reference "$xendit_ref"
@@ -109,6 +111,7 @@ fi
 
 if [[ "$RUN_MIDTRANS" == "1" ]]; then
   midtrans_ref="${RUTE_BAYAR_E2E_MIDTRANS_REF:-rb-e2e-midtrans-$(date +%Y%m%d%H%M%S)}"
+  midtrans_method="${RUTE_BAYAR_E2E_MIDTRANS_METHOD:-bank_transfer}"
 
   run_step "onboard midtrans" "$BIN_PATH" onboard midtrans \
     --merchant-id "$MIDTRANS_MERCHANT_ID" \
@@ -116,12 +119,22 @@ if [[ "$RUN_MIDTRANS" == "1" ]]; then
     --server-key "$MIDTRANS_SERVER_KEY" \
     --environment sandbox
   run_step "provider test midtrans" "$BIN_PATH" provider test midtrans
-  run_step "pay create midtrans" "$BIN_PATH" pay create \
+  midtrans_create=("$BIN_PATH" pay create \
     --provider midtrans \
-    --method bank_transfer \
-    --bank "${RUTE_BAYAR_E2E_MIDTRANS_BANK:-bca}" \
+    --method "$midtrans_method" \
     --reference "$midtrans_ref" \
-    --amount "$AMOUNT"
+    --amount "$AMOUNT")
+  if [[ "$midtrans_method" == "card" || "$midtrans_method" == "credit_card" || "$midtrans_method" == "credit-card" ]]; then
+    require_env RUTE_BAYAR_E2E_MIDTRANS_CARD_TOKEN || exit 1
+    midtrans_create+=(--card-token "$RUTE_BAYAR_E2E_MIDTRANS_CARD_TOKEN")
+    midtrans_create+=(--customer-name "${RUTE_BAYAR_E2E_MIDTRANS_CUSTOMER_NAME:-Rute Bayar Tester}")
+    midtrans_create+=(--customer-email "${RUTE_BAYAR_E2E_MIDTRANS_CUSTOMER_EMAIL:-tester@rute-bayar.local}")
+  elif [[ "$midtrans_method" == "qris" || "$midtrans_method" == "qr" ]]; then
+    midtrans_create+=(--bank "${RUTE_BAYAR_E2E_MIDTRANS_QRIS_ACQUIRER:-gopay}")
+  else
+    midtrans_create+=(--bank "${RUTE_BAYAR_E2E_MIDTRANS_BANK:-bca}")
+  fi
+  run_step "pay create midtrans" "${midtrans_create[@]}"
   run_step "pay status midtrans" "$BIN_PATH" pay status \
     --provider midtrans \
     --reference "$midtrans_ref"

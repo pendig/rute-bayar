@@ -63,6 +63,14 @@ RUTE_BAYAR_E2E_XENDIT=1 RUTE_BAYAR_E2E_MIDTRANS=0 ./scripts/e2e-sandbox.sh
 RUTE_BAYAR_E2E_XENDIT=0 RUTE_BAYAR_E2E_MIDTRANS=1 ./scripts/e2e-sandbox.sh
 ```
 
+Runner Xendit mengisi customer sandbox default supaya payload Payment Session valid. Nilai ini bisa dioverride jika perlu:
+
+```bash
+RUTE_BAYAR_E2E_XENDIT_CUSTOMER_NAME="Rute Bayar Tester" \
+RUTE_BAYAR_E2E_XENDIT_CUSTOMER_EMAIL="tester@example.test" \
+./scripts/e2e-sandbox.sh
+```
+
 Refund membutuhkan transaksi sandbox yang sudah paid/settled/refundable. Untuk menjalankan refund terhadap transaksi yang sudah siap:
 
 ```bash
@@ -75,6 +83,51 @@ RUTE_BAYAR_E2E_XENDIT_REFUND_PROVIDER_REFERENCE="ps_xxx_or_pr_xxx" \
 RUTE_BAYAR_E2E_MIDTRANS_REFUND_REFERENCE="rb-paid-midtrans-001" \
 RUTE_BAYAR_E2E_MIDTRANS_REFUND_PROVIDER_REFERENCE="order-or-transaction-id" \
 ./scripts/e2e-sandbox.sh
+```
+
+Midtrans refund real membutuhkan metode yang refundable menurut Midtrans, seperti credit card/e-wallet/QRIS, dan status transaksi harus `settlement`. Untuk credit card Core API, buat `token_id` terlebih dahulu melalui Midtrans Get Token API atau MidtransNew3ds JS, lalu jalankan:
+
+```bash
+RUTE_BAYAR_E2E_XENDIT=0 \
+RUTE_BAYAR_E2E_MIDTRANS=1 \
+RUTE_BAYAR_E2E_MIDTRANS_METHOD=card \
+RUTE_BAYAR_E2E_MIDTRANS_CARD_TOKEN="<token_id>" \
+./scripts/e2e-sandbox.sh
+```
+
+Jika response menghasilkan `redirect_url`, buka URL tersebut dan selesaikan 3DS sandbox. Test card Midtrans sandbox yang umum:
+
+```text
+Card Number: 4811111111111114
+CVV: 123
+Exp Month: 02
+Exp Year: tahun future
+OTP/3DS: 112233
+Bank One Time Token: 12345678
+```
+
+Untuk menghindari halaman 3DS mentah berhenti di "Card is authenticated", buka helper lokal ini:
+
+```bash
+open "docs/tools/midtrans-3ds.html?client_key=$MIDTRANS_CLIENT_KEY&redirect_url=<urlencoded_redirect_url>"
+```
+
+Atau buka `docs/tools/midtrans-3ds.html` di browser, isi Client Key dan `redirect_url`, lalu klik **Start 3DS Authentication**. Helper ini memakai `MidtransNew3ds.redirect()` sesuai rekomendasi Core API Midtrans.
+
+Alternatif refundable yang lebih sederhana dari 3DS card adalah dynamic QRIS. Runner akan menampilkan QR code image URL sebagai `redirect_url`:
+
+```bash
+RUTE_BAYAR_E2E_XENDIT=0 \
+RUTE_BAYAR_E2E_MIDTRANS=1 \
+RUTE_BAYAR_E2E_MIDTRANS_METHOD=qris \
+RUTE_BAYAR_E2E_MIDTRANS_QRIS_ACQUIRER=gopay \
+./scripts/e2e-sandbox.sh
+```
+
+Untuk menyelesaikan sandbox QRIS, copy QR code image URL dari `redirect_url` lalu input ke Midtrans QRIS Simulator:
+
+```text
+https://simulator.sandbox.midtrans.com/v2/qris/index
 ```
 
 ### 1. Setup

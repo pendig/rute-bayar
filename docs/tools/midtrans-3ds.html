@@ -1,0 +1,185 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <title>Rute Bayar Midtrans 3DS Helper</title>
+    <style>
+      :root {
+        color-scheme: light;
+        --bg: #f6f1e8;
+        --ink: #1c1917;
+        --muted: #6f6458;
+        --line: #ded3c4;
+        --accent: #0f766e;
+        --accent-strong: #115e59;
+        --card: #fffaf2;
+        --danger: #991b1b;
+      }
+
+      * {
+        box-sizing: border-box;
+      }
+
+      body {
+        margin: 0;
+        min-height: 100vh;
+        background:
+          radial-gradient(circle at top left, rgba(15, 118, 110, 0.14), transparent 34rem),
+          linear-gradient(135deg, #f6f1e8 0%, #eee3d3 100%);
+        color: var(--ink);
+        font-family: ui-serif, Georgia, "Times New Roman", serif;
+        display: grid;
+        place-items: center;
+        padding: 24px;
+      }
+
+      main {
+        width: min(820px, 100%);
+        background: var(--card);
+        border: 1px solid var(--line);
+        border-radius: 24px;
+        box-shadow: 0 24px 80px rgba(28, 25, 23, 0.14);
+        padding: 32px;
+      }
+
+      h1 {
+        margin: 0 0 8px;
+        font-size: clamp(2rem, 6vw, 4rem);
+        line-height: 0.95;
+      }
+
+      p {
+        color: var(--muted);
+        line-height: 1.6;
+      }
+
+      label {
+        display: block;
+        font-weight: 700;
+        margin: 20px 0 8px;
+      }
+
+      input,
+      textarea {
+        width: 100%;
+        border: 1px solid var(--line);
+        border-radius: 14px;
+        color: var(--ink);
+        background: #fffdf8;
+        font: 14px ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+        padding: 12px 14px;
+      }
+
+      textarea {
+        min-height: 110px;
+        resize: vertical;
+      }
+
+      button {
+        appearance: none;
+        border: 0;
+        border-radius: 999px;
+        background: var(--accent);
+        color: white;
+        cursor: pointer;
+        font-weight: 800;
+        margin-top: 20px;
+        padding: 14px 22px;
+      }
+
+      button:hover {
+        background: var(--accent-strong);
+      }
+
+      pre {
+        white-space: pre-wrap;
+        word-break: break-word;
+        background: #1c1917;
+        border-radius: 16px;
+        color: #fff7ed;
+        min-height: 72px;
+        padding: 16px;
+      }
+
+      .error {
+        color: var(--danger);
+        font-weight: 700;
+      }
+    </style>
+  </head>
+  <body>
+    <main>
+      <h1>Midtrans 3DS Helper</h1>
+      <p>
+        Use this page for Rute Bayar sandbox checks when Core API returns a
+        <code>redirect_url</code>. It calls the official MidtransNew3ds helper
+        instead of opening the raw 3DS URL directly.
+      </p>
+
+      <label for="client-key">Client Key</label>
+      <input id="client-key" autocomplete="off" placeholder="SB-Mid-client-...">
+
+      <label for="redirect-url">3DS Redirect URL</label>
+      <textarea id="redirect-url" placeholder="https://api.sandbox.midtrans.com/v2/3ds/redirect/..."></textarea>
+
+      <button id="start" type="button">Start 3DS Authentication</button>
+
+      <h2>Result</h2>
+      <pre id="result">Waiting for 3DS authentication...</pre>
+    </main>
+
+    <script>
+      const params = new URLSearchParams(window.location.search);
+      const clientKeyInput = document.querySelector("#client-key");
+      const redirectInput = document.querySelector("#redirect-url");
+      const result = document.querySelector("#result");
+
+      clientKeyInput.value = params.get("client_key") || "";
+      redirectInput.value = params.get("redirect_url") || "";
+
+      function show(label, payload) {
+        result.textContent = `${label}\n${JSON.stringify(payload, null, 2)}`;
+      }
+
+      function loadMidtrans(clientKey) {
+        return new Promise((resolve, reject) => {
+          if (window.MidtransNew3ds) {
+            resolve();
+            return;
+          }
+
+          const script = document.createElement("script");
+          script.id = "midtrans-script";
+          script.src = "https://api.midtrans.com/v2/assets/js/midtrans-new-3ds.min.js";
+          script.setAttribute("data-environment", "sandbox");
+          script.setAttribute("data-client-key", clientKey);
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("failed to load MidtransNew3ds script"));
+          document.head.appendChild(script);
+        });
+      }
+
+      document.querySelector("#start").addEventListener("click", async () => {
+        const redirectUrl = redirectInput.value.trim();
+        const clientKey = clientKeyInput.value.trim();
+        if (!redirectUrl || !clientKey) {
+          result.innerHTML = '<span class="error">client_key and redirect_url are required.</span>';
+          return;
+        }
+
+        try {
+          await loadMidtrans(clientKey);
+          MidtransNew3ds.redirect(redirectUrl, {
+            callbackUrl: window.location.href.split("#")[0],
+            onSuccess: (response) => show("success", response),
+            onFailure: (response) => show("failure", response),
+            onPending: (response) => show("pending", response)
+          });
+        } catch (error) {
+          result.textContent = error.message;
+        }
+      });
+    </script>
+  </body>
+</html>
