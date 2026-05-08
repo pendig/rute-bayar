@@ -107,7 +107,6 @@
         font-weight: 700;
       }
     </style>
-    <script id="midtrans-script" src="https://api.midtrans.com/v2/assets/js/midtrans-new-3ds.min.js" data-environment="sandbox"></script>
   </head>
   <body>
     <main>
@@ -135,19 +134,33 @@
       const clientKeyInput = document.querySelector("#client-key");
       const redirectInput = document.querySelector("#redirect-url");
       const result = document.querySelector("#result");
-      const script = document.querySelector("#midtrans-script");
 
       clientKeyInput.value = params.get("client_key") || "";
       redirectInput.value = params.get("redirect_url") || "";
-      if (clientKeyInput.value) {
-        script.setAttribute("data-client-key", clientKeyInput.value);
-      }
 
       function show(label, payload) {
         result.textContent = `${label}\n${JSON.stringify(payload, null, 2)}`;
       }
 
-      document.querySelector("#start").addEventListener("click", () => {
+      function loadMidtrans(clientKey) {
+        return new Promise((resolve, reject) => {
+          if (window.MidtransNew3ds) {
+            resolve();
+            return;
+          }
+
+          const script = document.createElement("script");
+          script.id = "midtrans-script";
+          script.src = "https://api.midtrans.com/v2/assets/js/midtrans-new-3ds.min.js";
+          script.setAttribute("data-environment", "sandbox");
+          script.setAttribute("data-client-key", clientKey);
+          script.onload = () => resolve();
+          script.onerror = () => reject(new Error("failed to load MidtransNew3ds script"));
+          document.head.appendChild(script);
+        });
+      }
+
+      document.querySelector("#start").addEventListener("click", async () => {
         const redirectUrl = redirectInput.value.trim();
         const clientKey = clientKeyInput.value.trim();
         if (!redirectUrl || !clientKey) {
@@ -155,13 +168,17 @@
           return;
         }
 
-        script.setAttribute("data-client-key", clientKey);
-        MidtransNew3ds.redirect(redirectUrl, {
-          callbackUrl: window.location.href.split("#")[0],
-          onSuccess: (response) => show("success", response),
-          onFailure: (response) => show("failure", response),
-          onPending: (response) => show("pending", response)
-        });
+        try {
+          await loadMidtrans(clientKey);
+          MidtransNew3ds.redirect(redirectUrl, {
+            callbackUrl: window.location.href.split("#")[0],
+            onSuccess: (response) => show("success", response),
+            onFailure: (response) => show("failure", response),
+            onPending: (response) => show("pending", response)
+          });
+        } catch (error) {
+          result.textContent = error.message;
+        }
       });
     </script>
   </body>
