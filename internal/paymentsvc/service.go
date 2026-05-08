@@ -251,16 +251,18 @@ func (s *Service) Status(ctx context.Context, input StatusInput) (StatusResult, 
 	}
 
 	if intentFound {
-		if _, err := s.store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
-			ID:           intent.ID,
-			ExternalRef:  intent.ExternalRef,
-			ProviderCode: intent.ProviderCode,
-			Amount:       intent.Amount,
-			Currency:     intent.Currency,
-			Status:       statusResponse.Status,
-			MetadataJSON: intent.MetadataJSON,
-		}); err != nil {
-			return result, err
+		if nextStatus, shouldUpdate := statusUpdateForProviderInquiry(intent.Status, statusResponse.Status); shouldUpdate {
+			if _, err := s.store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
+				ID:           intent.ID,
+				ExternalRef:  intent.ExternalRef,
+				ProviderCode: intent.ProviderCode,
+				Amount:       intent.Amount,
+				Currency:     intent.Currency,
+				Status:       nextStatus,
+				MetadataJSON: intent.MetadataJSON,
+			}); err != nil {
+				return result, err
+			}
 		}
 		if _, err := s.store.RecordPaymentStatusCheck(ctx, domain.PaymentStatusCheck{
 			PaymentIntentID:   intent.ID,
@@ -475,14 +477,15 @@ func (s *Service) Reconcile(ctx context.Context, input ReconcileInput) (Reconcil
 		return result, err
 	}
 
-	if !result.Matched {
+	nextStatus, shouldUpdate := statusUpdateForProviderInquiry(intent.Status, statusResponse.Status)
+	if !result.Matched && shouldUpdate {
 		if _, err := s.store.UpsertPaymentIntent(ctx, domain.PaymentIntent{
 			ID:           intent.ID,
 			ExternalRef:  intent.ExternalRef,
 			ProviderCode: intent.ProviderCode,
 			Amount:       intent.Amount,
 			Currency:     intent.Currency,
-			Status:       statusResponse.Status,
+			Status:       nextStatus,
 			MetadataJSON: intent.MetadataJSON,
 		}); err != nil {
 			return result, err
@@ -555,6 +558,24 @@ func referenceValueForStatus(found bool, intent domain.PaymentIntent, fallback s
 		return intent.ExternalRef
 	}
 	return fallback
+}
+
+func statusUpdateForProviderInquiry(current, incoming domain.PaymentStatus) (domain.PaymentStatus, bool) {
+	if incoming == "" || shouldPreserveRefundStatus(current, incoming) {
+		return current, false
+	}
+	return incoming, current != incoming
+}
+
+func shouldPreserveRefundStatus(current, incoming domain.PaymentStatus) bool {
+	if !isRefundStatus(current) {
+		return false
+	}
+	return !isRefundStatus(incoming)
+}
+
+func isRefundStatus(status domain.PaymentStatus) bool {
+	return status == domain.PaymentStatusRefunded || status == domain.PaymentStatusPartialRefunded
 }
 
 func (s *Service) resolveProviderReference(ctx context.Context, providerCode domain.ProviderCode, explicit string, fallback string, intentID string, lookupLatest bool) (string, error) {
