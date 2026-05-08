@@ -106,6 +106,14 @@ OTP/3DS: 112233
 Bank One Time Token: 12345678
 ```
 
+Untuk menghindari halaman 3DS mentah berhenti di "Card is authenticated", buka helper lokal ini:
+
+```bash
+open "docs/tools/midtrans-3ds.html?client_key=$MIDTRANS_CLIENT_KEY&redirect_url=<urlencoded_redirect_url>"
+```
+
+Atau buka `docs/tools/midtrans-3ds.html` di browser, isi Client Key dan `redirect_url`, lalu klik **Start 3DS Authentication**. Helper ini memakai `MidtransNew3ds.redirect()` sesuai rekomendasi Core API Midtrans.
+
 ### 1. Setup
 
 ```bash
