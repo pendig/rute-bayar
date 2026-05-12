@@ -10,7 +10,7 @@ Rute Bayar sudah layak untuk:
 - alpha / preview tertutup
 - uji integrasi provider secara manual
 
-Rute Bayar belum siap untuk release publik stabil karena beberapa komponen inti masih belum final.
+Rute Bayar belum siap untuk release publik stabil sampai Issue #36 (real webhook + real refund E2E) tuntas.
 
 ## Sudah Siap
 
