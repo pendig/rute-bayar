@@ -10,7 +10,8 @@ Rute Bayar sudah layak untuk:
 - alpha / preview tertutup
 - uji integrasi provider secara manual
 
-Rute Bayar belum siap untuk release publik stabil sampai Issue #36 (real webhook + real refund E2E) tuntas.
+Rute Bayar sudah memiliki bukti real provider webhook callback dan Xendit refund E2E di sandbox.
+Sebelum release publik stabil, lakukan final pass Issue #10 untuk memastikan checklist, changelog, dan release notes sudah sinkron dengan bukti terbaru.
 
 ## Sudah Siap
 
@@ -27,6 +28,8 @@ Rute Bayar belum siap untuk release publik stabil sampai Issue #36 (real webhook
 - Diagnostics forwarding attempt lewat CLI (`list`, `show`, `retry`).
 - Smoke test lokal otomatis via `scripts/smoke-local.sh`.
 - Status mapping provider terdokumentasi.
+- Real webhook callback proof untuk Midtrans dan Xendit.
+- Xendit refund E2E proof dari request refund sampai callback `refund.succeeded` dan status lokal `refunded`.
 
 ## Wajib Selesai Sebelum `v0.1.0`
 

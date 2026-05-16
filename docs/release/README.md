@@ -9,3 +9,4 @@ Catatan eksekusi ini dipakai untuk melacak bukti release readiness dan blocker y
 - [Issue #39 Midtrans Webhook Proof Execution Log](./issue-39-midtrans-webhook-proof.md)
 - [Issue #39 Xendit Webhook Proof Execution Log](./issue-39-xendit-webhook-proof.md)
 - [Issue #39 Xendit Webhook Proof Plan](./issue-39-xendit-webhook-proof-plan.md)
+- [Issue #40 Xendit Refund E2E Proof Execution Log](./issue-40-xendit-refund-e2e-proof.md)

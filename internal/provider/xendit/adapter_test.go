@@ -380,6 +380,69 @@ func TestParseWebhookSupportsNestedEnvelope(t *testing.T) {
 	}
 }
 
+func TestParseWebhookMapsRefundSucceeded(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte(`{
+		"event": "refund.succeeded",
+		"data": {
+			"id": "rfd_123",
+			"payment_request_id": "pr_123",
+			"reference_id": "refund-001",
+			"status": "SUCCEEDED"
+		}
+	}`)
+
+	adapter := New(WithSecretKey("secret"))
+	event, err := adapter.ParseWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	})
+	if err != nil {
+		t.Fatalf("ParseWebhook returned error: %v", err)
+	}
+	if event.ProviderEventID != "refund.succeeded:rfd_123" {
+		t.Fatalf("ProviderEventID = %q, want refund.succeeded:rfd_123", event.ProviderEventID)
+	}
+	if event.PaymentRef != "refund-001" {
+		t.Fatalf("PaymentRef = %q, want refund-001", event.PaymentRef)
+	}
+	if event.Status != domain.PaymentStatusRefunded {
+		t.Fatalf("Status = %q, want %q", event.Status, domain.PaymentStatusRefunded)
+	}
+}
+
+func TestParseWebhookMapsDirectDebitRefund(t *testing.T) {
+	t.Parallel()
+
+	payload := []byte(`{
+		"event": "direct_debit.refund",
+		"data": {
+			"id": "ddrfd_123",
+			"direct_debit_id": "ddpy_123",
+			"amount": 5000,
+			"currency": "IDR",
+			"status": "SUCCEEDED",
+			"reason": "REQUESTED_BY_CUSTOMER"
+		}
+	}`)
+
+	adapter := New(WithSecretKey("secret"))
+	event, err := adapter.ParseWebhook(context.Background(), provider.WebhookRequest{
+		Headers: nil,
+		Body:    payload,
+	})
+	if err != nil {
+		t.Fatalf("ParseWebhook returned error: %v", err)
+	}
+	if event.ProviderEventID != "direct_debit.refund:ddrfd_123" {
+		t.Fatalf("ProviderEventID = %q, want direct_debit.refund:ddrfd_123", event.ProviderEventID)
+	}
+	if event.Status != domain.PaymentStatusRefunded {
+		t.Fatalf("Status = %q, want %q", event.Status, domain.PaymentStatusRefunded)
+	}
+}
+
 func TestParseWebhookFallsBackToStatusEvent(t *testing.T) {
 	t.Parallel()
 
