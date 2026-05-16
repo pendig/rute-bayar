@@ -118,6 +118,14 @@ Note: if the provider credentials/configuration are not present, webhook verific
 
 ## Installation
 
+Install with Homebrew:
+
+```bash
+brew tap pendig/tap
+brew install rute-bayar
+rute-bayar version
+```
+
 Build a local binary:
 
 ```bash
