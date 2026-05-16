@@ -35,17 +35,19 @@ Menutup acceptance:
 
 ## Langkah Lanjutan untuk Menutup Issue
 1. Selesaikan pembayaran sandbox sampai status **paid/settlement** untuk masing-masing provider (sesuai metode yang dipilih).
-2. Pastikan webhook URL aktif via:
+2. Jalankan daemon pada address yang akan ditunnel:
+   - `rute-bayar webhook serve --addr 127.0.0.1:8080 --environment sandbox`.
+3. Pastikan webhook URL aktif via address daemon yang sama:
    - `wrangler tunnel quick-start http://127.0.0.1:8080`.
-3. Arahkan URL provider webhook ke:
+4. Arahkan URL provider webhook ke:
    - `https://<domain>.trycloudflare.com/webhooks/xendit`
    - `https://<domain>.trycloudflare.com/webhooks/midtrans`
-4. Trigger callback dengan menyelesaikan flow pembayaran.
-5. Verifikasi:
+5. Trigger callback dengan menyelesaikan flow pembayaran.
+6. Verifikasi:
    - event masuk ke `webhook_events`,
    - status lokal berubah sesuai final status,
    - dan `pay status` / `reconcile` sinkron.
-6. Simpan reference ter-eligible:
+7. Simpan reference ter-eligible:
    - `RUTE_BAYAR_E2E_XENDIT_REFUND_REFERENCE`
    - `RUTE_BAYAR_E2E_MIDTRANS_REFUND_REFERENCE`
-7. Jalankan `scripts/e2e-sandbox.sh` ulang dengan env refund reference agar refund E2E tuntas.
+8. Jalankan `scripts/e2e-sandbox.sh` ulang dengan env refund reference agar refund E2E tuntas.
