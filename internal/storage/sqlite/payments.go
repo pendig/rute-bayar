@@ -48,25 +48,6 @@ func (s *Store) GetPaymentIntentByExternalRef(ctx context.Context, externalRef s
 	return intent, nil
 }
 
-func (s *Store) UpdatePaymentIntentStatusByID(ctx context.Context, id string, status domain.PaymentStatus) error {
-	result, err := s.db.ExecContext(ctx, `
-		UPDATE payment_intents
-		SET status = ?, updated_at = ?
-		WHERE id = ?
-	`, string(status), time.Now().UTC().Format(time.RFC3339Nano), id)
-	if err != nil {
-		return fmt.Errorf("update payment intent status: %w", err)
-	}
-	rows, err := result.RowsAffected()
-	if err != nil {
-		return fmt.Errorf("read payment intent status update rows affected: %w", err)
-	}
-	if rows == 0 {
-		return fmt.Errorf("%w: payment intent %s is not configured", sql.ErrNoRows, id)
-	}
-	return nil
-}
-
 func (s *Store) GetLatestPaymentAttemptByIntent(ctx context.Context, paymentIntentID string, provider domain.ProviderCode) (domain.PaymentAttempt, error) {
 	var (
 		attempt      domain.PaymentAttempt

@@ -10,7 +10,7 @@ Rute Bayar is an open source payment router for Indonesian payment gateways.
 
 The project provides one internal interface for multiple providers, starting with **Xendit** and **Midtrans**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
 
-> Status: alpha preview. The repository already includes webhook signature verification for Midtrans and callback-token verification for Xendit, plus Midtrans and Xendit `pay create`, `pay status`, `pay refund`, `reconcile`, and SQLite persistence. Webhook forwarding target management is also available via CLI.
+> Status: stable candidate, not yet released as non-alpha. The repository includes webhook signature verification for Midtrans and callback-token verification for Xendit, plus Midtrans and Xendit `pay create`, `pay status`, `pay refund`, `reconcile`, and SQLite persistence. Real sandbox proof now covers Midtrans/Xendit webhook callbacks and Xendit refund reconciliation through final `refund.succeeded` callback. Webhook forwarding target management is also available via CLI.
 
 Latest alpha release: [v0.1.0-alpha.3](https://github.com/pendig/rute-bayar/releases/tag/v0.1.0-alpha.3)
 
@@ -231,14 +231,16 @@ rute-bayar db migrate
 
 ## Provider Notes
 
-Xendit sandbox simulation has been tested with Payment Sessions:
+Xendit sandbox simulation has been tested with Payment Sessions and refund callbacks:
 
 - `POST /sessions` creates a Payment Session.
 - `GET /sessions/{session_id}` retrieves status.
+- `POST /refunds` creates an async refund request.
 - Initial Xendit `ACTIVE` status maps naturally to Rute Bayar `pending`.
+- Final Xendit `refund.succeeded` callbacks reconcile stored refunds and update the local payment intent to `refunded`.
 - `items[].category` is required for the tested Payment Session payload.
 
-See [docs/xendit-sandbox-simulation.md](./docs/xendit-sandbox-simulation.md).
+See [docs/xendit-sandbox-simulation.md](./docs/xendit-sandbox-simulation.md) and [docs/release/issue-40-xendit-refund-e2e-proof.md](./docs/release/issue-40-xendit-refund-e2e-proof.md).
 
 ## Design Principles
 
@@ -267,6 +269,7 @@ Read the project docs:
 - [Changelog](./CHANGELOG.md)
 - [Xendit Sandbox Simulation](./docs/xendit-sandbox-simulation.md)
 - [Midtrans Sandbox Simulation](./docs/midtrans-sandbox-simulation.md)
+- [Release Readiness](./docs/release-readiness.md)
 
 ## Community
 
@@ -286,6 +289,7 @@ Copyright (c) 2026 Wahyu Adi Putra Pena Digital.
 ## Roadmap
 
 - Stabilize Midtrans refund E2E when sandbox payable balance is available.
+- Complete final stable readiness pass for `v0.1.0` before publishing a non-alpha release.
 - Add more Midtrans payment methods and provider-specific diagnostics.
 - Improve operational observability for webhook forwarding and replay.
-- Prepare stable `v0.1.0` once release-readiness checks are complete.
+- Add Flip Business as the next provider family.

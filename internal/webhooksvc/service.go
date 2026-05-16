@@ -26,8 +26,7 @@ type Reconciler interface {
 }
 
 type RefundReconciler interface {
-	UpdateRefundStatusByProviderIdentifiers(context.Context, domain.ProviderCode, []string, domain.PaymentStatus, json.RawMessage) (domain.Refund, error)
-	UpdatePaymentIntentStatusByID(context.Context, string, domain.PaymentStatus) error
+	ReconcileRefundByProviderIdentifiers(context.Context, domain.ProviderCode, []string, domain.PaymentStatus, json.RawMessage) (domain.Refund, error)
 }
 
 type WebhookEventLookup interface {
@@ -347,18 +346,12 @@ func (s *Service) reconcileRefund(ctx context.Context, providerCode domain.Provi
 		return "unmatched", nil
 	}
 
-	refund, err := reconciler.UpdateRefundStatusByProviderIdentifiers(ctx, providerCode, identifiers, status, parsedEvent.RawPayloadJSON)
+	_, err := reconciler.ReconcileRefundByProviderIdentifiers(ctx, providerCode, identifiers, status, parsedEvent.RawPayloadJSON)
 	if err != nil {
 		if errors.Is(err, sql.ErrNoRows) {
 			return "unmatched", nil
 		}
 		return "reconcile_failed", err
-	}
-
-	if isRefundStatus(status) {
-		if err := reconciler.UpdatePaymentIntentStatusByID(ctx, refund.PaymentIntentID, status); err != nil {
-			return "reconcile_failed", err
-		}
 	}
 
 	return "reconciled", nil

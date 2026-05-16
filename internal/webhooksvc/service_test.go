@@ -370,7 +370,7 @@ func (s *stubWebhookRecorder) UpsertPaymentIntent(_ context.Context, intent doma
 	return intent.ID, nil
 }
 
-func (s *stubWebhookRecorder) UpdateRefundStatusByProviderIdentifiers(_ context.Context, providerCode domain.ProviderCode, identifiers []string, status domain.PaymentStatus, responseJSON json.RawMessage) (domain.Refund, error) {
+func (s *stubWebhookRecorder) ReconcileRefundByProviderIdentifiers(_ context.Context, providerCode domain.ProviderCode, identifiers []string, status domain.PaymentStatus, responseJSON json.RawMessage) (domain.Refund, error) {
 	for _, identifier := range identifiers {
 		refund, ok := s.refunds[identifier]
 		if !ok || refund.ProviderCode != providerCode {
@@ -381,21 +381,17 @@ func (s *stubWebhookRecorder) UpdateRefundStatusByProviderIdentifiers(_ context.
 			refund.ResponseJSON = responseJSON
 		}
 		s.refunds[identifier] = refund
+		for key, intent := range s.intents {
+			if intent.ID != refund.PaymentIntentID {
+				continue
+			}
+			intent.Status = status
+			s.intents[key] = intent
+			break
+		}
 		return refund, nil
 	}
 	return domain.Refund{}, sql.ErrNoRows
-}
-
-func (s *stubWebhookRecorder) UpdatePaymentIntentStatusByID(_ context.Context, id string, status domain.PaymentStatus) error {
-	for key, intent := range s.intents {
-		if intent.ID != id {
-			continue
-		}
-		intent.Status = status
-		s.intents[key] = intent
-		return nil
-	}
-	return sql.ErrNoRows
 }
 
 type stubForwarder struct {

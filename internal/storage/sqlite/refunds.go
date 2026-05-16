@@ -111,7 +111,7 @@ func (s *Store) GetLatestRefundByIntent(ctx context.Context, paymentIntentID str
 	return refund, nil
 }
 
-func (s *Store) UpdateRefundStatusByProviderIdentifiers(ctx context.Context, providerCode domain.ProviderCode, identifiers []string, status domain.PaymentStatus, responseJSON json.RawMessage) (domain.Refund, error) {
+func (s *Store) ReconcileRefundByProviderIdentifiers(ctx context.Context, providerCode domain.ProviderCode, identifiers []string, status domain.PaymentStatus, responseJSON json.RawMessage) (domain.Refund, error) {
 	cleaned := make([]string, 0, len(identifiers))
 	for _, identifier := range identifiers {
 		if trimmed := strings.TrimSpace(identifier); trimmed != "" {
@@ -122,13 +122,8 @@ func (s *Store) UpdateRefundStatusByProviderIdentifiers(ctx context.Context, pro
 		return domain.Refund{}, fmt.Errorf("%w: refund identifier is required", sql.ErrNoRows)
 	}
 
-	clauses := make([]string, 0, len(cleaned))
-	args := []any{string(providerCode)}
-	for _, identifier := range cleaned {
-		clauses = append(clauses, "(r.provider_reference = ? OR r.request_json LIKE ? OR r.response_json LIKE ?)")
-		args = append(args, identifier, "%"+identifier+"%", "%"+identifier+"%")
-	}
-
+	matchClause, matchArgs := refundIdentifierMatchClause(cleaned)
+	args := append([]any{string(providerCode)}, matchArgs...)
 	query := fmt.Sprintf(`
 		SELECT
 			r.id,
@@ -146,9 +141,20 @@ func (s *Store) UpdateRefundStatusByProviderIdentifiers(ctx context.Context, pro
 		WHERE p.code = ? AND (%s)
 		ORDER BY r.created_at DESC
 		LIMIT 1
-	`, strings.Join(clauses, " OR "))
+	`, matchClause)
 
-	refund, err := scanRefund(s.db.QueryRowContext(ctx, query, args...))
+	tx, err := s.db.BeginTx(ctx, nil)
+	if err != nil {
+		return domain.Refund{}, fmt.Errorf("begin refund reconciliation transaction: %w", err)
+	}
+	committed := false
+	defer func() {
+		if !committed {
+			_ = tx.Rollback()
+		}
+	}()
+
+	refund, err := scanRefund(tx.QueryRowContext(ctx, query, args...))
 	if err != nil {
 		if err == sql.ErrNoRows {
 			return domain.Refund{}, fmt.Errorf("%w: refund for %s is not configured", sql.ErrNoRows, strings.Join(cleaned, ","))
@@ -161,7 +167,7 @@ func (s *Store) UpdateRefundStatusByProviderIdentifiers(ctx context.Context, pro
 		nextResponseJSON = responseJSON
 	}
 	now := time.Now().UTC().Format(time.RFC3339Nano)
-	_, err = s.db.ExecContext(ctx, `
+	result, err := tx.ExecContext(ctx, `
 		UPDATE refunds
 		SET status = ?, response_json = ?, updated_at = ?
 		WHERE id = ?
@@ -169,11 +175,78 @@ func (s *Store) UpdateRefundStatusByProviderIdentifiers(ctx context.Context, pro
 	if err != nil {
 		return domain.Refund{}, fmt.Errorf("update refund status: %w", err)
 	}
+	if rows, err := result.RowsAffected(); err != nil {
+		return domain.Refund{}, fmt.Errorf("read refund status update rows affected: %w", err)
+	} else if rows == 0 {
+		return domain.Refund{}, fmt.Errorf("%w: refund %s is not configured", sql.ErrNoRows, refund.ID)
+	}
+
+	if status == domain.PaymentStatusRefunded || status == domain.PaymentStatusPartialRefunded {
+		result, err = tx.ExecContext(ctx, `
+			UPDATE payment_intents
+			SET status = ?, updated_at = ?
+			WHERE id = ?
+		`, string(status), now, refund.PaymentIntentID)
+		if err != nil {
+			return domain.Refund{}, fmt.Errorf("update refunded payment intent status: %w", err)
+		}
+		if rows, err := result.RowsAffected(); err != nil {
+			return domain.Refund{}, fmt.Errorf("read refunded payment intent update rows affected: %w", err)
+		} else if rows == 0 {
+			return domain.Refund{}, fmt.Errorf("%w: payment intent %s is not configured", sql.ErrNoRows, refund.PaymentIntentID)
+		}
+	}
+
+	if err := tx.Commit(); err != nil {
+		return domain.Refund{}, fmt.Errorf("commit refund reconciliation transaction: %w", err)
+	}
+	committed = true
 
 	refund.Status = status
 	refund.ResponseJSON = nextResponseJSON
 	refund.UpdatedAt = parseTime(now)
 	return refund, nil
+}
+
+func refundIdentifierMatchClause(identifiers []string) (string, []any) {
+	placeholders := sqlPlaceholders(len(identifiers))
+	fields := []string{
+		"r.provider_reference",
+		"json_extract(r.request_json, '$.reference_id')",
+		"json_extract(r.request_json, '$.payment_request_id')",
+		"json_extract(r.request_json, '$.id')",
+		"json_extract(r.response_json, '$.reference_id')",
+		"json_extract(r.response_json, '$.payment_request_id')",
+		"json_extract(r.response_json, '$.payment_id')",
+		"json_extract(r.response_json, '$.invoice_id')",
+		"json_extract(r.response_json, '$.id')",
+		"json_extract(r.response_json, '$.data.reference_id')",
+		"json_extract(r.response_json, '$.data.payment_request_id')",
+		"json_extract(r.response_json, '$.data.payment_id')",
+		"json_extract(r.response_json, '$.data.invoice_id')",
+		"json_extract(r.response_json, '$.data.id')",
+	}
+
+	clauses := make([]string, 0, len(fields))
+	args := make([]any, 0, len(fields)*len(identifiers))
+	for _, field := range fields {
+		clauses = append(clauses, field+" IN ("+placeholders+")")
+		for _, identifier := range identifiers {
+			args = append(args, identifier)
+		}
+	}
+	return strings.Join(clauses, " OR "), args
+}
+
+func sqlPlaceholders(count int) string {
+	if count <= 0 {
+		return ""
+	}
+	parts := make([]string, count)
+	for i := range parts {
+		parts[i] = "?"
+	}
+	return strings.Join(parts, ",")
 }
 
 type refundScanner interface {
