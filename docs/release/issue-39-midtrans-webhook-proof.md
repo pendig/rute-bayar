@@ -54,5 +54,4 @@ Midtrans path untuk Issue #39 sudah terbukti:
 - signature valid.
 - webhook settlement diproses dan merekonsiliasi status lokal menjadi `settled`.
 
-Sisa Issue #39:
-- Xendit provider callback real masih perlu dibuktikan.
+Xendit path juga sudah terbukti terpisah di [Issue #39 Xendit Webhook Proof Execution Log](./issue-39-xendit-webhook-proof.md).

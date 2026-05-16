@@ -116,6 +116,17 @@ rute-bayar pay create \
 
 Nilai tersebut dikirim sebagai header `X-Override-Notification` pada request Midtrans Core API.
 
+### Xendit Payment Sessions webhook URL
+
+Untuk Xendit Payment Sessions, `pay create --notification-url` tidak didukung karena dokumentasi resmi Xendit tidak menyediakan override webhook per transaksi.
+Konfigurasikan webhook/callback URL di Xendit Dashboard ke endpoint daemon:
+
+```text
+https://<public-domain>/webhooks/xendit
+```
+
+Jika payload perlu diteruskan ke aplikasi lain, gunakan fitur forwarding Rute Bayar agar webhook tetap masuk, tersimpan, diverifikasi, dan bisa direplay dari daemon.
+
 Adapter harus menyimpan raw request dan raw response JSON ke payment attempt.
 
 ## Forwarding Policy

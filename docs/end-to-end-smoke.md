@@ -210,7 +210,8 @@ https://<public-domain>/webhooks/midtrans
 ```
 
 Untuk Midtrans, URL di atas juga bisa dioverride per transaksi lewat `pay create --notification-url`.
-Untuk Xendit, gunakan pengaturan webhook/callback di dashboard sandbox Xendit.
+Untuk Xendit Payment Sessions, dokumentasi resmi tidak menyediakan override webhook per transaksi.
+Gunakan pengaturan webhook/callback di dashboard sandbox Xendit ke endpoint daemon Rute Bayar, lalu gunakan fitur forwarding jika webhook perlu diteruskan ke aplikasi lain.
 
 Untuk domain sementara:
 
