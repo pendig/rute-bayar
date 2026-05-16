@@ -10,9 +10,9 @@ Rute Bayar is an open source payment router for Indonesian payment gateways.
 
 The project provides one internal interface for multiple providers, starting with **Xendit** and **Midtrans**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
 
-> Status: stable candidate, not yet released as non-alpha. The repository includes webhook signature verification for Midtrans and callback-token verification for Xendit, plus Midtrans and Xendit `pay create`, `pay status`, `pay refund`, `reconcile`, and SQLite persistence. Real sandbox proof now covers Midtrans/Xendit webhook callbacks and Xendit refund reconciliation through final `refund.succeeded` callback. Webhook forwarding target management is also available via CLI.
+> Status: stable `v0.1.0`. The repository includes webhook signature verification for Midtrans and callback-token verification for Xendit, plus Midtrans and Xendit `pay create`, `pay status`, `pay refund`, `reconcile`, and SQLite persistence. Real sandbox proof covers Midtrans/Xendit webhook callbacks and Xendit refund reconciliation through final `refund.succeeded` callback. Webhook forwarding target management is also available via CLI.
 
-Latest alpha release: [v0.1.0-alpha.3](https://github.com/pendig/rute-bayar/releases/tag/v0.1.0-alpha.3)
+Latest release: [v0.1.0](https://github.com/pendig/rute-bayar/releases/tag/v0.1.0)
 
 ## Features
 
@@ -136,7 +136,7 @@ Install into your Go binary path:
 go install github.com/pendig/rute-bayar/cmd/rute-bayar@latest
 ```
 
-For alpha builds, prefer the latest tagged release or a local build from `main`.
+For stable builds, prefer the latest tagged release or a local build from `main`.
 
 ## Usage
 

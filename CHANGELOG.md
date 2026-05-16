@@ -2,6 +2,41 @@
 
 All notable changes to Rute Bayar will be documented in this file.
 
+## v0.1.0 - 2026-05-17
+
+First stable release of Rute Bayar, focused on a production-shaped CLI and daemon foundation for Indonesian payment gateway routing.
+
+### Added
+
+- Stable CLI flows for provider onboarding, provider auth testing, payment creation, payment status checks, refund requests, reconciliation, webhook serving, webhook replay, and forwarding diagnostics.
+- Xendit Payment Sessions support for `pay create`, `pay status`, async refund requests, callback-token verification, payment webhook reconciliation, and final refund webhook reconciliation.
+- Midtrans Core API support for bank transfer, QRIS, and card-oriented create/status/refund flows where supported by the provider sandbox.
+- Pass-through webhook forwarding with persisted targets, event filters, retry settings, and forwarding attempt diagnostics.
+- SQLite persistence for provider accounts, payment intents, payment attempts, status checks, refunds, webhook events, forwarding targets, and forwarding attempts.
+- Release automation for Linux, macOS, and Windows binaries with SHA-256 checksums.
+
+### Changed
+
+- Xendit refund webhook reconciliation is now atomic for refund row and parent payment intent updates.
+- Xendit refund webhook lookup now uses exact JSON field matching instead of broad JSON `LIKE` scans.
+- Xendit `pay create --notification-url` now fails explicitly because Payment Sessions do not support per-payment webhook override.
+- README and release-readiness documentation now reflect stable-candidate evidence instead of alpha-only status.
+- GitHub Actions dependencies and `modernc.org/sqlite` were updated through Dependabot PRs.
+
+### Verified
+
+- `go test ./...` and `go vet ./...` pass locally and in CI.
+- Real Midtrans sandbox webhook callback reached the daemon through Cloudflare Tunnel and reconciled local status.
+- Real Xendit sandbox Payment Sessions webhook callback reached the daemon through Cloudflare Tunnel and reconciled local status.
+- Real Xendit sandbox refund E2E completed from refund request through final `refund.succeeded` webhook, with `refunds.status=refunded` and payment intent status `refunded`.
+- Release workflow successfully builds the same platform matrix used by prior alpha releases.
+
+### Known Limitations
+
+- Midtrans refund success remains dependent on provider-side sandbox balance and settlement eligibility; the tested sandbox account returned insufficient balance for a settled QRIS refund attempt.
+- Xendit Payment Sessions webhook URL must be configured in the Xendit Dashboard; per-payment webhook override is not supported by Xendit Payment Sessions.
+- Flip Business is planned as the next provider family and is not included in this release.
+
 ## v0.1.0-alpha.3 - 2026-05-08
 
 Third alpha release focused on sandbox E2E coverage, Midtrans refundable methods, and webhook forwarding validation.

@@ -9,10 +9,10 @@ Rute Bayar sudah layak untuk:
 - demo internal
 - alpha / preview tertutup
 - uji integrasi provider secara manual
-- stable candidate review
+- stable `v0.1.0`
 
 Rute Bayar sudah memiliki bukti real provider webhook callback dan Xendit refund E2E di sandbox.
-Sebelum release publik stabil, lakukan final pass Issue #10 untuk memastikan checklist, changelog, dan release notes sudah sinkron dengan bukti terbaru.
+Checklist, changelog, dan release notes sudah disiapkan untuk release publik stabil `v0.1.0`.
 
 ## Sudah Siap
 
@@ -32,7 +32,7 @@ Sebelum release publik stabil, lakukan final pass Issue #10 untuk memastikan che
 - Real webhook callback proof untuk Midtrans dan Xendit.
 - Xendit refund E2E proof dari request refund sampai callback `refund.succeeded` dan status lokal `refunded`.
 
-## Final Pass Sebelum `v0.1.0`
+## Final Pass `v0.1.0`
 
 ### Core Payments
 
