@@ -17,6 +17,8 @@ Referensi dokumentasi resmi:
 - https://docs.xendit.co/apidocs/create-session
 - https://docs.xendit.co/apidocs/get-session
 - https://docs.xendit.co/apidocs/get-balance
+- https://docs.xendit.co/docs/payment-sessions-overview
+- https://docs.xendit.co/apidocs/webhook-notification-sent-defined-webhook-url-updates-payment-session
 
 ## Payload Create Session
 
@@ -71,6 +73,25 @@ Payload minimal yang berhasil untuk Indonesia:
 - Untuk status internal Rute Bayar, `ACTIVE` sebaiknya dipetakan ke `pending`.
 - Response berisi `payment_link_url` yang mengarah ke hosted checkout Xendit development.
 - Session default pada simulasi ini expired sekitar 30 menit setelah dibuat.
+
+## Webhook Proof
+
+Untuk Payment Sessions, webhook URL perlu dikonfigurasi melalui Xendit Dashboard sandbox/development. Arahkan URL Payment Sessions ke:
+
+```text
+https://<public-domain>/webhooks/xendit
+```
+
+Daemon memvalidasi header `X-Callback-Token` jika token disimpan saat onboarding:
+
+```bash
+rute-bayar onboard xendit \
+  --secret-key "$XENDIT_SECRET_KEY" \
+  --webhook-token "$XENDIT_WEBHOOK_TOKEN" \
+  --environment sandbox
+```
+
+Rencana bukti lengkap dicatat di [Issue #39 Xendit Webhook Proof Plan](./release/issue-39-xendit-webhook-proof-plan.md).
 
 ## Catatan Keamanan
 
