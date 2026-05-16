@@ -11,6 +11,7 @@ Kumpulan dokumentasi awal untuk proyek **Rute Bayar**, payment router berbasis G
 - [Provider Integration](./provider-integration.md)
 - [Implementation Status](./implementation-status.md)
 - [Release Readiness](./release-readiness.md)
+- [Release Execution Logs](./release/README.md)
 - [Implementation Plan](./implementation-plan.md)
 - [Webhook Forwarding](./webhook-forwarding.md)
 - [Status Mapping](./status-mapping.md)
