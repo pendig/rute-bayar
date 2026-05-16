@@ -124,12 +124,14 @@ func TestCreatePaymentBankTransfer(t *testing.T) {
 	t.Parallel()
 
 	var receivedAuth string
+	var receivedNotificationURL string
 	var receivedBody map[string]any
 	client := &http.Client{Transport: roundTripperFunc(func(r *http.Request) (*http.Response, error) {
 		if r.URL.Path != "/v2/charge" {
 			t.Fatalf("request path = %q, want /v2/charge", r.URL.Path)
 		}
 		receivedAuth = r.Header.Get("Authorization")
+		receivedNotificationURL = r.Header.Get("X-Override-Notification")
 		if err := json.NewDecoder(r.Body).Decode(&receivedBody); err != nil {
 			t.Fatalf("decode request body: %v", err)
 		}
@@ -148,11 +150,12 @@ func TestCreatePaymentBankTransfer(t *testing.T) {
 
 	adapter := New(WithServerKey("server_key"), WithBaseURL("https://example.com"), WithHTTPClient(client))
 	result, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{
-		ExternalRef:  "order-123",
-		Amount:       15000,
-		Method:       "bank_transfer",
-		Channel:      "bca",
-		CustomerName: "Test User",
+		ExternalRef:     "order-123",
+		Amount:          15000,
+		Method:          "bank_transfer",
+		Channel:         "bca",
+		CustomerName:    "Test User",
+		NotificationURL: "https://example.com/webhooks/midtrans",
 	})
 	if err != nil {
 		t.Fatalf("CreatePayment returned error: %v", err)
@@ -176,6 +179,9 @@ func TestCreatePaymentBankTransfer(t *testing.T) {
 	wantAuth := "Basic " + base64.StdEncoding.EncodeToString([]byte("server_key:"))
 	if receivedAuth != wantAuth {
 		t.Fatalf("Authorization = %q, want %q", receivedAuth, wantAuth)
+	}
+	if receivedNotificationURL != "https://example.com/webhooks/midtrans" {
+		t.Fatalf("X-Override-Notification = %q, want override URL", receivedNotificationURL)
 	}
 	if got := receivedBody["payment_type"]; got != "bank_transfer" {
 		t.Fatalf("payment_type = %v, want bank_transfer", got)

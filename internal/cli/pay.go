@@ -43,6 +43,7 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 	customerEmail := fs.String("customer-email", "", "customer email")
 	customerPhone := fs.String("customer-phone", "", "customer phone")
 	cardToken := fs.String("card-token", "", "card token for Midtrans credit_card payments")
+	notificationURL := fs.String("notification-url", "", "provider notification/webhook URL override when supported")
 	baseURL := fs.String("base-url", "", "override provider API base URL")
 	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
 	environment := fs.String("environment", cfg.Environment, "provider environment")
@@ -59,18 +60,19 @@ func payCreate(ctx context.Context, stdout, stderr io.Writer, args []string) err
 
 	service := paymentsvc.New(store, nil)
 	result, err := service.Create(ctx, paymentsvc.CreateInput{
-		Provider:      domain.ProviderCode(strings.TrimSpace(*providerCode)),
-		Environment:   domain.Environment(environmentValue),
-		BaseURL:       strings.TrimSpace(*baseURL),
-		ExternalRef:   strings.TrimSpace(*reference),
-		Amount:        *amount,
-		Currency:      strings.TrimSpace(*currency),
-		Method:        strings.TrimSpace(*method),
-		Channel:       strings.TrimSpace(*bank),
-		CustomerName:  strings.TrimSpace(*customerName),
-		CustomerEmail: strings.TrimSpace(*customerEmail),
-		CustomerPhone: strings.TrimSpace(*customerPhone),
-		CardToken:     strings.TrimSpace(*cardToken),
+		Provider:        domain.ProviderCode(strings.TrimSpace(*providerCode)),
+		Environment:     domain.Environment(environmentValue),
+		BaseURL:         strings.TrimSpace(*baseURL),
+		ExternalRef:     strings.TrimSpace(*reference),
+		Amount:          *amount,
+		Currency:        strings.TrimSpace(*currency),
+		Method:          strings.TrimSpace(*method),
+		Channel:         strings.TrimSpace(*bank),
+		CustomerName:    strings.TrimSpace(*customerName),
+		CustomerEmail:   strings.TrimSpace(*customerEmail),
+		CustomerPhone:   strings.TrimSpace(*customerPhone),
+		CardToken:       strings.TrimSpace(*cardToken),
+		NotificationURL: strings.TrimSpace(*notificationURL),
 	})
 	if err != nil {
 		return err

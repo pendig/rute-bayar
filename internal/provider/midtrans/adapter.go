@@ -221,6 +221,9 @@ func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaym
 	req.SetBasicAuth(a.serverKey, "")
 	req.Header.Set("Accept", "application/json")
 	req.Header.Set("Content-Type", "application/json")
+	if notificationURL := strings.TrimSpace(request.NotificationURL); notificationURL != "" {
+		req.Header.Set("X-Override-Notification", notificationURL)
+	}
 
 	resp, err := a.client.Do(req)
 	if err != nil {

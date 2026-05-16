@@ -15,16 +15,17 @@ type Capability struct {
 }
 
 type CreatePaymentRequest struct {
-	ExternalRef   string
-	Amount        int64
-	Currency      string
-	Method        string
-	Channel       string
-	CustomerName  string
-	CustomerEmail string
-	CustomerPhone string
-	CardToken     string
-	MetadataJSON  []byte
+	ExternalRef     string
+	Amount          int64
+	Currency        string
+	Method          string
+	Channel         string
+	CustomerName    string
+	CustomerEmail   string
+	CustomerPhone   string
+	CardToken       string
+	NotificationURL string
+	MetadataJSON    []byte
 }
 
 type CreatePaymentResponse struct {
