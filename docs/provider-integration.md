@@ -102,6 +102,20 @@ Implementasi awal `pay create` untuk Midtrans memakai Core API bank transfer:
 - `transaction_details.gross_amount` berasal dari amount request
 - `bank_transfer.bank` berasal dari bank/channel yang dipilih user
 
+Untuk validasi webhook sandbox, `pay create` mendukung override URL notifikasi Midtrans per transaksi:
+
+```bash
+rute-bayar pay create \
+  --provider midtrans \
+  --method qris \
+  --bank gopay \
+  --reference rb-midtrans-qris-001 \
+  --amount 15000 \
+  --notification-url https://<public-domain>/webhooks/midtrans
+```
+
+Nilai tersebut dikirim sebagai header `X-Override-Notification` pada request Midtrans Core API.
+
 Adapter harus menyimpan raw request dan raw response JSON ke payment attempt.
 
 ## Forwarding Policy

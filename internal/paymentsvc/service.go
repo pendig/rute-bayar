@@ -29,18 +29,19 @@ type Service struct {
 }
 
 type CreateInput struct {
-	Provider      domain.ProviderCode
-	Environment   domain.Environment
-	BaseURL       string
-	ExternalRef   string
-	Amount        int64
-	Currency      string
-	Method        string
-	Channel       string
-	CustomerName  string
-	CustomerEmail string
-	CustomerPhone string
-	CardToken     string
+	Provider        domain.ProviderCode
+	Environment     domain.Environment
+	BaseURL         string
+	ExternalRef     string
+	Amount          int64
+	Currency        string
+	Method          string
+	Channel         string
+	CustomerName    string
+	CustomerEmail   string
+	CustomerPhone   string
+	CardToken       string
+	NotificationURL string
 }
 
 type CreateResult struct {
@@ -133,15 +134,16 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (CreateResult, 
 		currency = "IDR"
 	}
 	request := provider.CreatePaymentRequest{
-		ExternalRef:   strings.TrimSpace(input.ExternalRef),
-		Amount:        input.Amount,
-		Currency:      currency,
-		Method:        strings.TrimSpace(input.Method),
-		Channel:       strings.TrimSpace(input.Channel),
-		CustomerName:  strings.TrimSpace(input.CustomerName),
-		CustomerEmail: strings.TrimSpace(input.CustomerEmail),
-		CustomerPhone: strings.TrimSpace(input.CustomerPhone),
-		CardToken:     strings.TrimSpace(input.CardToken),
+		ExternalRef:     strings.TrimSpace(input.ExternalRef),
+		Amount:          input.Amount,
+		Currency:        currency,
+		Method:          strings.TrimSpace(input.Method),
+		Channel:         strings.TrimSpace(input.Channel),
+		CustomerName:    strings.TrimSpace(input.CustomerName),
+		CustomerEmail:   strings.TrimSpace(input.CustomerEmail),
+		CustomerPhone:   strings.TrimSpace(input.CustomerPhone),
+		CardToken:       strings.TrimSpace(input.CardToken),
+		NotificationURL: strings.TrimSpace(input.NotificationURL),
 	}
 	request, err = normalizeCreateRequest(providerCode, request)
 	if err != nil {

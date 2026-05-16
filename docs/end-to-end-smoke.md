@@ -175,6 +175,19 @@ rute-bayar pay create \
   --amount 15000
 ```
 
+Jika ingin mengarahkan notifikasi Midtrans per transaksi ke daemon publik sementara, gunakan `--notification-url`.
+Flag ini mengirim header resmi Midtrans `X-Override-Notification` pada request charge:
+
+```bash
+rute-bayar pay create \
+  --provider midtrans \
+  --method qris \
+  --bank gopay \
+  --reference rb-smoke-midtrans-qris-001 \
+  --amount 15000 \
+  --notification-url https://<public-domain>/webhooks/midtrans
+```
+
 ### 5. Payment Status
 
 ```bash
@@ -195,6 +208,9 @@ Provider webhook URL:
 https://<public-domain>/webhooks/xendit
 https://<public-domain>/webhooks/midtrans
 ```
+
+Untuk Midtrans, URL di atas juga bisa dioverride per transaksi lewat `pay create --notification-url`.
+Untuk Xendit, gunakan pengaturan webhook/callback di dashboard sandbox Xendit.
 
 Untuk domain sementara:
 

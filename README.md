@@ -152,6 +152,7 @@ rute-bayar provider test midtrans
 rute-bayar provider test xendit
 rute-bayar pay create --provider xendit --method payment_link --reference rb-xnd-001 --amount 15000
 rute-bayar pay create --provider midtrans --method bank_transfer --bank bca --reference rb-0001 --amount 15000
+rute-bayar pay create --provider midtrans --method qris --bank gopay --reference rb-qris-001 --amount 15000 --notification-url https://<public-domain>/webhooks/midtrans
 rute-bayar pay status --provider midtrans --reference rb-0001
 rute-bayar pay refund
 rute-bayar webhook serve --addr :8080

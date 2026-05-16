@@ -124,6 +124,9 @@ if [[ "$RUN_MIDTRANS" == "1" ]]; then
     --method "$midtrans_method" \
     --reference "$midtrans_ref" \
     --amount "$AMOUNT")
+  if [[ -n "${RUTE_BAYAR_E2E_MIDTRANS_NOTIFICATION_URL:-}" ]]; then
+    midtrans_create+=(--notification-url "$RUTE_BAYAR_E2E_MIDTRANS_NOTIFICATION_URL")
+  fi
   if [[ "$midtrans_method" == "card" || "$midtrans_method" == "credit_card" || "$midtrans_method" == "credit-card" ]]; then
     require_env RUTE_BAYAR_E2E_MIDTRANS_CARD_TOKEN || exit 1
     midtrans_create+=(--card-token "$RUTE_BAYAR_E2E_MIDTRANS_CARD_TOKEN")
