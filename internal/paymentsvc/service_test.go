@@ -313,6 +313,32 @@ func TestCreateXenditRejectsUnsupportedMethod(t *testing.T) {
 	}
 }
 
+func TestCreateXenditRejectsNotificationURLOverride(t *testing.T) {
+	t.Parallel()
+
+	ctx := context.Background()
+	store, err := sqlite.Open(ctx, ":memory:")
+	if err != nil {
+		t.Fatalf("Open returned error: %v", err)
+	}
+	defer store.Close()
+
+	_, err = New(store, nil).Create(ctx, CreateInput{
+		Provider:        domain.ProviderXendit,
+		Environment:     domain.EnvironmentSandbox,
+		ExternalRef:     "rb-xnd-notification-url",
+		Amount:          1000,
+		Method:          "payment_link",
+		NotificationURL: "https://example.com/webhooks/xendit",
+	})
+	if err == nil {
+		t.Fatal("Create returned nil error for xendit notification URL override")
+	}
+	if !strings.Contains(err.Error(), "xendit does not support per-payment notification URL override") {
+		t.Fatalf("Create error = %q, want notification URL override guidance", err)
+	}
+}
+
 func TestCreateReturnsProviderResponseWhenPersistenceFails(t *testing.T) {
 	t.Parallel()
 

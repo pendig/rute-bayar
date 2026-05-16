@@ -547,6 +547,9 @@ func normalizeCreateRequest(providerCode domain.ProviderCode, request provider.C
 		return request, nil
 	}
 
+	if strings.TrimSpace(request.NotificationURL) != "" {
+		return provider.CreatePaymentRequest{}, fmt.Errorf("xendit does not support per-payment notification URL override; configure the webhook URL in Xendit Dashboard and use Rute Bayar forwarding")
+	}
 	if request.Method == "" || strings.EqualFold(request.Method, "bank_transfer") {
 		request.Method = "payment_link"
 	}
