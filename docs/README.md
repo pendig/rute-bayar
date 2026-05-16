@@ -16,6 +16,7 @@ Kumpulan dokumentasi awal untuk proyek **Rute Bayar**, payment router berbasis G
 - [Webhook Forwarding](./webhook-forwarding.md)
 - [Status Mapping](./status-mapping.md)
 - [Operations Runbook](./operations-runbook.md)
+- [Production Deployment](./production-deployment.md)
 - [End-to-End Smoke Test](./end-to-end-smoke.md)
 - [Development](./development.md)
 - [Xendit Sandbox Simulation](./xendit-sandbox-simulation.md)

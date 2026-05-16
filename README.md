@@ -231,6 +231,12 @@ Project layout:
 - `migrations`: SQLite schema migrations.
 - `docs`: product and technical documentation.
 
+Useful docs:
+
+- [Production Deployment](./docs/production-deployment.md)
+- [Operations Runbook](./docs/operations-runbook.md)
+- [Release Readiness](./docs/release-readiness.md)
+
 Run the initial migration through the CLI:
 
 ```bash
