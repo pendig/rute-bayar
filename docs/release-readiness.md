@@ -9,8 +9,10 @@ Rute Bayar sudah layak untuk:
 - demo internal
 - alpha / preview tertutup
 - uji integrasi provider secara manual
+- stable candidate review
 
-Rute Bayar belum siap untuk release publik stabil sampai Issue #36 (real webhook + real refund E2E) tuntas.
+Rute Bayar sudah memiliki bukti real provider webhook callback dan Xendit refund E2E di sandbox.
+Sebelum release publik stabil, lakukan final pass Issue #10 untuk memastikan checklist, changelog, dan release notes sudah sinkron dengan bukti terbaru.
 
 ## Sudah Siap
 
@@ -27,45 +29,40 @@ Rute Bayar belum siap untuk release publik stabil sampai Issue #36 (real webhook
 - Diagnostics forwarding attempt lewat CLI (`list`, `show`, `retry`).
 - Smoke test lokal otomatis via `scripts/smoke-local.sh`.
 - Status mapping provider terdokumentasi.
+- Real webhook callback proof untuk Midtrans dan Xendit.
+- Xendit refund E2E proof dari request refund sampai callback `refund.succeeded` dan status lokal `refunded`.
 
-## Wajib Selesai Sebelum `v0.1.0`
+## Final Pass Sebelum `v0.1.0`
 
 ### Core Payments
 
-- `refund` minimal untuk provider yang sudah didukung.
-- Status mapping yang konsisten antar provider.
+- Konfirmasi `pay create`, `pay status`, dan `pay refund` tetap hijau lewat CI dan smoke test.
+- Pastikan status mapping yang terdokumentasi masih sesuai dengan adapter.
+- Midtrans refund E2E masih dapat dicatat sebagai known sandbox limitation jika balance sandbox tidak tersedia.
 
 ### Webhook
 
-- Verifikasi signature Midtrans.
-- Verifikasi webhook Xendit.
-- Parsing webhook menjadi event internal.
-- Idempotency webhook yang aman untuk retry.
+- Verifikasi ulang bukti Midtrans dan Xendit real webhook callback di `docs/release/`.
+- Verifikasi ulang Xendit refund callback proof di `docs/release/issue-40-xendit-refund-e2e-proof.md`.
+- Pastikan idempotency webhook tetap aman untuk retry.
 
 ### Forwarding
 
-- CRUD target forwarding lewat CLI.
-- Persist forwarding target di SQLite.
-- Retry policy yang bisa dikonfigurasi dari CLI.
-- Replay command untuk forwarding gagal (`webhook replay`).
-- Diagnostic command untuk forwarding attempts (`webhook forward attempts ...`).
-- Event filter forwarding untuk seleksi event berdasarkan header/payload.
-- Diagnostik operasional tersimpan di `docs/operations-runbook.md`.
+- Jalankan smoke test forwarding lokal.
+- Pastikan diagnostic command untuk forwarding attempts masih terdokumentasi.
+- Pastikan `docs/operations-runbook.md` menjelaskan replay dan retry failure path.
 
 ### Operasional
 
-- `go test ./...` harus bisa dijalankan di environment CI.
-- GitHub Actions untuk lint/test minimal.
-- Pastikan `gofmt`, `go vet`, dan dependency checks konsisten.
+- `go test ./...` harus hijau di local dan CI.
+- `go vet ./...` harus hijau sebelum tag stable.
 - Pastikan tidak ada secret provider tersimpan di repo.
 
 ### Release Engineering
 
-- Versi tag pertama `v0.1.0`.
-- Changelog release.
-- Binary build instruction yang sudah stabil.
+- Update changelog/release notes untuk `v0.1.0`.
+- Pastikan README tidak lagi memberi kesan alpha setelah stable tag siap dibuat.
 - Release artifact automation yang repeatable.
-- README yang jelas untuk install, konfigurasi, dan usage dasar.
 - Validasi migrasi SQLite dari fresh install.
 
 ## Release Automation

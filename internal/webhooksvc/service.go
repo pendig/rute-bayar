@@ -25,6 +25,10 @@ type Reconciler interface {
 	UpsertPaymentIntent(context.Context, domain.PaymentIntent) (string, error)
 }
 
+type RefundReconciler interface {
+	ReconcileRefundByProviderIdentifiers(context.Context, domain.ProviderCode, []string, domain.PaymentStatus, json.RawMessage) (domain.Refund, error)
+}
+
 type WebhookEventLookup interface {
 	GetWebhookEventByProviderEventID(context.Context, domain.ProviderCode, string) (domain.WebhookEvent, error)
 }
@@ -285,6 +289,12 @@ func (s *Service) isDuplicateWebhookEvent(ctx context.Context, providerCode doma
 }
 
 func (s *Service) reconcilePaymentIntent(ctx context.Context, providerCode domain.ProviderCode, parsedEvent provider.WebhookEvent) (string, error) {
+	if isRefundWebhook(parsedEvent) {
+		if status, err := s.reconcileRefund(ctx, providerCode, parsedEvent); status != "" || err != nil {
+			return status, err
+		}
+	}
+
 	reconciler, ok := s.recorder.(Reconciler)
 	if !ok {
 		return "processed", nil
@@ -318,6 +328,64 @@ func (s *Service) reconcilePaymentIntent(ctx context.Context, providerCode domai
 	}
 
 	return "reconciled", nil
+}
+
+func (s *Service) reconcileRefund(ctx context.Context, providerCode domain.ProviderCode, parsedEvent provider.WebhookEvent) (string, error) {
+	reconciler, ok := s.recorder.(RefundReconciler)
+	if !ok {
+		return "", nil
+	}
+
+	status := parsedEvent.Status
+	if status == "" {
+		return "unmatched", nil
+	}
+
+	identifiers := refundWebhookIdentifiers(parsedEvent)
+	if len(identifiers) == 0 {
+		return "unmatched", nil
+	}
+
+	_, err := reconciler.ReconcileRefundByProviderIdentifiers(ctx, providerCode, identifiers, status, parsedEvent.RawPayloadJSON)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return "unmatched", nil
+		}
+		return "reconcile_failed", err
+	}
+
+	return "reconciled", nil
+}
+
+func isRefundWebhook(event provider.WebhookEvent) bool {
+	eventType := strings.ToLower(strings.TrimSpace(event.EventType))
+	return strings.HasPrefix(eventType, "refund.") || strings.HasSuffix(eventType, ".refund")
+}
+
+func isRefundStatus(status domain.PaymentStatus) bool {
+	return status == domain.PaymentStatusRefunded || status == domain.PaymentStatusPartialRefunded
+}
+
+func refundWebhookIdentifiers(event provider.WebhookEvent) []string {
+	candidates := []string{event.PaymentRef, event.ProviderEventID}
+	if _, value, ok := strings.Cut(event.ProviderEventID, ":"); ok {
+		candidates = append(candidates, value)
+	}
+
+	seen := make(map[string]struct{}, len(candidates))
+	identifiers := make([]string, 0, len(candidates))
+	for _, candidate := range candidates {
+		trimmed := strings.TrimSpace(candidate)
+		if trimmed == "" {
+			continue
+		}
+		if _, exists := seen[trimmed]; exists {
+			continue
+		}
+		seen[trimmed] = struct{}{}
+		identifiers = append(identifiers, trimmed)
+	}
+	return identifiers
 }
 
 func cloneHeaders(headers http.Header) http.Header {

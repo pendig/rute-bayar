@@ -3,6 +3,7 @@ package webhooksvc
 import (
 	"context"
 	"database/sql"
+	"encoding/json"
 	"errors"
 	"net/http"
 	"testing"
@@ -259,8 +260,77 @@ func TestProcessPassesThroughWithoutHandler(t *testing.T) {
 	}
 }
 
+func TestProcessReconcilesRefundWebhook(t *testing.T) {
+	t.Parallel()
+
+	recorder := &stubWebhookRecorder{
+		intents: map[string]domain.PaymentIntent{
+			"rb-001": {
+				ID:           "intent-001",
+				ExternalRef:  "rb-001",
+				ProviderCode: domain.ProviderXendit,
+				Amount:       15000,
+				Currency:     "IDR",
+				Status:       domain.PaymentStatusSettled,
+			},
+		},
+		refunds: map[string]domain.Refund{
+			"rfd_123": {
+				ID:              "refund-001",
+				PaymentIntentID: "intent-001",
+				ProviderCode:    domain.ProviderXendit,
+				Amount:          15000,
+				Status:          domain.PaymentStatusPending,
+			},
+		},
+	}
+	svc := New(recorder, nil, map[domain.ProviderCode]provider.Adapter{
+		domain.ProviderXendit: &testWebhookAdapter{
+			verifyFn: func(context.Context, provider.WebhookRequest) error {
+				return nil
+			},
+			parseFn: func(_ context.Context, req provider.WebhookRequest) (provider.WebhookEvent, error) {
+				return provider.WebhookEvent{
+					ProviderEventID: "refund.succeeded:rfd_123",
+					EventType:       "refund.succeeded",
+					PaymentRef:      "refund-ref-001",
+					Status:          domain.PaymentStatusRefunded,
+					RawPayloadJSON:  req.Body,
+				}, nil
+			},
+		},
+	})
+
+	result, err := svc.Process(context.Background(), Input{
+		Provider: domain.ProviderXendit,
+		Request: provider.WebhookRequest{
+			Headers: http.Header{"X-Callback-Token": []string{"token"}},
+			Body:    []byte(`{"event":"refund.succeeded"}`),
+		},
+	})
+	if err != nil {
+		t.Fatalf("Process returned error: %v", err)
+	}
+	if result.StatusCode != http.StatusAccepted {
+		t.Fatalf("StatusCode = %d, want %d", result.StatusCode, http.StatusAccepted)
+	}
+	if len(recorder.events) != 1 {
+		t.Fatalf("RecordWebhookEvent calls = %d, want 1", len(recorder.events))
+	}
+	if recorder.events[0].ProcessingStatus != "reconciled" {
+		t.Fatalf("ProcessingStatus = %q, want reconciled", recorder.events[0].ProcessingStatus)
+	}
+	if recorder.refunds["rfd_123"].Status != domain.PaymentStatusRefunded {
+		t.Fatalf("refund status = %q, want refunded", recorder.refunds["rfd_123"].Status)
+	}
+	if recorder.intents["rb-001"].Status != domain.PaymentStatusRefunded {
+		t.Fatalf("intent status = %q, want refunded", recorder.intents["rb-001"].Status)
+	}
+}
+
 type stubWebhookRecorder struct {
 	intents       map[string]domain.PaymentIntent
+	refunds       map[string]domain.Refund
 	events        []domain.WebhookEvent
 	webhookEvents map[string]domain.WebhookEvent
 }
@@ -298,6 +368,30 @@ func (s *stubWebhookRecorder) UpsertPaymentIntent(_ context.Context, intent doma
 	}
 	s.intents[intent.ExternalRef] = intent
 	return intent.ID, nil
+}
+
+func (s *stubWebhookRecorder) ReconcileRefundByProviderIdentifiers(_ context.Context, providerCode domain.ProviderCode, identifiers []string, status domain.PaymentStatus, responseJSON json.RawMessage) (domain.Refund, error) {
+	for _, identifier := range identifiers {
+		refund, ok := s.refunds[identifier]
+		if !ok || refund.ProviderCode != providerCode {
+			continue
+		}
+		refund.Status = status
+		if len(responseJSON) > 0 {
+			refund.ResponseJSON = responseJSON
+		}
+		s.refunds[identifier] = refund
+		for key, intent := range s.intents {
+			if intent.ID != refund.PaymentIntentID {
+				continue
+			}
+			intent.Status = status
+			s.intents[key] = intent
+			break
+		}
+		return refund, nil
+	}
+	return domain.Refund{}, sql.ErrNoRows
 }
 
 type stubForwarder struct {

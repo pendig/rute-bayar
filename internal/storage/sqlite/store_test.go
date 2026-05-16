@@ -208,6 +208,32 @@ func TestRefundStorageLifecycle(t *testing.T) {
 	if string(refund.ResponseJSON) != `{"status":"SUCCEEDED"}` {
 		t.Fatalf("ResponseJSON = %s, want original response", refund.ResponseJSON)
 	}
+
+	updated, err := store.ReconcileRefundByProviderIdentifiers(ctx, domain.ProviderXendit, []string{"pr-001"}, domain.PaymentStatusRefunded, []byte(`{"event":"refund.succeeded"}`))
+	if err != nil {
+		t.Fatalf("ReconcileRefundByProviderIdentifiers returned error: %v", err)
+	}
+	if updated.ID != refundID {
+		t.Fatalf("updated refund ID = %q, want %q", updated.ID, refundID)
+	}
+	if updated.Status != domain.PaymentStatusRefunded {
+		t.Fatalf("updated refund status = %q, want refunded", updated.Status)
+	}
+	if string(updated.ResponseJSON) != `{"event":"refund.succeeded"}` {
+		t.Fatalf("updated response JSON = %s, want webhook payload", updated.ResponseJSON)
+	}
+
+	if _, err := store.ReconcileRefundByProviderIdentifiers(ctx, domain.ProviderXendit, []string{"pr-%"}, domain.PaymentStatusRefunded, nil); !errors.Is(err, sql.ErrNoRows) {
+		t.Fatalf("ReconcileRefundByProviderIdentifiers wildcard identifier error = %v, want sql.ErrNoRows", err)
+	}
+
+	intent, err := store.GetPaymentIntentByExternalRef(ctx, "rb-refund-001")
+	if err != nil {
+		t.Fatalf("GetPaymentIntentByExternalRef returned error after status update: %v", err)
+	}
+	if intent.Status != domain.PaymentStatusRefunded {
+		t.Fatalf("intent status = %q, want refunded", intent.Status)
+	}
 }
 
 func TestWebhookEventStorageLifecycle(t *testing.T) {

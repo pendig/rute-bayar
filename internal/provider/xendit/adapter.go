@@ -474,10 +474,7 @@ func (a *Adapter) ParseWebhook(_ context.Context, req provider.WebhookRequest) (
 		eventType,
 	)
 
-	providerEventID := firstNonEmpty(
-		xenditStringFromObject(data, "payment_id", "capture_id", "refund_id", "payment_request_id", "payment_token_id", "invoice_id", "id"),
-		xenditStringFromObject(payload, "payment_id", "capture_id", "refund_id", "payment_request_id", "payment_token_id", "invoice_id", "id"),
-	)
+	providerEventID := xenditWebhookProviderEventID(eventType, payload, data)
 
 	reference := firstNonEmpty(
 		xenditStringFromObject(data, "reference_id", "external_id", "order_id", "payment_request_id", "invoice_id"),
@@ -499,10 +496,23 @@ func (a *Adapter) ParseWebhook(_ context.Context, req provider.WebhookRequest) (
 		ProviderEventID: strings.TrimSpace(providerEventID),
 		EventType:       eventType,
 		PaymentRef:      strings.TrimSpace(reference),
-		Status:          mapXenditSessionStatus(status),
+		Status:          mapXenditWebhookStatus(eventType, status),
 		RawPayloadJSON:  req.Body,
 		RawHeadersJSON:  marshalHeaders(req.Headers),
 	}, nil
+}
+
+func xenditWebhookProviderEventID(eventType string, payload map[string]any, data map[string]any) string {
+	if isXenditRefundEvent(eventType) {
+		return firstNonEmpty(
+			xenditStringFromObject(data, "refund_id", "id", "payment_request_id", "payment_id", "invoice_id"),
+			xenditStringFromObject(payload, "refund_id", "id", "payment_request_id", "payment_id", "invoice_id"),
+		)
+	}
+	return firstNonEmpty(
+		xenditStringFromObject(data, "payment_id", "capture_id", "refund_id", "payment_request_id", "payment_token_id", "invoice_id", "id"),
+		xenditStringFromObject(payload, "payment_id", "capture_id", "refund_id", "payment_request_id", "payment_token_id", "invoice_id", "id"),
+	)
 }
 
 func firstNonEmpty(values ...string) string {
@@ -599,6 +609,18 @@ var xenditRefundStatusMap = provider.StatusMap{
 
 func mapXenditRefundStatus(status string) domain.PaymentStatus {
 	return provider.MapPaymentStatus(status, xenditRefundStatusMap, domain.PaymentStatusPending)
+}
+
+func mapXenditWebhookStatus(eventType string, status string) domain.PaymentStatus {
+	if isXenditRefundEvent(eventType) {
+		return mapXenditRefundStatus(status)
+	}
+	return mapXenditSessionStatus(status)
+}
+
+func isXenditRefundEvent(eventType string) bool {
+	normalized := strings.ToLower(strings.TrimSpace(eventType))
+	return strings.HasPrefix(normalized, "refund.") || strings.HasSuffix(normalized, ".refund")
 }
 
 func normalizeXenditRefundReason(reason string) string {
