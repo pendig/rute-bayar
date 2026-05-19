@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCollection, render } from "astro:content";
-import { docsPath, entryLang, stripLangFromId } from "../../i18n";
+import { docsPath, entryLang, stripLangFromId, withSiteBase } from "../../i18n";
 
 export async function getStaticPaths() {
   const entries = (await getCollection("docs")).filter((entry) => entryLang(entry.id) === "id");
@@ -22,7 +22,7 @@ const slug = stripLangFromId(entry.id);
   alternatePath={docsPath("en", `en/${slug}`)}
 >
   <article class="container article">
-    <a class="back-link" href="/docs/">Kembali ke docs</a>
+    <a class="back-link" href={withSiteBase("/docs/")}>Kembali ke docs</a>
     <header>
       <p class="eyebrow">Docs</p>
       <h1>{entry.data.title}</h1>

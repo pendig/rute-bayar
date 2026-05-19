@@ -1,6 +1,6 @@
 ---
 import "../styles/global.css";
-import { langPrefix, layoutCopy, type Lang } from "../i18n";
+import { langPrefix, layoutCopy, type Lang, localizedPath, withSiteBase } from "../i18n";
 
 interface Props {
   title: string;
@@ -16,20 +16,17 @@ const copy = layoutCopy[lang];
 const prefix = langPrefix(lang);
 const siteUrl = Astro.site ?? new URL("https://rutebayar.id");
 const canonicalUrl = new URL(Astro.url.pathname, siteUrl).toString();
-const fallbackAlternatePath =
-  lang === "id"
-    ? `/en${Astro.url.pathname === "/" ? "/" : Astro.url.pathname}`
-    : Astro.url.pathname.replace(/^\/en/, "") || "/";
-const switchPath = alternatePath ?? fallbackAlternatePath;
-const idPath = lang === "id" ? Astro.url.pathname : switchPath;
-const enPath = lang === "en" ? Astro.url.pathname : switchPath;
+const fallbackAlternatePath = localizedPath(Astro.url.pathname, lang === "id" ? "en" : "id");
+const switchPath = alternatePath ? withSiteBase(alternatePath) : fallbackAlternatePath;
+const idPath = lang === "id" ? localizedPath(Astro.url.pathname, "id") : switchPath;
+const enPath = lang === "en" ? localizedPath(Astro.url.pathname, "en") : switchPath;
 const idUrl = new URL(idPath, siteUrl).toString();
 const enUrl = new URL(enPath, siteUrl).toString();
-const rssUrl = new URL(lang === "id" ? "/rss.xml" : "/en/rss.xml", siteUrl).toString();
+const rssUrl = new URL(lang === "id" ? withSiteBase("/rss.xml") : withSiteBase("/en/rss.xml"), siteUrl).toString();
 const gaMeasurementId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
 const ogLocale = lang === "id" ? "id_ID" : "en_US";
 const ogAlternateLocale = lang === "id" ? "en_US" : "id_ID";
-const ogImageUrl = new URL("/og-image.svg", siteUrl).toString();
+const ogImageUrl = new URL(withSiteBase("/og-image.svg"), siteUrl).toString();
 const ogImageAlt = copy.ogImageAlt;
 const structuredData = {
   "@context": "https://schema.org",
@@ -97,7 +94,7 @@ gtag('config', '${gaMeasurementId}', { anonymize_ip: true });`}
     <header class="site-header">
       <div class="container nav-shell">
         <a class="brand" href={`${prefix}/`} aria-label={copy.homeLabel}>
-          <img class="brand-mark" src="/brand/rutebayar-mark.png" alt="" width="34" height="34" />
+          <img class="brand-mark" src={withSiteBase("/brand/rutebayar-mark.png")} alt="" width="34" height="34" />
           <span>rutebayar</span>
         </a>
         <div class="nav-actions">
@@ -105,8 +102,8 @@ gtag('config', '${gaMeasurementId}', { anonymize_ip: true });`}
             {nav.map((item) => <a href={item.href}>{item.label}</a>)}
           </nav>
           <div class="language-switch" aria-label={copy.switchLabel}>
-            <a class={lang === "id" ? "active" : ""} href={lang === "id" ? Astro.url.pathname : switchPath}>ID</a>
-            <a class={lang === "en" ? "active" : ""} href={lang === "en" ? Astro.url.pathname : switchPath}>EN</a>
+            <a class={lang === "id" ? "active" : ""} href={idPath}>ID</a>
+            <a class={lang === "en" ? "active" : ""} href={enPath}>EN</a>
           </div>
         </div>
       </div>

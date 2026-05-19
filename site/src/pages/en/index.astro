@@ -2,6 +2,7 @@
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ShellBlock from "../../components/ShellBlock.astro";
 import { layoutCopy } from "../../i18n";
+import { withSiteBase } from "../../i18n";
 import { LANDING_AGENT_STATUS_LINES, LANDING_CREATE_PAYMENT_LINES, LANDING_QUICK_INSTALL_LINES, LANDING_WEBHOOK_LINES } from "../../data/landing-shell-lines";
 import "../../styles/landing.css";
 
@@ -26,8 +27,8 @@ const providerStripLabel = layoutCopy.en.providerStripLabel;
           It keeps provider logic modular, stores raw JSON for debugging, and gives product teams a clean path from invoice to webhook verification.
         </p>
         <div class="button-row">
-          <a class="button" href="/en/docs/">Read the docs</a>
-          <a class="button secondary" href="/en/skill/">AI Agent skill guide</a>
+          <a class="button" href={withSiteBase("/en/docs/")}>Read the docs</a>
+          <a class="button secondary" href={withSiteBase("/en/skill/")}>AI Agent skill guide</a>
         </div>
       </div>
       <div class="hero-console">
@@ -78,7 +79,7 @@ const providerStripLabel = layoutCopy.en.providerStripLabel;
         <p>
           An AI Agent can call `rutebayar` to create a dynamic invoice, store its own run reference, check payment status, and react to verified webhooks. The CLI becomes a narrow, inspectable tool boundary between automation and money movement.
         </p>
-        <a class="button" href="/en/skill/">Open the skill guide</a>
+        <a class="button" href={withSiteBase("/en/skill/")}>Open the skill guide</a>
       </div>
       <ShellBlock
         title="agent tool call"

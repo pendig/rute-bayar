@@ -1,7 +1,7 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import { getCollection, render } from "astro:content";
-import { blogPath, entryLang, stripLangFromId } from "../../i18n";
+import { blogPath, entryLang, stripLangFromId, withSiteBase } from "../../i18n";
 
 export async function getStaticPaths() {
   const entries = (await getCollection("blog")).filter((entry) => entryLang(entry.id) === "id");
@@ -23,7 +23,7 @@ const slug = stripLangFromId(entry.id);
   type="article"
 >
   <article class="container article">
-    <a class="back-link" href="/blog/">Kembali ke blog</a>
+    <a class="back-link" href={withSiteBase("/blog/")}>Kembali ke blog</a>
     <header>
       <time datetime={entry.data.pubDate.toISOString()}>{entry.data.pubDate.toISOString().slice(0, 10)}</time>
       <h1>{entry.data.title}</h1>

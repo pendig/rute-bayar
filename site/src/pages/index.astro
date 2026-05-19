@@ -3,6 +3,7 @@ import BaseLayout from "../layouts/BaseLayout.astro";
 import ShellBlock from "../components/ShellBlock.astro";
 import { layoutCopy, type Lang } from "../i18n";
 import { LANDING_AGENT_STATUS_LINES, LANDING_CREATE_PAYMENT_LINES, LANDING_QUICK_INSTALL_LINES, LANDING_WEBHOOK_LINES } from "../data/landing-shell-lines";
+import { withSiteBase } from "../i18n";
 import "../styles/landing.css";
 
 const createPaymentLines = LANDING_CREATE_PAYMENT_LINES;
@@ -26,8 +27,8 @@ const providerStripLabel = layoutCopy[lang].providerStripLabel;
           Logic provider tetap modular, raw JSON tersimpan untuk debugging, dan alur invoice sampai verifikasi webhook jadi lebih jelas.
         </p>
         <div class="button-row">
-          <a class="button" href="/docs/">Baca dokumentasi</a>
-          <a class="button secondary" href="/skill/">Panduan skill AI Agent</a>
+          <a class="button" href={withSiteBase("/docs/")}>Baca dokumentasi</a>
+          <a class="button secondary" href={withSiteBase("/skill/")}>Panduan skill AI Agent</a>
         </div>
       </div>
       <div class="hero-console">
@@ -78,7 +79,7 @@ const providerStripLabel = layoutCopy[lang].providerStripLabel;
         <p>
           AI Agent bisa memanggil `rutebayar` untuk membuat invoice dinamis, menyimpan reference run, cek status payment, dan bereaksi pada webhook yang sudah terverifikasi. CLI menjadi batas tool yang sempit dan mudah diaudit antara automation dan pergerakan uang.
         </p>
-        <a class="button" href="/skill/">Buka panduan skill</a>
+        <a class="button" href={withSiteBase("/skill/")}>Buka panduan skill</a>
       </div>
       <ShellBlock
         title="agent tool call"
