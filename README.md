@@ -143,7 +143,7 @@ Install into your Go binary path:
 
 ```bash
 go install github.com/pendig/rute-bayar/cmd/rute-bayar@latest
-cp $(go env GOPATH)/bin/rute-bayar $(go env GOPATH)/bin/rutebayar
+mv $(go env GOPATH)/bin/rute-bayar $(go env GOPATH)/bin/rutebayar
 ```
 
 For stable builds, prefer the latest tagged release or a local build from `main`.
