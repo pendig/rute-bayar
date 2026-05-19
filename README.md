@@ -308,4 +308,4 @@ Copyright (c) 2026 Wahyu Adi Putra Pena Digital.
 - Complete final stable readiness pass for `v0.1.0` before publishing a non-alpha release.
 - Add more Midtrans payment methods and provider-specific diagnostics.
 - Improve operational observability for webhook forwarding and replay.
-- Add Flip Business as the next provider family.
+- Add Doku as the next provider family.

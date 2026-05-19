@@ -62,7 +62,7 @@ First stable release of Rute Bayar, focused on a production-shaped CLI and daemo
 
 - Midtrans refund success remains dependent on provider-side sandbox balance and settlement eligibility; the tested sandbox account returned insufficient balance for a settled QRIS refund attempt.
 - Xendit Payment Sessions webhook URL must be configured in the Xendit Dashboard; per-payment webhook override is not supported by Xendit Payment Sessions.
-- Flip Business is planned as the next provider family and is not included in this release.
+- Doku is planned as the next provider family and is not included in this release.
 
 ## v0.1.0-alpha.3 - 2026-05-08
 
