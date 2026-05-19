@@ -134,8 +134,8 @@ Status inquiry untuk order yang sama:
 ## Command CLI Terkait
 
 ```bash
-rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
-rute-bayar provider test midtrans
+rutebayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
+rutebayar provider test midtrans
 ```
 
 ## Catatan Keamanan

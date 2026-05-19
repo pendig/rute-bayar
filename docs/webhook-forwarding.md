@@ -58,7 +58,7 @@ User harus bisa mengatur:
 Contoh tambahan:
 
 ```bash
-rute-bayar webhook forward add --provider midtrans --name orders \
+rutebayar webhook forward add --provider midtrans --name orders \
   --url https://example.com/webhooks/orders \
   --event-filter "event=payment_session.created" \
   --event-filter "X-Event-Type=payment_settlement" \
@@ -90,13 +90,13 @@ Policy ini boleh diganti lewat CLI.
 `webhook replay` menjalankan ulang forwarding dari event yang sudah tersimpan:
 
 ```bash
-rute-bayar webhook replay --event-id <event_id> --db ./rute-bayar.sqlite3
+rutebayar webhook replay --event-id <event_id> --db ./rute-bayar.sqlite3
 ```
 
 Optional filter provider:
 
 ```bash
-rute-bayar webhook replay --provider midtrans --event-id <event_id>
+rutebayar webhook replay --provider midtrans --event-id <event_id>
 ```
 
 CLI ini berguna untuk:
@@ -110,25 +110,25 @@ CLI ini berguna untuk:
 Lihat attempt terbaru:
 
 ```bash
-rute-bayar webhook forward attempts list --limit 20
+rutebayar webhook forward attempts list --limit 20
 ```
 
 Filter attempt gagal:
 
 ```bash
-rute-bayar webhook forward attempts list --status failed
+rutebayar webhook forward attempts list --status failed
 ```
 
 Lihat raw request/response attempt:
 
 ```bash
-rute-bayar webhook forward attempts show <attempt_id>
+rutebayar webhook forward attempts show <attempt_id>
 ```
 
 Retry attempt manual ke target yang sama:
 
 ```bash
-rute-bayar webhook forward attempts retry <attempt_id>
+rutebayar webhook forward attempts retry <attempt_id>
 ```
 
 Jika target sudah disabled, retry manual akan ditolak kecuali operator memakai `--force-disabled`.

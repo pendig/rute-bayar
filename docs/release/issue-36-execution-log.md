@@ -36,7 +36,7 @@ Menutup acceptance:
 ## Langkah Lanjutan untuk Menutup Issue
 1. Selesaikan pembayaran sandbox sampai status **paid/settlement** untuk masing-masing provider (sesuai metode yang dipilih).
 2. Jalankan daemon pada address yang akan ditunnel:
-   - `rute-bayar webhook serve --addr 127.0.0.1:8080 --environment sandbox`.
+   - `rutebayar webhook serve --addr 127.0.0.1:8080 --environment sandbox`.
 3. Pastikan webhook URL aktif via address daemon yang sama:
    - `wrangler tunnel quick-start http://127.0.0.1:8080`.
 4. Arahkan URL provider webhook ke:

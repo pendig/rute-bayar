@@ -50,17 +50,17 @@ Dokumen ini mencatat status implementasi teknis Rute Bayar agar contributor muda
 ## Command yang Sudah Ditargetkan
 
 ```bash
-rute-bayar db migrate
-rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
-rute-bayar provider test xendit
-rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
-rute-bayar provider test midtrans
-rute-bayar pay create --provider midtrans --method bank_transfer --bank bca --reference rb-0001 --amount 15000
-rute-bayar pay create --provider xendit --method payment_link --reference rb-xnd-001 --amount 15000
-rute-bayar webhook forward add --provider midtrans --name orders --url https://example.com/webhooks/events --retry-max-attempts 4 --retry-timeout 10s --retry-backoff 2s
-rute-bayar webhook forward list --provider midtrans
-rute-bayar webhook forward update <target-id> --name orders-v2 --enabled=false
-rute-bayar webhook forward remove <target-id>
+rutebayar db migrate
+rutebayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
+rutebayar provider test xendit
+rutebayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
+rutebayar provider test midtrans
+rutebayar pay create --provider midtrans --method bank_transfer --bank bca --reference rb-0001 --amount 15000
+rutebayar pay create --provider xendit --method payment_link --reference rb-xnd-001 --amount 15000
+rutebayar webhook forward add --provider midtrans --name orders --url https://example.com/webhooks/events --retry-max-attempts 4 --retry-timeout 10s --retry-backoff 2s
+rutebayar webhook forward list --provider midtrans
+rutebayar webhook forward update <target-id> --name orders-v2 --enabled=false
+rutebayar webhook forward remove <target-id>
 ```
 
 ## Catatan Verifikasi Lokal

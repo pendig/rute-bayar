@@ -105,7 +105,7 @@ Implementasi awal `pay create` untuk Midtrans memakai Core API bank transfer:
 Untuk validasi webhook sandbox, `pay create` mendukung override URL notifikasi Midtrans per transaksi:
 
 ```bash
-rute-bayar pay create \
+rutebayar pay create \
   --provider midtrans \
   --method qris \
   --bank gopay \

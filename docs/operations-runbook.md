@@ -7,13 +7,13 @@ Dokumen ini membantu tim operasi menjalankan, mengecek, dan merecovery alur webh
 1. Migrasi database:
 
 ```bash
-rute-bayar db migrate
+rutebayar db migrate
 ```
 
 2. Aktifkan daemon:
 
 ```bash
-rute-bayar webhook serve --addr :8080 --environment sandbox
+rutebayar webhook serve --addr :8080 --environment sandbox
 ```
 
 3. Cek kesehatan service:
@@ -42,19 +42,19 @@ Setiap webhook yang masuk disimpan dengan `id` di tabel `webhook_events`.
 Jika forwarding perlu dicoba ulang atau diagnosa, jalankan:
 
 ```bash
-rute-bayar webhook replay --event-id <id> --db ./rute-bayar.sqlite3
+rutebayar webhook replay --event-id <id> --db ./rute-bayar.sqlite3
 ```
 
 Contoh:
 
 ```bash
-rute-bayar webhook replay --event-id webhook_1715001
+rutebayar webhook replay --event-id webhook_1715001
 ```
 
 Optional: validasi provider mismatch.
 
 ```bash
-rute-bayar webhook replay --provider midtrans --event-id webhook_1715001
+rutebayar webhook replay --provider midtrans --event-id webhook_1715001
 ```
 
 ## Cloudflare Tunnel untuk Uji Callback Public
@@ -103,10 +103,10 @@ sqlite3 ./rute-bayar.sqlite3 \
 - Alternatif lewat CLI:
 
 ```bash
-rute-bayar webhook forward attempts list --limit 20
-rute-bayar webhook forward attempts list --status failed
-rute-bayar webhook forward attempts show <attempt_id>
-rute-bayar webhook forward attempts retry <attempt_id>
+rutebayar webhook forward attempts list --limit 20
+rutebayar webhook forward attempts list --status failed
+rutebayar webhook forward attempts show <attempt_id>
+rutebayar webhook forward attempts retry <attempt_id>
 ```
 
 ## Troubleshooting

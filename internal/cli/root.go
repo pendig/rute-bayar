@@ -47,26 +47,26 @@ func printHelp(w io.Writer) {
 	fmt.Fprintln(w, `Rute Bayar
 
 Usage:
-  rute-bayar onboard
-  rute-bayar onboard xendit --secret-key <key>
-  rute-bayar onboard midtrans --server-key <key> --client-key <key> --merchant-id <id>
-  rute-bayar provider list
-  rute-bayar provider accounts
-  rute-bayar provider test
-  rute-bayar pay create --provider midtrans --method bank_transfer --bank bca
-  rute-bayar pay create --provider xendit --method payment_link --reference rb-0001 --amount 15000
-  rute-bayar pay status --provider midtrans --reference rb-0001
-  rute-bayar pay refund --provider xendit --reference rb-0001
-	rute-bayar webhook serve --addr :8080
-	rute-bayar webhook replay --event-id <id>
-	rute-bayar webhook forward list
-	rute-bayar webhook forward add
-	rute-bayar webhook forward update
-	rute-bayar webhook forward remove
-	rute-bayar webhook forward attempts list
-	rute-bayar webhook forward attempts show <attempt-id>
-	rute-bayar webhook forward attempts retry <attempt-id>
-  rute-bayar db migrate
-  rute-bayar reconcile --provider midtrans --reference rb-0001
-  rute-bayar version`)
+  rutebayar onboard
+  rutebayar onboard xendit --secret-key <key>
+  rutebayar onboard midtrans --server-key <key> --client-key <key> --merchant-id <id>
+  rutebayar provider list
+  rutebayar provider accounts
+  rutebayar provider test
+  rutebayar pay create --provider midtrans --method bank_transfer --bank bca
+  rutebayar pay create --provider xendit --method payment_link --reference rb-0001 --amount 15000
+  rutebayar pay status --provider midtrans --reference rb-0001
+  rutebayar pay refund --provider xendit --reference rb-0001
+	rutebayar webhook serve --addr :8080
+	rutebayar webhook replay --event-id <id>
+	rutebayar webhook forward list
+	rutebayar webhook forward add
+	rutebayar webhook forward update
+	rutebayar webhook forward remove
+	rutebayar webhook forward attempts list
+	rutebayar webhook forward attempts show <attempt-id>
+	rutebayar webhook forward attempts retry <attempt-id>
+  rutebayar db migrate
+  rutebayar reconcile --provider midtrans --reference rb-0001
+  rutebayar version`)
 }

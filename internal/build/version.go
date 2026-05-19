@@ -1,7 +1,7 @@
 package build
 
 const (
-	Name = "rute-bayar"
+	Name = "rutebayar"
 )
 
 var Version = "dev"
