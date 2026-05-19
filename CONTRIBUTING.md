@@ -21,7 +21,8 @@ Requirements:
 Run locally:
 
 ```bash
-go run ./cmd/rute-bayar version
+go build -o ./bin/rutebayar ./cmd/rute-bayar
+./bin/rutebayar version
 go test ./...
 ./scripts/smoke-local.sh
 ```

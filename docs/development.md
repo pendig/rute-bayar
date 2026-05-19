@@ -35,14 +35,6 @@ go build -o ./bin/rutebayar ./cmd/rute-bayar
 ./bin/rutebayar webhook replay --event-id webhook_0001 --provider midtrans
 ```
 
-Atau langsung jalan dari source (tanpa build):
-
-```bash
-go run ./cmd/rute-bayar version
-go run ./cmd/rute-bayar provider list
-go run ./cmd/rute-bayar webhook serve --addr :8080 --environment sandbox
-```
-
 ## Checklist Daemon & Forwarding
 
 Untuk memverifikasi operasional forwarding:
