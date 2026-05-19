@@ -1,0 +1,81 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+import { docsPath, entryLang } from "../../i18n";
+
+const docs = (await getCollection("docs"))
+  .filter((entry) => entryLang(entry.id) === "id")
+  .sort((a, b) => a.data.order - b.data.order);
+---
+
+<BaseLayout
+  title="Dokumentasi Rute Bayar"
+  description="Dokumentasi developer yang human-friendly untuk install, operasi, dan pengembangan Rute Bayar."
+  alternatePath="/en/docs/"
+>
+  <section class="container page-title">
+    <p class="eyebrow">Dokumentasi developer</p>
+    <h1>Routing pembayaran, ditulis seperti handbook.</h1>
+    <p>
+      Dokumentasi ini dibuat manusiawi dulu: setup lokal yang singkat, runbook operasional untuk webhook, dan catatan implementasi untuk menambah provider tanpa mengganggu core logic.
+    </p>
+  </section>
+
+  <section class="container doc-list">
+    {docs.map((doc) => (
+      <a class="doc-link" href={docsPath("id", doc.id)}>
+        <strong>{doc.data.title}</strong>
+        <span>{doc.data.description}</span>
+      </a>
+    ))}
+  </section>
+
+  <section class="container docs-flow">
+    {docs.map((doc) => (
+      <article>
+        <h2>{doc.data.title}</h2>
+        <p>{doc.data.description}</p>
+        <a href={docsPath("id", doc.id)}>Baca panduan</a>
+      </article>
+    ))}
+  </section>
+</BaseLayout>
+
+<style>
+  .docs-flow {
+    display: grid;
+    gap: 18px;
+    padding-bottom: 90px;
+  }
+
+  .docs-flow article {
+    border-top: 1px solid var(--line);
+    display: grid;
+    grid-template-columns: minmax(0, 0.7fr) minmax(300px, 1.3fr);
+    gap: 24px;
+    padding: 28px 0;
+  }
+
+  .docs-flow h2 {
+    margin: 0;
+    font-size: clamp(1.45rem, 3vw, 2.4rem);
+  }
+
+  .docs-flow p {
+    margin: 0;
+    color: var(--ink-muted);
+    line-height: 1.7;
+  }
+
+  .docs-flow a {
+    width: fit-content;
+    color: var(--rail-dark);
+    font-weight: 800;
+  }
+
+  @media (max-width: 760px) {
+    .docs-flow article {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

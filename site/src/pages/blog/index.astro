@@ -1,0 +1,77 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCollection } from "astro:content";
+import { blogPath, entryLang } from "../../i18n";
+
+const posts = (await getCollection("blog")).sort(
+  (a, b) => b.data.pubDate.valueOf() - a.data.pubDate.valueOf(),
+).filter((entry) => entryLang(entry.id) === "id");
+---
+
+<BaseLayout
+  title="Blog Rute Bayar"
+  description="Catatan engineering, update release, dan cerita implementasi dari proyek Rute Bayar."
+  alternatePath="/en/blog/"
+>
+  <section class="container page-title">
+    <p class="eyebrow">Blog</p>
+    <h1>Catatan dari workbench payment routing.</h1>
+    <p>
+      Update release, catatan implementasi provider, dan tulisan praktis tentang menjalankan payment infrastructure dengan mindset CLI-first.
+    </p>
+  </section>
+
+  <section class="container blog-list">
+    {posts.map((post) => (
+      <a class="post-card" href={blogPath("id", post.id)}>
+        <time datetime={post.data.pubDate.toISOString()}>{post.data.pubDate.toISOString().slice(0, 10)}</time>
+        <div>
+          <h2>{post.data.title}</h2>
+          <p>{post.data.description}</p>
+        </div>
+      </a>
+    ))}
+  </section>
+</BaseLayout>
+
+<style>
+  .blog-list {
+    display: grid;
+    gap: 0;
+    padding-bottom: 92px;
+    border-top: 1px solid var(--line);
+  }
+
+  .post-card {
+    display: grid;
+    grid-template-columns: 170px minmax(0, 1fr);
+    gap: 30px;
+    border-bottom: 1px solid var(--line);
+    padding: 30px 0;
+  }
+
+  time {
+    color: var(--rail-dark);
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 800;
+  }
+
+  h2 {
+    margin: 0 0 10px;
+    font-size: clamp(1.55rem, 4vw, 3rem);
+    line-height: 1.02;
+  }
+
+  p {
+    margin: 0;
+    color: var(--ink-muted);
+    line-height: 1.65;
+  }
+
+  @media (max-width: 680px) {
+    .post-card {
+      grid-template-columns: 1fr;
+      gap: 10px;
+    }
+  }
+</style>

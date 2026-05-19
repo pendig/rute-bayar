@@ -1,0 +1,234 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ShellBlock from "../components/ShellBlock.astro";
+
+const createPaymentLines = [
+  "$ rutebayar pay create --provider xendit \\",
+  "  --method payment_link \\",
+  "  --reference agent-run-1001 \\",
+  "  --amount 25000",
+  "",
+  "payment_url: https://checkout.example/...",
+  "status: pending",
+];
+
+const webhookLines = [
+  "$ rutebayar webhook serve --addr :8080",
+  "listening on /webhooks/xendit",
+  "listening on /webhooks/midtrans",
+  "forwarding enabled: orders-api",
+];
+---
+
+<BaseLayout
+  title="Rute Bayar - Payment router CLI untuk Indonesia"
+  description="Rute Bayar adalah payment router open source berbasis CLI dan daemon untuk payment gateway Indonesia, dibuat untuk developer dan workflow penagihan AI Agent."
+  alternatePath="/en/"
+>
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">Payment router open source</p>
+        <h1>Satu CLI untuk semua payment gateway Indonesia.</h1>
+        <p>
+          Rute Bayar menghubungkan payment gateway Indonesia lewat satu CLI Go dan daemon webhook.
+          Logic provider tetap modular, raw JSON tersimpan untuk debugging, dan alur invoice sampai verifikasi webhook jadi lebih jelas.
+        </p>
+        <div class="button-row">
+          <a class="button" href="/docs/">Baca dokumentasi</a>
+          <a class="button secondary" href="/skill/">Panduan skill AI Agent</a>
+        </div>
+      </div>
+      <div class="hero-console">
+        <ShellBlock title="create invoice" lines={createPaymentLines} />
+        <ShellBlock title="webhook daemon" lines={webhookLines} />
+      </div>
+    </div>
+    <div class="container provider-strip" aria-label="Supported and planned providers">
+      <span>Aktif: Xendit</span>
+      <span>Aktif: Midtrans</span>
+      <span>Berikutnya: Doku</span>
+      <span>Roadmap: Flip Business</span>
+      <span>Roadmap: Duitku</span>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container split">
+      <div>
+        <p class="eyebrow">Jalur payment yang jelas</p>
+        <h2>Satu jalur operasional antara produkmu dan banyak provider.</h2>
+      </div>
+      <p>
+        Rute Bayar menjaga business logic tetap jauh dari detail spesifik provider. Buat payment, cek status, terima webhook, replay event, dan forward callback tanpa menyebar kode gateway ke banyak service.
+      </p>
+    </div>
+    <div class="container rail-grid">
+      <article class="rail-card">
+        <h3>Onboarding CLI-first</h3>
+        <p>Atur credential provider, test account, buat payment, request refund, dan cek status dari satu permukaan command.</p>
+      </article>
+      <article class="rail-card">
+        <h3>Webhook daemon</h3>
+        <p>Terima callback provider, verifikasi signature jika dikonfigurasi, simpan raw payload, dan replay event untuk recovery.</p>
+      </article>
+      <article class="rail-card">
+        <h3>Forwarding pass-through</h3>
+        <p>Forward webhook provider ke service milikmu sambil tetap menyimpan payload asli untuk audit dan debugging.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section ai-band">
+    <div class="container ai-grid">
+      <div>
+        <p class="eyebrow">Penagihan AI Agent</p>
+        <h2>Biarkan agent membuat invoice dan memverifikasi payment tanpa menanam kode gateway.</h2>
+        <p>
+          AI Agent bisa memanggil `rutebayar` untuk membuat invoice dinamis, menyimpan reference run, cek status payment, dan bereaksi pada webhook yang sudah terverifikasi. CLI menjadi batas tool yang sempit dan mudah diaudit antara automation dan pergerakan uang.
+        </p>
+        <a class="button" href="/skill/">Buka panduan skill</a>
+      </div>
+      <ShellBlock
+        title="agent tool call"
+        lines={[
+          "$ rutebayar pay status --provider xendit --reference agent-run-1001",
+          "reference: agent-run-1001",
+          "provider: xendit",
+          "status: paid",
+          "",
+          "$ rutebayar reconcile --provider xendit --reference agent-run-1001",
+          "local status is in sync",
+        ]}
+      />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container install-grid">
+      <div>
+        <p class="eyebrow">Pasang</p>
+        <h2>Mulai dari binary, Homebrew, atau build source.</h2>
+        <p class="muted">Release saat ini menyediakan binary untuk Linux, macOS, dan Windows.</p>
+      </div>
+      <ShellBlock
+        title="quick install"
+        lines={[
+          "$ brew tap pendig/tap",
+          "$ brew install rutebayar",
+          "",
+          "$ rutebayar provider list",
+          "$ rutebayar onboard xendit --environment sandbox",
+        ]}
+      />
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  .hero {
+    padding: 84px 0 28px;
+  }
+
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.02fr) minmax(340px, 0.98fr);
+    align-items: center;
+    gap: 52px;
+  }
+
+  .hero-copy h1 {
+    max-width: 700px;
+    margin: 18px 0;
+    font-size: clamp(3rem, 8vw, 6.6rem);
+    line-height: 0.9;
+  }
+
+  .hero-copy p:not(.eyebrow) {
+    max-width: 650px;
+    margin: 0 0 26px;
+    color: var(--ink-muted);
+    font-size: 1.12rem;
+    line-height: 1.72;
+  }
+
+  .hero-console {
+    display: grid;
+    gap: 16px;
+  }
+
+  .provider-strip {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 10px;
+    margin-top: 52px;
+    padding-top: 22px;
+    border-top: 1px solid var(--line);
+  }
+
+  .provider-strip span {
+    border: 1px solid var(--line);
+    padding: 9px 12px;
+    background: rgba(255, 255, 255, 0.46);
+    color: var(--ink-muted);
+    font-weight: 700;
+  }
+
+  .split,
+  .install-grid,
+  .ai-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
+    gap: 42px;
+    align-items: start;
+  }
+
+  h2 {
+    max-width: 640px;
+    margin: 16px 0 22px;
+    font-size: clamp(2rem, 5vw, 4rem);
+    line-height: 1;
+  }
+
+  .split > p,
+  .ai-grid p,
+  .install-grid p {
+    color: var(--ink-muted);
+    font-size: 1.05rem;
+    line-height: 1.75;
+  }
+
+  .ai-band {
+    background:
+      linear-gradient(90deg, rgba(56, 213, 255, 0.1), transparent 32%),
+      linear-gradient(180deg, rgba(155, 225, 93, 0.12), transparent 58%),
+      var(--code);
+    color: #f6fff9;
+  }
+
+  .ai-band .eyebrow {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--agent-lime);
+  }
+
+  .ai-band p {
+    color: rgba(246, 255, 249, 0.74);
+  }
+
+  .ai-band .button {
+    margin-top: 8px;
+    background: var(--agent-lime);
+    color: var(--code);
+    border-color: var(--agent-lime);
+  }
+
+  @media (max-width: 880px) {
+    .hero-grid,
+    .split,
+    .install-grid,
+    .ai-grid {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>

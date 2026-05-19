@@ -1,0 +1,90 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCollection, render } from "astro:content";
+import { docsPath, entryLang, stripLangFromId } from "../../i18n";
+
+export async function getStaticPaths() {
+  const entries = (await getCollection("docs")).filter((entry) => entryLang(entry.id) === "id");
+  return entries.map((entry) => ({
+    params: { slug: stripLangFromId(entry.id) },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const slug = stripLangFromId(entry.id);
+---
+
+<BaseLayout
+  title={`${entry.data.title} - Dokumentasi Rute Bayar`}
+  description={entry.data.description}
+  alternatePath={docsPath("en", `en/${slug}`)}
+>
+  <article class="container article">
+    <a class="back-link" href="/docs/">Kembali ke docs</a>
+    <header>
+      <p class="eyebrow">Docs</p>
+      <h1>{entry.data.title}</h1>
+      <p>{entry.data.description}</p>
+    </header>
+    <div class="prose">
+      <Content />
+    </div>
+  </article>
+</BaseLayout>
+
+<style>
+  .article {
+    padding: 54px 0 94px;
+  }
+
+  .back-link {
+    color: var(--rail-dark);
+    font-weight: 800;
+  }
+
+  header {
+    max-width: 760px;
+    padding: 42px 0 32px;
+  }
+
+  h1 {
+    margin: 16px 0;
+    font-size: clamp(2.4rem, 6vw, 5.1rem);
+    line-height: 0.98;
+  }
+
+  header p:not(.eyebrow) {
+    color: var(--ink-muted);
+    font-size: 1.1rem;
+    line-height: 1.72;
+  }
+
+  .prose {
+    max-width: 790px;
+    border-top: 1px solid var(--line);
+    padding-top: 30px;
+  }
+
+  .prose :global(p),
+  .prose :global(li) {
+    color: var(--ink-muted);
+    font-size: 1.03rem;
+    line-height: 1.75;
+  }
+
+  .prose :global(h2) {
+    margin-top: 34px;
+    font-size: 1.8rem;
+  }
+
+  .prose :global(pre) {
+    overflow: auto;
+    border: 1px solid var(--line);
+    background: var(--code);
+    color: #e9fff5;
+    padding: 18px;
+    line-height: 1.7;
+  }
+</style>

@@ -1,0 +1,235 @@
+---
+import "../styles/global.css";
+import { langPrefix, layoutCopy, type Lang } from "../i18n";
+
+interface Props {
+  title: string;
+  description: string;
+  bodyClass?: string;
+  lang?: Lang;
+  alternatePath?: string;
+  type?: "website" | "article";
+}
+
+const { title, description, bodyClass = "", lang = "id", alternatePath, type = "website" } = Astro.props;
+const copy = layoutCopy[lang];
+const prefix = langPrefix(lang);
+const siteUrl = Astro.site ?? new URL("https://rutebayar.id");
+const canonicalUrl = new URL(Astro.url.pathname, siteUrl).toString();
+const fallbackAlternatePath =
+  lang === "id"
+    ? `/en${Astro.url.pathname === "/" ? "/" : Astro.url.pathname}`
+    : Astro.url.pathname.replace(/^\/en/, "") || "/";
+const switchPath = alternatePath ?? fallbackAlternatePath;
+const idPath = lang === "id" ? Astro.url.pathname : switchPath;
+const enPath = lang === "en" ? Astro.url.pathname : switchPath;
+const idUrl = new URL(idPath, siteUrl).toString();
+const enUrl = new URL(enPath, siteUrl).toString();
+const logoUrl = new URL("/brand/rutebayar-logo.png", siteUrl).toString();
+const rssUrl = new URL(lang === "id" ? "/rss.xml" : "/en/rss.xml", siteUrl).toString();
+const gaMeasurementId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
+const ogLocale = lang === "id" ? "id_ID" : "en_US";
+const ogAlternateLocale = lang === "id" ? "en_US" : "id_ID";
+const structuredData = {
+  "@context": "https://schema.org",
+  "@type": "SoftwareApplication",
+  name: "Rute Bayar",
+  applicationCategory: "DeveloperApplication",
+  operatingSystem: "Linux, macOS, Windows",
+  description,
+  url: canonicalUrl,
+  codeRepository: "https://github.com/pendig/rute-bayar",
+  programmingLanguage: "Go",
+  license: "https://github.com/pendig/rute-bayar/blob/main/LICENSE",
+};
+const nav = [
+  { href: `${prefix}/`, label: copy.nav.home },
+  { href: `${prefix}/docs/`, label: copy.nav.docs },
+  { href: `${prefix}/skill/`, label: copy.nav.skill },
+  { href: `${prefix}/blog/`, label: copy.nav.blog },
+];
+---
+
+<!doctype html>
+<html lang={lang}>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="description" content={description} />
+    <meta name="robots" content="index,follow" />
+    <link rel="canonical" href={canonicalUrl} />
+    <link rel="alternate" hreflang="id" href={idUrl} />
+    <link rel="alternate" hreflang="en" href={enUrl} />
+    <link rel="alternate" hreflang="x-default" href={idUrl} />
+    <link rel="alternate" type="application/rss+xml" title={lang === "id" ? "Blog Rute Bayar" : "Rute Bayar Blog"} href={rssUrl} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content={type} />
+    <meta property="og:url" content={canonicalUrl} />
+    <meta property="og:site_name" content="Rute Bayar" />
+    <meta property="og:locale" content={ogLocale} />
+    <meta property="og:locale:alternate" content={ogAlternateLocale} />
+    <meta property="og:image" content={logoUrl} />
+    <meta property="og:image:alt" content="Logo Rute Bayar" />
+    <meta name="twitter:card" content="summary_large_image" />
+    <meta name="twitter:title" content={title} />
+    <meta name="twitter:description" content={description} />
+    <meta name="twitter:image" content={logoUrl} />
+    <script is:inline type="application/ld+json" set:html={JSON.stringify(structuredData)} />
+    {
+      gaMeasurementId && (
+        <>
+          <script is:inline async src={`https://www.googletagmanager.com/gtag/js?id=${gaMeasurementId}`} />
+          <script
+            is:inline
+            set:html={`window.dataLayer = window.dataLayer || [];
+function gtag(){dataLayer.push(arguments);}
+gtag('js', new Date());
+gtag('config', '${gaMeasurementId}', { anonymize_ip: true });`}
+          />
+        </>
+      )
+    }
+    <title>{title}</title>
+  </head>
+  <body class={bodyClass}>
+    <header class="site-header">
+      <div class="container nav-shell">
+        <a class="brand" href={`${prefix}/`} aria-label={copy.homeLabel}>
+          <img class="brand-mark" src="/brand/rutebayar-logo.png" alt="" width="34" height="34" />
+          <span>rutebayar</span>
+        </a>
+        <div class="nav-actions">
+          <nav aria-label={copy.aria}>
+            {nav.map((item) => <a href={item.href}>{item.label}</a>)}
+          </nav>
+          <div class="language-switch" aria-label={copy.switchLabel}>
+            <a class={lang === "id" ? "active" : ""} href={lang === "id" ? Astro.url.pathname : switchPath}>ID</a>
+            <a class={lang === "en" ? "active" : ""} href={lang === "en" ? Astro.url.pathname : switchPath}>EN</a>
+          </div>
+        </div>
+      </div>
+    </header>
+    <main>
+      <slot />
+    </main>
+    <footer class="site-footer">
+      <div class="container footer-row">
+        <span>{copy.footer}</span>
+        <a href="https://github.com/pendig/rute-bayar">GitHub</a>
+      </div>
+    </footer>
+  </body>
+</html>
+
+<style>
+  .site-header {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    border-bottom: 1px solid var(--line);
+    background: rgba(247, 245, 239, 0.84);
+    backdrop-filter: blur(16px);
+  }
+
+  .nav-shell {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    min-height: 68px;
+    gap: 20px;
+  }
+
+  .brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-weight: 800;
+    letter-spacing: 0;
+  }
+
+  .brand-mark {
+    display: block;
+    width: 34px;
+    height: 34px;
+    object-fit: cover;
+  }
+
+  nav {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+  }
+
+  nav a {
+    padding: 10px 12px;
+    color: var(--ink-muted);
+    font-weight: 650;
+  }
+
+  nav a:hover {
+    color: var(--ink);
+  }
+
+  .language-switch {
+    display: inline-flex;
+    border: 1px solid var(--line);
+    background: rgba(255, 255, 255, 0.38);
+  }
+
+  .language-switch a {
+    padding: 7px 9px;
+    color: var(--ink-muted);
+    font-family: "IBM Plex Mono", monospace;
+    font-size: 0.82rem;
+    font-weight: 800;
+  }
+
+  .language-switch a.active {
+    background: var(--ink);
+    color: var(--terminal);
+  }
+
+  .footer-row {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 18px;
+  }
+
+  .footer-row a {
+    font-weight: 700;
+    color: var(--rail-dark);
+  }
+
+  @media (max-width: 640px) {
+    .nav-shell,
+    .footer-row {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    .nav-shell {
+      padding: 14px 0;
+    }
+
+    nav {
+      flex-wrap: wrap;
+    }
+
+    .nav-actions {
+      align-items: flex-start;
+      flex-direction: column;
+    }
+
+    nav a {
+      padding-left: 0;
+    }
+  }
+</style>

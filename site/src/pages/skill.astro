@@ -1,0 +1,177 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ShellBlock from "../components/ShellBlock.astro";
+
+const steps = [
+  "Buat payment dengan reference unik dari agent run.",
+  "Kembalikan payment URL ke user atau permukaan produk.",
+  "Poll status hanya saat diperlukan, lalu utamakan webhook terverifikasi untuk final state.",
+  "Jalankan reconcile sebelum fulfillment jika workflow sempat terputus.",
+];
+---
+
+<BaseLayout
+  title="Rute Bayar Skill - Panduan penagihan AI Agent"
+  description="Panduan praktis untuk AI Agent yang perlu membuat invoice, cek status payment, dan memverifikasi outcome lewat Rute Bayar."
+  bodyClass="skill-page"
+  alternatePath="/en/skill/"
+>
+  <section class="skill-hero">
+    <div class="container skill-grid">
+      <div>
+        <p class="eyebrow">Skill AI Agent</p>
+        <h1>AI Agent bisa membuat invoice sendiri.</h1>
+        <p>
+          Rute Bayar membantu AI Agent membuat invoice dinamis, memasang reference produk atau run, memverifikasi status payment, dan melanjutkan pekerjaan hanya setelah payment state jelas.
+        </p>
+      </div>
+      <ShellBlock
+        title="agent billing flow"
+        lines={[
+          "$ rutebayar pay create --provider xendit \\",
+          "  --reference agent-run-2042 \\",
+          "  --amount 49000",
+          "",
+          "$ rutebayar pay status --provider xendit --reference agent-run-2042",
+          "status: paid",
+          "",
+          "$ rutebayar reconcile --provider xendit --reference agent-run-2042",
+          "verified: true",
+        ]}
+      />
+    </div>
+  </section>
+
+  <section class="section skill-band">
+    <div class="container agent-lanes">
+      <article>
+        <span>01</span>
+        <h2>Invoice</h2>
+        <p>Buat payment link dari workflow agent memakai metadata product, usage, tenant, atau run sebagai reference.</p>
+      </article>
+      <article>
+        <span>02</span>
+        <h2>Verifikasi</h2>
+        <p>Cek status terbaru lewat adapter provider dan utamakan event webhook bertanda tangan untuk final payment state.</p>
+      </article>
+      <article>
+        <span>03</span>
+        <h2>Lanjutkan</h2>
+        <p>Buka pekerjaan berbayar hanya setelah local state direkonsiliasi dengan bukti dari provider.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container skill-checklist">
+      <div>
+        <p class="eyebrow">Panduan</p>
+        <h2>Perilaku minimum agent</h2>
+      </div>
+      <ol>
+        {steps.map((step) => <li>{step}</li>)}
+      </ol>
+    </div>
+  </section>
+</BaseLayout>
+
+<style>
+  :global(.skill-page) {
+    background:
+      linear-gradient(90deg, rgba(56, 213, 255, 0.12), transparent 36%),
+      linear-gradient(180deg, rgba(155, 225, 93, 0.1), transparent 46%),
+      var(--code);
+    color: #f7fff8;
+  }
+
+  .skill-hero {
+    padding: 86px 0 72px;
+  }
+
+  .skill-grid,
+  .skill-checklist {
+    display: grid;
+    grid-template-columns: minmax(0, 0.92fr) minmax(320px, 1.08fr);
+    gap: 48px;
+    align-items: center;
+  }
+
+  .skill-grid h1 {
+    margin: 18px 0;
+    font-size: clamp(2.8rem, 8vw, 6.2rem);
+    line-height: 0.92;
+  }
+
+  .skill-grid p:not(.eyebrow),
+  .skill-checklist li {
+    color: rgba(247, 255, 248, 0.74);
+    font-size: 1.08rem;
+    line-height: 1.75;
+  }
+
+  .skill-grid .eyebrow,
+  .skill-checklist .eyebrow {
+    border-color: rgba(255, 255, 255, 0.16);
+    background: rgba(255, 255, 255, 0.06);
+    color: var(--agent-lime);
+  }
+
+  .skill-band {
+    background: rgba(255, 255, 255, 0.04);
+    border-top: 1px solid rgba(255, 255, 255, 0.12);
+    border-bottom: 1px solid rgba(255, 255, 255, 0.12);
+  }
+
+  .agent-lanes {
+    display: grid;
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+    gap: 1px;
+    background: rgba(255, 255, 255, 0.14);
+  }
+
+  .agent-lanes article {
+    min-height: 230px;
+    background: var(--code);
+    padding: 26px;
+  }
+
+  .agent-lanes span {
+    color: var(--agent);
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 800;
+  }
+
+  .agent-lanes h2,
+  .skill-checklist h2 {
+    margin: 18px 0 12px;
+    font-size: clamp(1.8rem, 4vw, 3.6rem);
+    line-height: 1;
+  }
+
+  .agent-lanes p {
+    color: rgba(247, 255, 248, 0.7);
+    line-height: 1.65;
+  }
+
+  .skill-checklist {
+    align-items: start;
+  }
+
+  .skill-checklist ol {
+    margin: 0;
+    padding-left: 22px;
+  }
+
+  .skill-checklist li {
+    margin-bottom: 16px;
+    padding-left: 4px;
+  }
+
+  @media (max-width: 860px) {
+    .skill-grid,
+    .skill-checklist,
+    .agent-lanes {
+      grid-template-columns: 1fr;
+    }
+  }
+</style>
