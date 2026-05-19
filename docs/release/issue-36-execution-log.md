@@ -17,7 +17,7 @@ Menutup acceptance:
   - output menunjukkan `webhook_forwarding_attempts` dan payload diterima.
 
 ### 2) Real status sandbox (on top of DB real-run)
-- `go run ./cmd/rute-bayar pay status` dieksekusi untuk reference yang dibuat pada run real:
+- `rutebayar pay status` dieksekusi untuk reference yang dibuat pada run real (via build local bin `./bin/rutebayar`):
   - `rb-realblock-xendit-20260512212847` (provider ref `ps-6a0339200168694c2c2a0231`) -> `pending`.
   - `rb-realblock-midtrans-20260512212855` -> `pending`.
 - Artinya transaksi belum masuk fase final/settlement saat pengecekan, jadi path refund belum valid.
@@ -36,7 +36,7 @@ Menutup acceptance:
 ## Langkah Lanjutan untuk Menutup Issue
 1. Selesaikan pembayaran sandbox sampai status **paid/settlement** untuk masing-masing provider (sesuai metode yang dipilih).
 2. Jalankan daemon pada address yang akan ditunnel:
-   - `rute-bayar webhook serve --addr 127.0.0.1:8080 --environment sandbox`.
+   - `rutebayar webhook serve --addr 127.0.0.1:8080 --environment sandbox`.
 3. Pastikan webhook URL aktif via address daemon yang sama:
    - `wrangler tunnel quick-start http://127.0.0.1:8080`.
 4. Arahkan URL provider webhook ke:

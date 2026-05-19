@@ -85,7 +85,7 @@ https://<public-domain>/webhooks/xendit
 Daemon memvalidasi header `X-Callback-Token` jika token disimpan saat onboarding:
 
 ```bash
-rute-bayar onboard xendit \
+rutebayar onboard xendit \
   --secret-key "$XENDIT_SECRET_KEY" \
   --webhook-token "$XENDIT_WEBHOOK_TOKEN" \
   --environment sandbox

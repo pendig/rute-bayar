@@ -22,22 +22,22 @@ Endpoint API `POST /callback_urls/{type}` tidak dipakai untuk proof ini karena d
 2. Buat database E2E baru, misalnya:
    - `/tmp/rb-xendit-webhook-proof/rute-bayar.sqlite3`
 3. Jalankan:
-   - `rute-bayar db migrate --db /tmp/rb-xendit-webhook-proof/rute-bayar.sqlite3`
-   - `rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --webhook-token "$XENDIT_WEBHOOK_TOKEN" --environment sandbox --db /tmp/rb-xendit-webhook-proof/rute-bayar.sqlite3`
-   - `rute-bayar webhook serve --addr 127.0.0.1:<port> --environment sandbox --db /tmp/rb-xendit-webhook-proof/rute-bayar.sqlite3`
+   - `rutebayar db migrate --db /tmp/rb-xendit-webhook-proof/rute-bayar.sqlite3`
+   - `rutebayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --webhook-token "$XENDIT_WEBHOOK_TOKEN" --environment sandbox --db /tmp/rb-xendit-webhook-proof/rute-bayar.sqlite3`
+   - `rutebayar webhook serve --addr 127.0.0.1:<port> --environment sandbox --db /tmp/rb-xendit-webhook-proof/rute-bayar.sqlite3`
 4. Buka tunnel:
    - `cloudflared tunnel --url http://127.0.0.1:<port>`
 5. Di Xendit dashboard sandbox/development, set webhook URL Payment Sessions ke:
    - `https://<public-domain>/webhooks/xendit`
 6. Buat payment:
-   - `rute-bayar pay create --provider xendit --method payment_link --reference <ref> --amount 15000 --db /tmp/rb-xendit-webhook-proof/rute-bayar.sqlite3`
+   - `rutebayar pay create --provider xendit --method payment_link --reference <ref> --amount 15000 --db /tmp/rb-xendit-webhook-proof/rute-bayar.sqlite3`
 7. Selesaikan payment dari hosted payment link sandbox Xendit.
 8. Verifikasi:
    - `webhook_events` bertambah.
    - `signature_valid=1`.
    - settlement/completed event diproses.
    - `payment_intents.status` berubah sesuai webhook.
-   - `rute-bayar pay status --provider xendit --reference <ref> --db /tmp/rb-xendit-webhook-proof/rute-bayar.sqlite3` sinkron dengan provider.
+   - `rutebayar pay status --provider xendit --reference <ref> --db /tmp/rb-xendit-webhook-proof/rute-bayar.sqlite3` sinkron dengan provider.
 
 ## Evidence yang Harus Dicatat
 - Public tunnel URL.

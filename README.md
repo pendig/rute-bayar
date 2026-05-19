@@ -36,28 +36,29 @@ cd rute-bayar
 Install Go 1.22 or newer, then check the CLI:
 
 ```bash
-go run ./cmd/rute-bayar version
-go run ./cmd/rute-bayar provider list
+go build -o bin/rutebayar ./cmd/rute-bayar
+./bin/rutebayar version
+./bin/rutebayar provider list
 ```
 
 Onboard Xendit credentials into local SQLite:
 
 ```bash
-rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
-rute-bayar provider accounts
+./bin/rutebayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
+./bin/rutebayar provider accounts
 ```
 
 Onboard Midtrans credentials into local SQLite:
 
 ```bash
-rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
-rute-bayar provider test midtrans
+./bin/rutebayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
+./bin/rutebayar provider test midtrans
 ```
 
 Start the webhook daemon:
 
 ```bash
-go run ./cmd/rute-bayar webhook serve --addr :8080 --environment sandbox
+./bin/rutebayar webhook serve --addr :8080 --environment sandbox
 ```
 
 Check the daemon:
@@ -71,7 +72,7 @@ curl http://localhost:8080/healthz
 Run daemon and verify:
 
 ```bash
-go run ./cmd/rute-bayar webhook serve --addr :8080 --environment sandbox
+./bin/rutebayar webhook serve --addr :8080 --environment sandbox
 curl -i http://localhost:8080/healthz
 ```
 
@@ -122,26 +123,27 @@ Install with Homebrew:
 
 ```bash
 brew tap pendig/tap
-brew install rute-bayar
-rute-bayar version
+brew install rutebayar
+rutebayar version
 ```
 
 Build a local binary:
 
 ```bash
-go build -o bin/rute-bayar ./cmd/rute-bayar
+go build -o bin/rutebayar ./cmd/rute-bayar
 ```
 
 Run it:
 
 ```bash
-./bin/rute-bayar version
+./bin/rutebayar version
 ```
 
 Install into your Go binary path:
 
 ```bash
 go install github.com/pendig/rute-bayar/cmd/rute-bayar@latest
+mv $(go env GOPATH)/bin/rute-bayar $(go env GOPATH)/bin/rutebayar
 ```
 
 For stable builds, prefer the latest tagged release or a local build from `main`.
@@ -151,30 +153,30 @@ For stable builds, prefer the latest tagged release or a local build from `main`
 Available command skeleton:
 
 ```bash
-rute-bayar onboard
-rute-bayar onboard xendit --secret-key <key> --environment sandbox
-rute-bayar onboard midtrans --merchant-id <id> --client-key <key> --server-key <key> --environment sandbox
-rute-bayar provider list
-rute-bayar provider accounts
-rute-bayar provider test midtrans
-rute-bayar provider test xendit
-rute-bayar pay create --provider xendit --method payment_link --reference rb-xnd-001 --amount 15000
-rute-bayar pay create --provider midtrans --method bank_transfer --bank bca --reference rb-0001 --amount 15000
-rute-bayar pay create --provider midtrans --method qris --bank gopay --reference rb-qris-001 --amount 15000 --notification-url https://<public-domain>/webhooks/midtrans
-rute-bayar pay status --provider midtrans --reference rb-0001
-rute-bayar pay refund
-rute-bayar webhook serve --addr :8080
-rute-bayar webhook forward list
-rute-bayar webhook forward add
-rute-bayar webhook forward update
-rute-bayar webhook forward remove
-rute-bayar webhook replay --event-id <id> [--provider midtrans|xendit]
-rute-bayar webhook forward attempts list --status failed
-rute-bayar webhook forward attempts show <attempt-id>
-rute-bayar webhook forward attempts retry <attempt-id>
-rute-bayar db migrate
-rute-bayar reconcile
-rute-bayar version
+rutebayar onboard
+rutebayar onboard xendit --secret-key <key> --environment sandbox
+rutebayar onboard midtrans --merchant-id <id> --client-key <key> --server-key <key> --environment sandbox
+rutebayar provider list
+rutebayar provider accounts
+rutebayar provider test midtrans
+rutebayar provider test xendit
+rutebayar pay create --provider xendit --method payment_link --reference rb-xnd-001 --amount 15000
+rutebayar pay create --provider midtrans --method bank_transfer --bank bca --reference rb-0001 --amount 15000
+rutebayar pay create --provider midtrans --method qris --bank gopay --reference rb-qris-001 --amount 15000 --notification-url https://<public-domain>/webhooks/midtrans
+rutebayar pay status --provider midtrans --reference rb-0001
+rutebayar pay refund
+rutebayar webhook serve --addr :8080
+rutebayar webhook forward list
+rutebayar webhook forward add
+rutebayar webhook forward update
+rutebayar webhook forward remove
+rutebayar webhook replay --event-id <id> [--provider midtrans|xendit]
+rutebayar webhook forward attempts list --status failed
+rutebayar webhook forward attempts show <attempt-id>
+rutebayar webhook forward attempts retry <attempt-id>
+rutebayar db migrate
+rutebayar reconcile
+rutebayar version
 ```
 
 These commands establish the current user experience for alpha internal usage.
@@ -240,7 +242,7 @@ Useful docs:
 Run the initial migration through the CLI:
 
 ```bash
-rute-bayar db migrate
+rutebayar db migrate
 ```
 
 ## Provider Notes

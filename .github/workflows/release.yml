@@ -43,7 +43,7 @@ jobs:
             local goos="$1"
             local goarch="$2"
             local ext="${3:-}"
-            local output="dist/rute-bayar-${goos}-${goarch}${ext}"
+            local output="dist/rutebayar-${goos}-${goarch}${ext}"
 
             echo "Building ${output}"
             GOOS="${goos}" GOARCH="${goarch}" go build \
@@ -59,7 +59,7 @@ jobs:
           build darwin arm64
           build windows amd64 .exe
 
-          (cd dist && sha256sum rute-bayar-* > checksums.txt)
+          (cd dist && sha256sum rutebayar-* > checksums.txt)
 
       - name: Prepare release notes
         env:
@@ -95,11 +95,11 @@ jobs:
           esac
 
           gh release create "${VERSION}" \
-            dist/rute-bayar-linux-amd64 \
-            dist/rute-bayar-linux-arm64 \
-            dist/rute-bayar-darwin-amd64 \
-            dist/rute-bayar-darwin-arm64 \
-            dist/rute-bayar-windows-amd64.exe \
+            dist/rutebayar-linux-amd64 \
+            dist/rutebayar-linux-arm64 \
+            dist/rutebayar-darwin-amd64 \
+            dist/rutebayar-darwin-arm64 \
+            dist/rutebayar-windows-amd64.exe \
             dist/checksums.txt \
             --repo "${GITHUB_REPOSITORY}" \
             --title "${VERSION}" \

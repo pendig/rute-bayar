@@ -71,11 +71,11 @@ jobs:
           mkdir -p dist
           go build \
             -ldflags "-X github.com/pendig/rute-bayar/internal/build.Version=${GITHUB_REF_NAME}" \
-            -o "dist/rute-bayar-${GOOS}-${GOARCH}${{ matrix.ext }}" \
+            -o "dist/rutebayar-${GOOS}-${GOARCH}${{ matrix.ext }}" \
             ./cmd/rute-bayar
 
       - name: Upload artifact
         uses: actions/upload-artifact@v7
         with:
-          name: rute-bayar-${{ matrix.goos }}-${{ matrix.goarch }}
+          name: rutebayar-${{ matrix.goos }}-${{ matrix.goarch }}
           path: dist/*

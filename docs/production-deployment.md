@@ -15,7 +15,7 @@ Internet
 Reverse Proxy / TLS
   |
   v
-rute-bayar webhook daemon
+rutebayar webhook daemon
   |
   v
 SQLite database
@@ -23,7 +23,7 @@ SQLite database
 
 Komponen:
 
-- `rute-bayar webhook serve`: menerima webhook provider.
+- `rutebayar webhook serve`: menerima webhook provider.
 - SQLite: menyimpan provider account, payment intent, payment attempt, refund, webhook event, dan forwarding attempt.
 - Reverse proxy: terminasi TLS dan expose endpoint public.
 - Provider dashboard: Midtrans/Xendit diarahkan ke endpoint webhook public.
@@ -34,16 +34,16 @@ Install dengan Homebrew:
 
 ```bash
 brew tap pendig/tap
-brew install rute-bayar
-rute-bayar version
+brew install rutebayar
+rutebayar version
 ```
 
 Atau gunakan binary release:
 
 ```bash
-curl -L -o rute-bayar https://github.com/pendig/rute-bayar/releases/download/v0.1.0/rute-bayar-linux-amd64
-chmod +x rute-bayar
-sudo mv rute-bayar /usr/local/bin/rute-bayar
+curl -L -o rutebayar https://github.com/pendig/rute-bayar/releases/download/v0.1.0/rutebayar-linux-amd64
+chmod +x rutebayar
+sudo mv rutebayar /usr/local/bin/rutebayar
 ```
 
 ## Directory Layout
@@ -59,9 +59,9 @@ Contoh layout server:
 Permission yang disarankan:
 
 ```bash
-sudo useradd --system --home /var/lib/rute-bayar --shell /usr/sbin/nologin rute-bayar
+sudo useradd --system --home /var/lib/rute-bayar --shell /usr/sbin/nologin rutebayar
 sudo mkdir -p /etc/rute-bayar /var/lib/rute-bayar /var/log/rute-bayar
-sudo chown -R rute-bayar:rute-bayar /var/lib/rute-bayar /var/log/rute-bayar
+sudo chown -R rutebayar:rutebayar /var/lib/rute-bayar /var/log/rute-bayar
 sudo chmod 700 /etc/rute-bayar
 ```
 
@@ -80,17 +80,17 @@ EOF
 Jangan commit credential provider. Onboard credential langsung ke SQLite production:
 
 ```bash
-sudo -u rute-bayar env $(cat /etc/rute-bayar/rute-bayar.env | xargs) \
-  rute-bayar db migrate
+sudo -u rutebayar env $(cat /etc/rute-bayar/rute-bayar.env | xargs) \
+  rutebayar db migrate
 
-sudo -u rute-bayar env $(cat /etc/rute-bayar/rute-bayar.env | xargs) \
-  rute-bayar onboard xendit \
+sudo -u rutebayar env $(cat /etc/rute-bayar/rute-bayar.env | xargs) \
+  rutebayar onboard xendit \
   --secret-key "$XENDIT_SECRET_KEY" \
   --webhook-token "$XENDIT_WEBHOOK_TOKEN" \
   --environment production
 
-sudo -u rute-bayar env $(cat /etc/rute-bayar/rute-bayar.env | xargs) \
-  rute-bayar onboard midtrans \
+sudo -u rutebayar env $(cat /etc/rute-bayar/rute-bayar.env | xargs) \
+  rutebayar onboard midtrans \
   --merchant-id "$MIDTRANS_MERCHANT_ID" \
   --client-key "$MIDTRANS_CLIENT_KEY" \
   --server-key "$MIDTRANS_SERVER_KEY" \
@@ -102,17 +102,17 @@ sudo -u rute-bayar env $(cat /etc/rute-bayar/rute-bayar.env | xargs) \
 Buat unit file:
 
 ```bash
-sudo tee /etc/systemd/system/rute-bayar.service >/dev/null <<'EOF'
+sudo tee /etc/systemd/system/rutebayar.service >/dev/null <<'EOF'
 [Unit]
 Description=Rute Bayar webhook daemon
 After=network-online.target
 Wants=network-online.target
 
 [Service]
-User=rute-bayar
-Group=rute-bayar
+User=rutebayar
+Group=rutebayar
 EnvironmentFile=/etc/rute-bayar/rute-bayar.env
-ExecStart=/usr/local/bin/rute-bayar webhook serve --addr ${RUTE_BAYAR_WEBHOOK_ADDR} --environment ${RUTE_BAYAR_ENV} --db ${RUTE_BAYAR_DB_PATH}
+ExecStart=/usr/local/bin/rutebayar webhook serve --addr ${RUTE_BAYAR_WEBHOOK_ADDR} --environment ${RUTE_BAYAR_ENV} --db ${RUTE_BAYAR_DB_PATH}
 Restart=always
 RestartSec=5
 NoNewPrivileges=true
@@ -130,8 +130,8 @@ Install dan start:
 
 ```bash
 sudo systemctl daemon-reload
-sudo systemctl enable --now rute-bayar
-sudo systemctl status rute-bayar
+sudo systemctl enable --now rutebayar
+sudo systemctl status rutebayar
 ```
 
 Health check lokal:
@@ -202,7 +202,7 @@ Contoh flow:
 AI Agent computes billable usage
   |
   v
-rute-bayar pay create --provider xendit --reference ai-agent-run-1001 --amount 25000
+rutebayar pay create --provider xendit --reference ai-agent-run-1001 --amount 25000
   |
   v
 Provider hosted payment / payment method
@@ -219,7 +219,7 @@ Rute Bayar reconcile + forward event ke backend product / AI orchestration
 SQLite production perlu backup reguler:
 
 ```bash
-sudo -u rute-bayar sqlite3 /var/lib/rute-bayar/rute-bayar.sqlite3 \
+sudo -u rutebayar sqlite3 /var/lib/rute-bayar/rute-bayar.sqlite3 \
   ".backup '/var/lib/rute-bayar/backups/rute-bayar-$(date +%Y%m%d%H%M%S).sqlite3'"
 ```
 
@@ -235,7 +235,7 @@ Rekomendasi:
 Log daemon:
 
 ```bash
-journalctl -u rute-bayar -f
+journalctl -u rutebayar -f
 ```
 
 Webhook terbaru:
@@ -248,9 +248,9 @@ sqlite3 /var/lib/rute-bayar/rute-bayar.sqlite3 \
 Forwarding attempts:
 
 ```bash
-rute-bayar webhook forward attempts list --db /var/lib/rute-bayar/rute-bayar.sqlite3 --limit 20
-rute-bayar webhook forward attempts show <attempt-id> --db /var/lib/rute-bayar/rute-bayar.sqlite3
-rute-bayar webhook forward attempts retry <attempt-id> --db /var/lib/rute-bayar/rute-bayar.sqlite3
+rutebayar webhook forward attempts list --db /var/lib/rute-bayar/rute-bayar.sqlite3 --limit 20
+rutebayar webhook forward attempts show <attempt-id> --db /var/lib/rute-bayar/rute-bayar.sqlite3
+rutebayar webhook forward attempts retry <attempt-id> --db /var/lib/rute-bayar/rute-bayar.sqlite3
 ```
 
 ## Upgrade
@@ -265,9 +265,9 @@ rute-bayar webhook forward attempts retry <attempt-id> --db /var/lib/rute-bayar/
 Contoh:
 
 ```bash
-brew upgrade rute-bayar
-sudo -u rute-bayar env $(cat /etc/rute-bayar/rute-bayar.env | xargs) rute-bayar db migrate
-sudo systemctl restart rute-bayar
+brew upgrade rutebayar
+sudo -u rutebayar env $(cat /etc/rute-bayar/rute-bayar.env | xargs) rutebayar db migrate
+sudo systemctl restart rutebayar
 curl -i https://pay.example.com/healthz
 ```
 

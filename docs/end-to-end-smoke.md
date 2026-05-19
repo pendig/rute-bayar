@@ -135,14 +135,14 @@ https://simulator.sandbox.midtrans.com/v2/qris/index
 ```bash
 export RUTE_BAYAR_ENV=sandbox
 export RUTE_BAYAR_DB_PATH=./rute-bayar.sqlite3
-rute-bayar db migrate
+rutebayar db migrate
 ```
 
 ### 2. Onboard Provider
 
 ```bash
-rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
-rute-bayar onboard midtrans \
+rutebayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
+rutebayar onboard midtrans \
   --merchant-id "$MIDTRANS_MERCHANT_ID" \
   --client-key "$MIDTRANS_CLIENT_KEY" \
   --server-key "$MIDTRANS_SERVER_KEY" \
@@ -152,14 +152,14 @@ rute-bayar onboard midtrans \
 ### 3. Provider Auth Test
 
 ```bash
-rute-bayar provider test xendit
-rute-bayar provider test midtrans
+rutebayar provider test xendit
+rutebayar provider test midtrans
 ```
 
 ### 4. Payment Create
 
 ```bash
-rute-bayar pay create \
+rutebayar pay create \
   --provider xendit \
   --method payment_link \
   --reference rb-smoke-xendit-001 \
@@ -167,7 +167,7 @@ rute-bayar pay create \
 ```
 
 ```bash
-rute-bayar pay create \
+rutebayar pay create \
   --provider midtrans \
   --method bank_transfer \
   --bank bca \
@@ -179,7 +179,7 @@ Jika ingin mengarahkan notifikasi Midtrans per transaksi ke daemon publik sement
 Flag ini mengirim header resmi Midtrans `X-Override-Notification` pada request charge:
 
 ```bash
-rute-bayar pay create \
+rutebayar pay create \
   --provider midtrans \
   --method qris \
   --bank gopay \
@@ -191,14 +191,14 @@ rute-bayar pay create \
 ### 5. Payment Status
 
 ```bash
-rute-bayar pay status --provider xendit --reference rb-smoke-xendit-001
-rute-bayar pay status --provider midtrans --reference rb-smoke-midtrans-001
+rutebayar pay status --provider xendit --reference rb-smoke-xendit-001
+rutebayar pay status --provider midtrans --reference rb-smoke-midtrans-001
 ```
 
 ### 6. Webhook Daemon
 
 ```bash
-rute-bayar webhook serve --addr :8080 --environment sandbox
+rutebayar webhook serve --addr :8080 --environment sandbox
 curl -i http://localhost:8080/healthz
 ```
 
@@ -222,13 +222,13 @@ wrangler tunnel quick-start http://localhost:8080
 ### 7. Forwarding
 
 ```bash
-rute-bayar webhook forward add \
+rutebayar webhook forward add \
   --provider xendit \
   --name smoke-forward \
   --url https://example.com/webhooks/rute-bayar \
   --event-filter event=payment_session.created
 
-rute-bayar webhook forward attempts list --provider xendit --limit 20
+rutebayar webhook forward attempts list --provider xendit --limit 20
 ```
 
 ### 8. Replay dan Diagnostics
@@ -236,24 +236,24 @@ rute-bayar webhook forward attempts list --provider xendit --limit 20
 Ambil event ID dari database atau log, lalu:
 
 ```bash
-rute-bayar webhook replay --provider xendit --event-id <webhook_event_id>
-rute-bayar webhook forward attempts list --status failed
-rute-bayar webhook forward attempts show <attempt_id>
-rute-bayar webhook forward attempts retry <attempt_id>
+rutebayar webhook replay --provider xendit --event-id <webhook_event_id>
+rutebayar webhook forward attempts list --status failed
+rutebayar webhook forward attempts show <attempt_id>
+rutebayar webhook forward attempts retry <attempt_id>
 ```
 
 ### 9. Refund dan Reconcile
 
 ```bash
-rute-bayar pay refund --provider xendit --reference rb-smoke-xendit-001 --amount 15000
-rute-bayar reconcile --provider xendit --reference rb-smoke-xendit-001
+rutebayar pay refund --provider xendit --reference rb-smoke-xendit-001 --amount 15000
+rutebayar reconcile --provider xendit --reference rb-smoke-xendit-001
 ```
 
 Untuk Midtrans, pastikan transaksi sudah berada pada status yang boleh direfund menurut provider sebelum menjalankan:
 
 ```bash
-rute-bayar pay refund --provider midtrans --reference rb-smoke-midtrans-001 --amount 15000
-rute-bayar reconcile --provider midtrans --reference rb-smoke-midtrans-001
+rutebayar pay refund --provider midtrans --reference rb-smoke-midtrans-001 --amount 15000
+rutebayar reconcile --provider midtrans --reference rb-smoke-midtrans-001
 ```
 
 ## Acceptance

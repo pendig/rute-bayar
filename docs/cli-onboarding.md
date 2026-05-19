@@ -16,7 +16,7 @@ CLI onboarding dibuat supaya user bisa setup provider dengan cepat tanpa perlu k
 
 Contoh alur:
 
-1. `rute-bayar onboard`
+1. `rutebayar onboard`
 2. Pilih provider
 3. Pilih environment `sandbox` atau `production`
 4. Masukkan credential
@@ -26,25 +26,25 @@ Contoh alur:
 
 ## Perintah CLI yang Disarankan
 
-- `rute-bayar onboard`
-- `rute-bayar onboard xendit --secret-key <key> --environment sandbox`
-- `rute-bayar onboard midtrans --merchant-id <id> --client-key <key> --server-key <key> --environment sandbox`
-- `rute-bayar provider list`
-- `rute-bayar provider accounts`
-- `rute-bayar provider test midtrans`
-- `rute-bayar provider test xendit`
-- `rute-bayar config show`
-- `rute-bayar config set`
-- `rute-bayar pay create`
-- `rute-bayar pay status`
-- `rute-bayar pay refund`
-- `rute-bayar webhook serve`
-- `rute-bayar webhook replay`
-- `rute-bayar webhook forward list`
-- `rute-bayar webhook forward add`
-- `rute-bayar webhook forward update`
-- `rute-bayar webhook forward remove`
-- `rute-bayar reconcile`
+- `rutebayar onboard`
+- `rutebayar onboard xendit --secret-key <key> --environment sandbox`
+- `rutebayar onboard midtrans --merchant-id <id> --client-key <key> --server-key <key> --environment sandbox`
+- `rutebayar provider list`
+- `rutebayar provider accounts`
+- `rutebayar provider test midtrans`
+- `rutebayar provider test xendit`
+- `rutebayar config show`
+- `rutebayar config set`
+- `rutebayar pay create`
+- `rutebayar pay status`
+- `rutebayar pay refund`
+- `rutebayar webhook serve`
+- `rutebayar webhook replay`
+- `rutebayar webhook forward list`
+- `rutebayar webhook forward add`
+- `rutebayar webhook forward update`
+- `rutebayar webhook forward remove`
+- `rutebayar reconcile`
 
 ## Onboarding Provider
 
@@ -67,9 +67,9 @@ Setelah itu CLI harus:
 Command awal yang sudah ditargetkan:
 
 ```bash
-rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
-rute-bayar provider accounts
-rute-bayar provider test midtrans
+rutebayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
+rutebayar provider accounts
+rutebayar provider test midtrans
 ```
 
 ### Xendit
@@ -90,9 +90,9 @@ Setelah itu CLI harus:
 Command awal yang sudah ditargetkan:
 
 ```bash
-rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
-rute-bayar provider accounts
-rute-bayar provider test xendit
+rutebayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
+rutebayar provider accounts
+rutebayar provider test xendit
 ```
 
 ## UX yang Disarankan

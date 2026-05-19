@@ -20,7 +20,7 @@ Dokumen ini menjabarkan rencana implementasi fitur **webhook forwarding** agar p
   - retry loop + backoff + timeout
   - penyimpanan attempt
 - CLI forwarding saat ini masih scaffold:
-  - `rute-bayar webhook forward list|add|update|remove`
+  - `rutebayar webhook forward list|add|update|remove`
 - Daemon sudah memanggil forwarding setelah event di-reconcile/record.
 
 ## Arsitektur Target
@@ -59,7 +59,7 @@ Catatan:
 
 Implementasi command `webhook forward`:
 
-- `rute-bayar webhook forward add`
+- `rutebayar webhook forward add`
   - Flags:
     - `--provider midtrans|xendit`
     - `--name`
@@ -72,13 +72,13 @@ Implementasi command `webhook forward`:
     - `--retry-timeout`
     - `--retry-backoff`
   - Menyimpan `Target` ke SQLite.
-- `rute-bayar webhook forward list`
+- `rutebayar webhook forward list`
   - list per provider + status enabled
   - tampilkan retry policy ringkas
-- `rute-bayar webhook forward update <target-id>`
+- `rutebayar webhook forward update <target-id>`
   - updatable field: nama/url/aktif, filter, header, retry policy
-- `rute-bayar webhook forward remove <target-id>`
-- `rute-bayar webhook forward replay --event-id <webhook_event_id>`
+- `rutebayar webhook forward remove <target-id>`
+- `rutebayar webhook forward replay --event-id <webhook_event_id>`
   - mengeksekusi kembali forward untuk event lama (pakai JSON payload dari DB).
 
 ### 4) Webhook Command UX
@@ -124,7 +124,7 @@ Implementasi command `webhook forward`:
 
 ## Acceptance Criteria
 
-- `rute-bayar webhook forward add/list/update/remove` jalan end-to-end.
+- `rutebayar webhook forward add/list/update/remove` jalan end-to-end.
 - Forwarding default pass-through dan bisa di-nonaktifkan per target.
 - Retry policy dapat diubah di CLI dan tervalidasi saat run.
 - Setiap forwarding attempt terekam `webhook_forwarding_attempts`.
