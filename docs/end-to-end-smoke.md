@@ -37,7 +37,10 @@ RUTE_BAYAR_SMOKE_FORWARD_ADDR=127.0.0.1:19081 \
 
 - `CI` sekarang menjalankan `E2E Smoke (Local Webhook Simulation)` otomatis setelah `go test` lulus.
 - `scripts/smoke-local.sh` dipakai sebagai smoke non-interaktif untuk webhook + forwarding end-to-end di runner GitHub.
-- Untuk alur E2E sandbox provider (Xendit/Midtrans API), tersedia workflow manual:
+- Untuk alur E2E sandbox provider (Xendit/Midtrans API), tersedia workflow:
+
+  - otomatis untuk PR ke `main` dari branch internal repository, dan
+  - manual untuk trigger manual saat perlu validasi provider secara eksplisit.
 
 ```bash
 gh workflow run "E2E Sandbox" \
