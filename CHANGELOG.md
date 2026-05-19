@@ -2,6 +2,22 @@
 
 All notable changes to Rute Bayar will be documented in this file.
 
+## v0.1.2 - 2026-05-19
+
+### Added
+
+- Internal PR-triggered provider sandbox E2E workflow so repository maintainers can validate provider callbacks in CI without manual dispatch for trusted branches.
+- Expanded CLI and docs alignment around `rutebayar` naming and release examples in the v0.1.2 release context.
+
+### Changed
+
+- CI documentation now explicitly distinguishes smoke CI (local webhook simulation) and provider sandbox E2E (internal PR or manual trigger).
+
+### Verified
+
+- `go test ./...` passes on the `main` branch.
+- E2E sandbox workflow now runs (or safely skips) based on runtime provider credential availability and trusted PR source.
+
 ## v0.1.1 - 2026-05-19
 
 ### Changed
@@ -46,7 +62,7 @@ First stable release of Rute Bayar, focused on a production-shaped CLI and daemo
 
 - Midtrans refund success remains dependent on provider-side sandbox balance and settlement eligibility; the tested sandbox account returned insufficient balance for a settled QRIS refund attempt.
 - Xendit Payment Sessions webhook URL must be configured in the Xendit Dashboard; per-payment webhook override is not supported by Xendit Payment Sessions.
-- Flip Business is planned as the next provider family and is not included in this release.
+- Doku is planned as the next provider family and is not included in this release.
 
 ## v0.1.0-alpha.3 - 2026-05-08
 

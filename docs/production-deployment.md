@@ -41,7 +41,7 @@ rutebayar version
 Atau gunakan binary release:
 
 ```bash
-curl -L -o rutebayar https://github.com/pendig/rute-bayar/releases/download/v0.1.1/rutebayar-linux-amd64
+curl -L -o rutebayar https://github.com/pendig/rute-bayar/releases/download/v0.1.2/rutebayar-linux-amd64
 chmod +x rutebayar
 sudo mv rutebayar /usr/local/bin/rutebayar
 ```

@@ -44,10 +44,12 @@ jobs:
           MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
           MIDTRANS_SERVER_KEY: ${{ secrets.MIDTRANS_SERVER_KEY }}
           RUTE_BAYAR_E2E_KEEP_DB: "1"
-          RUTE_BAYAR_E2E_XENDIT: ${{ inputs.run_xendit }}
-          RUTE_BAYAR_E2E_MIDTRANS: ${{ inputs.run_midtrans }}
+          RUTE_BAYAR_E2E_XENDIT: ${{ github.event_name == 'pull_request' && '1' || inputs.run_xendit }}
+          RUTE_BAYAR_E2E_MIDTRANS: ${{ github.event_name == 'pull_request' && '0' || inputs.run_midtrans }}
         run: |
           set -euo pipefail
+          echo "E2E trigger: ${GITHUB_EVENT_NAME}"
+          echo "Requested providers -> Xendit:${RUTE_BAYAR_E2E_XENDIT} Midtrans:${RUTE_BAYAR_E2E_MIDTRANS}"
 
           xendit_enabled=0
           midtrans_enabled=0
@@ -65,7 +67,9 @@ jobs:
           fi
 
           if [[ "$xendit_enabled" -eq 0 && "$midtrans_enabled" -eq 0 ]]; then
-            echo "No provider credentials available in this run. Configure GitHub secrets and rerun."
+            echo "No provider credentials available in this run."
+            echo "Set the required secrets: XENDIT_SECRET_KEY (and XENDIT_WEBHOOK_TOKEN for webhook tests), MIDTRANS_MERCHANT_ID MIDTRANS_CLIENT_KEY MIDTRANS_SERVER_KEY."
+            echo "If this is a forked PR, secrets are intentionally unavailable; run manually from main repository with workflow_dispatch."
             echo "E2E sandbox run skipped."
             exit 0
           fi

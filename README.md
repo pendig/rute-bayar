@@ -10,9 +10,9 @@ Rute Bayar is an open source payment router for Indonesian payment gateways.
 
 The project provides one internal interface for multiple providers, starting with **Xendit** and **Midtrans**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
 
-> Status: stable `v0.1.1`. The repository includes webhook signature verification for Midtrans and callback-token verification for Xendit, plus Midtrans and Xendit `pay create`, `pay status`, `pay refund`, `reconcile`, and SQLite persistence. Real sandbox proof covers Midtrans/Xendit webhook callbacks and Xendit refund reconciliation through final `refund.succeeded` callback. Webhook forwarding target management is also available via CLI.
+> Status: stable `v0.1.2`. The repository includes webhook signature verification for Midtrans and callback-token verification for Xendit, plus Midtrans and Xendit `pay create`, `pay status`, `pay refund`, `reconcile`, and SQLite persistence. Real sandbox proof covers Midtrans/Xendit webhook callbacks and Xendit refund reconciliation through final `refund.succeeded` callback. Webhook forwarding target management is also available via CLI.
 
-Latest release: [v0.1.1](https://github.com/pendig/rute-bayar/releases/tag/v0.1.1)
+Latest release: [v0.1.2](https://github.com/pendig/rute-bayar/releases/tag/v0.1.2)
 
 ## Features
 
@@ -308,4 +308,4 @@ Copyright (c) 2026 Wahyu Adi Putra Pena Digital.
 - Complete final stable readiness pass for `v0.1.0` before publishing a non-alpha release.
 - Add more Midtrans payment methods and provider-specific diagnostics.
 - Improve operational observability for webhook forwarding and replay.
-- Add Flip Business as the next provider family.
+- Add Doku as the next provider family.
