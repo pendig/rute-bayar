@@ -17,19 +17,30 @@ go test ./...
 
 ## Command Awal
 
+Rutebayar CLI:
+
+```bash
+go build -o ./bin/rutebayar ./cmd/rute-bayar
+./bin/rutebayar version
+./bin/rutebayar provider list
+./bin/rutebayar webhook serve --addr :8080
+./bin/rutebayar db migrate
+./bin/rutebayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
+./bin/rutebayar provider accounts
+./bin/rutebayar provider test xendit
+./bin/rutebayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
+./bin/rutebayar provider test midtrans
+./bin/rutebayar webhook forward add --provider midtrans --name orders --url https://example.com/webhooks/orders --event-filter event=payment_session.created
+./bin/rutebayar webhook forward list --provider midtrans
+./bin/rutebayar webhook replay --event-id webhook_0001 --provider midtrans
+```
+
+Atau langsung jalan dari source (tanpa build):
+
 ```bash
 go run ./cmd/rute-bayar version
 go run ./cmd/rute-bayar provider list
-go run ./cmd/rute-bayar webhook serve --addr :8080
-go run ./cmd/rute-bayar db migrate
-go run ./cmd/rute-bayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
-go run ./cmd/rute-bayar provider accounts
-go run ./cmd/rute-bayar provider test xendit
-go run ./cmd/rute-bayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
-go run ./cmd/rute-bayar provider test midtrans
-go run ./cmd/rute-bayar webhook forward add --provider midtrans --name orders --url https://example.com/webhooks/orders --event-filter event=payment_session.created
-go run ./cmd/rute-bayar webhook forward list --provider midtrans
-go run ./cmd/rute-bayar webhook replay --event-id webhook_0001 --provider midtrans
+go run ./cmd/rute-bayar webhook serve --addr :8080 --environment sandbox
 ```
 
 ## Checklist Daemon & Forwarding
@@ -47,7 +58,7 @@ Untuk memverifikasi operasional forwarding:
 Jalankan daemon:
 
 ```bash
-go run ./cmd/rute-bayar webhook serve --addr :8080 --environment sandbox
+./bin/rutebayar webhook serve --addr :8080 --environment sandbox
 ```
 
 Di terminal lain, cek health endpoint:

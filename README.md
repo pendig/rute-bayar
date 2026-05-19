@@ -36,28 +36,29 @@ cd rute-bayar
 Install Go 1.22 or newer, then check the CLI:
 
 ```bash
-go run ./cmd/rute-bayar version
-go run ./cmd/rute-bayar provider list
+go build -o bin/rutebayar ./cmd/rute-bayar
+./bin/rutebayar version
+./bin/rutebayar provider list
 ```
 
 Onboard Xendit credentials into local SQLite:
 
 ```bash
-rutebayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
-rutebayar provider accounts
+./bin/rutebayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
+./bin/rutebayar provider accounts
 ```
 
 Onboard Midtrans credentials into local SQLite:
 
 ```bash
-rutebayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
-rutebayar provider test midtrans
+./bin/rutebayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
+./bin/rutebayar provider test midtrans
 ```
 
 Start the webhook daemon:
 
 ```bash
-go run ./cmd/rute-bayar webhook serve --addr :8080 --environment sandbox
+./bin/rutebayar webhook serve --addr :8080 --environment sandbox
 ```
 
 Check the daemon:
@@ -71,7 +72,7 @@ curl http://localhost:8080/healthz
 Run daemon and verify:
 
 ```bash
-go run ./cmd/rute-bayar webhook serve --addr :8080 --environment sandbox
+./bin/rutebayar webhook serve --addr :8080 --environment sandbox
 curl -i http://localhost:8080/healthz
 ```
 
