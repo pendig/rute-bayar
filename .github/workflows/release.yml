@@ -66,15 +66,18 @@ jobs:
           VERSION: ${{ github.ref_name }}
         run: |
           set -euo pipefail
-          escaped_version="${VERSION//./\\.}"
-          awk -v version="$escaped_version" '
-            $0 ~ ("^## " version "([[:space:]]*-[[:space:]]*[0-9]{4}-[0-9]{2}-[0-9]{2}|^## " version "$")") {
+          awk -v version="$VERSION" '
+            $0 ~ "^## " version && !found {
               found = 1
               print
               next
             }
-            found && /^## / { exit }
-            found { print }
+            found && /^## / {
+              exit
+            }
+            found {
+              print
+            }
           ' CHANGELOG.md > release-notes.md
 
           if [ ! -s release-notes.md ]; then
