@@ -2,6 +2,22 @@
 
 All notable changes to Rute Bayar will be documented in this file.
 
+## v0.1.2 - 2026-05-19
+
+### Added
+
+- Internal PR-triggered provider sandbox E2E workflow so repository maintainers can validate provider callbacks in CI without manual dispatch for trusted branches.
+- Expanded CLI and docs alignment around `rutebayar` naming and release examples that already landed with earlier work.
+
+### Changed
+
+- CI documentation now explicitly distinguishes smoke CI (local webhook simulation) and provider sandbox E2E (internal PR or manual trigger).
+
+### Verified
+
+- `go test ./...` passes on mainline codepath.
+- E2E sandbox workflow now runs (or safely skips) based on runtime provider credential availability and trusted PR source.
+
 ## v0.1.1 - 2026-05-19
 
 ### Changed
