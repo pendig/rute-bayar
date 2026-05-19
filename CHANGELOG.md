@@ -2,6 +2,17 @@
 
 All notable changes to Rute Bayar will be documented in this file.
 
+## v0.1.1 - 2026-05-19
+
+### Changed
+
+- Standardized CLI command usage and installation snippets to `rutebayar` across project documentation and quickstart paths after the binary rename.
+- Refreshed production-install examples to reflect the current command name and release artifact naming.
+
+### Verified
+
+- `go test ./...` passes on `main` after merge of the command rename/docs alignment.
+
 ## v0.1.0 - 2026-05-17
 
 First stable release of Rute Bayar, focused on a production-shaped CLI and daemon foundation for Indonesian payment gateway routing.
