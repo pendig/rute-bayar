@@ -1,0 +1,54 @@
+---
+interface Props {
+  title?: string;
+  lines: string[];
+}
+
+const { title = "terminal", lines } = Astro.props;
+---
+
+<section class="shell-card shell-block" aria-label={title}>
+  <div class="shell-top">
+    <span></span>
+    <span></span>
+    <span></span>
+    <strong>{title}</strong>
+  </div>
+  <pre>{lines.join("\n")}</pre>
+</section>
+
+<style>
+  .shell-block {
+    border-radius: 0;
+    overflow: hidden;
+  }
+
+  .shell-top {
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+    padding: 12px 14px;
+    color: rgba(233, 255, 245, 0.72);
+  }
+
+  .shell-top span {
+    width: 10px;
+    height: 10px;
+    border: 1px solid rgba(233, 255, 245, 0.34);
+  }
+
+  .shell-top strong {
+    margin-left: 6px;
+    font-size: 0.78rem;
+    letter-spacing: 0;
+    text-transform: uppercase;
+  }
+
+  pre {
+    padding: 18px;
+    color: #e9fff5;
+    font-size: 0.94rem;
+    line-height: 1.75;
+  }
+</style>

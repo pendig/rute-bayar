@@ -1,6 +1,9 @@
 # Build output
 bin/
 dist/
+site/.astro/
+site/dist/
+site/node_modules/
 
 # Local runtime data
 *.db

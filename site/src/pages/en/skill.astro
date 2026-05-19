@@ -1,0 +1,78 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ShellBlock from "../../components/ShellBlock.astro";
+import "../../styles/skill.css";
+
+const steps = [
+  "Create a payment with a unique agent run reference.",
+  "Return the payment URL to the user or product surface.",
+  "Poll status only when needed, then trust verified webhooks for final state.",
+  "Run reconcile before fulfillment if the workflow was interrupted.",
+];
+---
+
+<BaseLayout
+  title="Rute Bayar Skill - AI Agent billing guide"
+  description="A practical guide for AI Agents that need to create invoices, check payment status, and verify payment outcomes through Rute Bayar."
+  bodyClass="skill-page"
+  lang="en"
+  alternatePath="/skill/"
+>
+  <section class="skill-hero">
+    <div class="container skill-grid">
+      <div>
+        <p class="eyebrow">AI Agent skill</p>
+        <h1>Give agents one careful tool boundary for billing.</h1>
+        <p>
+          Rute Bayar lets an AI Agent create dynamic invoices, attach product or run references, verify payment status, and continue work only after the payment state is clear.
+        </p>
+      </div>
+      <ShellBlock
+        title="agent billing flow"
+        lines={[
+          "$ rutebayar pay create --provider xendit \\",
+          "  --reference agent-run-2042 \\",
+          "  --amount 49000",
+          "",
+          "$ rutebayar pay status --provider xendit --reference agent-run-2042",
+          "status: paid",
+          "",
+          "$ rutebayar reconcile --provider xendit --reference agent-run-2042",
+          "verified: true",
+        ]}
+      />
+    </div>
+  </section>
+
+  <section class="section skill-band">
+    <div class="container agent-lanes">
+      <article>
+        <span>01</span>
+        <h2>Invoice</h2>
+        <p>Generate payment links from the agent workflow using product, usage, tenant, or run metadata as the reference.</p>
+      </article>
+      <article>
+        <span>02</span>
+        <h2>Verify</h2>
+        <p>Check current status through the provider adapter and prefer signed webhook events for final payment state.</p>
+      </article>
+      <article>
+        <span>03</span>
+        <h2>Continue</h2>
+        <p>Only unlock paid work after the local state has been reconciled with provider evidence.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container skill-checklist">
+      <div>
+        <p class="eyebrow">Guide</p>
+        <h2>Minimum agent behavior</h2>
+      </div>
+      <ol>
+        {steps.map((step) => <li>{step}</li>)}
+      </ol>
+    </div>
+  </section>
+</BaseLayout>

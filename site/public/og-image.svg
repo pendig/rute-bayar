@@ -1,0 +1,24 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1200" height="630" viewBox="0 0 1200 630" role="img" aria-labelledby="title desc">
+  <title id="title">Rute Bayar</title>
+  <desc id="desc">Satu CLI untuk semua payment gateway Indonesia.</desc>
+  <rect width="1200" height="630" fill="#f7f5ef"/>
+  <path d="M0 0h1200v630H0z" fill="#f7f5ef"/>
+  <g stroke="#151817" stroke-opacity=".08" stroke-width="1">
+    <path d="M80 0v630M160 0v630M240 0v630M320 0v630M400 0v630M480 0v630M560 0v630M640 0v630M720 0v630M800 0v630M880 0v630M960 0v630M1040 0v630M1120 0v630"/>
+    <path d="M0 80h1200M0 160h1200M0 240h1200M0 320h1200M0 400h1200M0 480h1200M0 560h1200"/>
+  </g>
+  <rect x="70" y="72" width="64" height="64" fill="#111614"/>
+  <text x="102" y="116" fill="#18b978" font-family="SFMono-Regular, Consolas, monospace" font-size="38" font-weight="800" text-anchor="middle">&gt;</text>
+  <text x="158" y="116" fill="#151817" font-family="Segoe UI, Arial, sans-serif" font-size="38" font-weight="800">rutebayar</text>
+  <text x="70" y="275" fill="#143251" font-family="Segoe UI, Arial, sans-serif" font-size="78" font-weight="900">Satu CLI untuk semua</text>
+  <text x="70" y="365" fill="#143251" font-family="Segoe UI, Arial, sans-serif" font-size="78" font-weight="900">payment gateway Indonesia</text>
+  <text x="70" y="438" fill="#55605b" font-family="Segoe UI, Arial, sans-serif" font-size="30" font-weight="600">Payment router open source berbasis CLI dan daemon webhook.</text>
+  <g transform="translate(70 500)">
+    <rect width="170" height="46" fill="#111614"/>
+    <text x="22" y="31" fill="#e9fff5" font-family="SFMono-Regular, Consolas, monospace" font-size="20" font-weight="700">rutebayar</text>
+    <rect x="260" y="0" width="150" height="46" fill="none" stroke="#0b8a7a" stroke-width="2"/>
+    <text x="285" y="31" fill="#075e55" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="800">Xendit</text>
+    <rect x="430" y="0" width="160" height="46" fill="none" stroke="#0b8a7a" stroke-width="2"/>
+    <text x="456" y="31" fill="#075e55" font-family="Segoe UI, Arial, sans-serif" font-size="20" font-weight="800">Midtrans</text>
+  </g>
+</svg>

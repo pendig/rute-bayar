@@ -1,0 +1,77 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ShellBlock from "../components/ShellBlock.astro";
+import "../styles/skill.css";
+
+const steps = [
+  "Buat payment dengan reference unik dari agent run.",
+  "Kembalikan payment URL ke user atau permukaan produk.",
+  "Poll status hanya saat diperlukan, lalu utamakan webhook terverifikasi untuk final state.",
+  "Jalankan reconcile sebelum fulfillment jika workflow sempat terputus.",
+];
+---
+
+<BaseLayout
+  title="Rute Bayar Skill - Panduan penagihan AI Agent"
+  description="Panduan praktis untuk AI Agent yang perlu membuat invoice, cek status payment, dan memverifikasi outcome lewat Rute Bayar."
+  bodyClass="skill-page"
+  alternatePath="/en/skill/"
+>
+  <section class="skill-hero">
+    <div class="container skill-grid">
+      <div>
+        <p class="eyebrow">Skill AI Agent</p>
+        <h1>AI Agent bisa membuat invoice sendiri.</h1>
+        <p>
+          Rute Bayar membantu AI Agent membuat invoice dinamis, memasang reference produk atau run, memverifikasi status payment, dan melanjutkan pekerjaan hanya setelah payment state jelas.
+        </p>
+      </div>
+      <ShellBlock
+        title="agent billing flow"
+        lines={[
+          "$ rutebayar pay create --provider xendit \\",
+          "  --reference agent-run-2042 \\",
+          "  --amount 49000",
+          "",
+          "$ rutebayar pay status --provider xendit --reference agent-run-2042",
+          "status: paid",
+          "",
+          "$ rutebayar reconcile --provider xendit --reference agent-run-2042",
+          "verified: true",
+        ]}
+      />
+    </div>
+  </section>
+
+  <section class="section skill-band">
+    <div class="container agent-lanes">
+      <article>
+        <span>01</span>
+        <h2>Invoice</h2>
+        <p>Buat payment link dari workflow agent memakai metadata product, usage, tenant, atau run sebagai reference.</p>
+      </article>
+      <article>
+        <span>02</span>
+        <h2>Verifikasi</h2>
+        <p>Cek status terbaru lewat adapter provider dan utamakan event webhook bertanda tangan untuk final payment state.</p>
+      </article>
+      <article>
+        <span>03</span>
+        <h2>Lanjutkan</h2>
+        <p>Buka pekerjaan berbayar hanya setelah local state direkonsiliasi dengan bukti dari provider.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container skill-checklist">
+      <div>
+        <p class="eyebrow">Panduan</p>
+        <h2>Perilaku minimum agent</h2>
+      </div>
+      <ol>
+        {steps.map((step) => <li>{step}</li>)}
+      </ol>
+    </div>
+  </section>
+</BaseLayout>

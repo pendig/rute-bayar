@@ -1,0 +1,79 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import { getCollection, render } from "astro:content";
+import { blogPath, entryLang, stripLangFromId } from "../../i18n";
+
+export async function getStaticPaths() {
+  const entries = (await getCollection("blog")).filter((entry) => entryLang(entry.id) === "id");
+  return entries.map((entry) => ({
+    params: { slug: stripLangFromId(entry.id) },
+    props: { entry },
+  }));
+}
+
+const { entry } = Astro.props;
+const { Content } = await render(entry);
+const slug = stripLangFromId(entry.id);
+---
+
+<BaseLayout
+  title={`${entry.data.title} - Blog Rute Bayar`}
+  description={entry.data.description}
+  alternatePath={blogPath("en", `en/${slug}`)}
+  type="article"
+>
+  <article class="container article">
+    <a class="back-link" href="/blog/">Kembali ke blog</a>
+    <header>
+      <time datetime={entry.data.pubDate.toISOString()}>{entry.data.pubDate.toISOString().slice(0, 10)}</time>
+      <h1>{entry.data.title}</h1>
+      <p>{entry.data.description}</p>
+    </header>
+    <div class="prose">
+      <Content />
+    </div>
+  </article>
+</BaseLayout>
+
+<style>
+  .article {
+    padding: 54px 0 94px;
+  }
+
+  .back-link,
+  time {
+    color: var(--rail-dark);
+    font-family: "IBM Plex Mono", monospace;
+    font-weight: 800;
+  }
+
+  header {
+    max-width: 820px;
+    padding: 42px 0 32px;
+  }
+
+  h1 {
+    margin: 16px 0;
+    font-size: clamp(2.4rem, 6vw, 5.1rem);
+    line-height: 0.98;
+  }
+
+  header p {
+    color: var(--ink-muted);
+    font-size: 1.1rem;
+    line-height: 1.72;
+  }
+
+  .prose {
+    max-width: 760px;
+    border-top: 1px solid var(--line);
+    padding-top: 30px;
+  }
+
+  .prose :global(p),
+  .prose :global(li) {
+    color: var(--ink-muted);
+    font-size: 1.03rem;
+    line-height: 1.75;
+  }
+</style>

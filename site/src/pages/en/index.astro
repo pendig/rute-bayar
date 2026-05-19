@@ -1,0 +1,103 @@
+---
+import BaseLayout from "../../layouts/BaseLayout.astro";
+import ShellBlock from "../../components/ShellBlock.astro";
+import { layoutCopy } from "../../i18n";
+import { LANDING_AGENT_STATUS_LINES, LANDING_CREATE_PAYMENT_LINES, LANDING_QUICK_INSTALL_LINES, LANDING_WEBHOOK_LINES } from "../../data/landing-shell-lines";
+import "../../styles/landing.css";
+
+const createPaymentLines = LANDING_CREATE_PAYMENT_LINES;
+const webhookLines = LANDING_WEBHOOK_LINES;
+const providerStripLabel = layoutCopy.en.providerStripLabel;
+---
+
+<BaseLayout
+  title="Rute Bayar - CLI payment router for Indonesia"
+  description="Rute Bayar is an open source CLI and daemon payment router for Indonesian payment gateways, built for developers and AI Agent billing workflows."
+  lang="en"
+  alternatePath="/"
+>
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">Open source payment router</p>
+        <h1>Route payments from a CLI your systems can trust.</h1>
+        <p>
+          Rute Bayar connects Indonesian payment gateways through one Go CLI and webhook daemon.
+          It keeps provider logic modular, stores raw JSON for debugging, and gives product teams a clean path from invoice to webhook verification.
+        </p>
+        <div class="button-row">
+          <a class="button" href="/en/docs/">Read the docs</a>
+          <a class="button secondary" href="/en/skill/">AI Agent skill guide</a>
+        </div>
+      </div>
+      <div class="hero-console">
+        <ShellBlock title="create invoice" lines={createPaymentLines} />
+        <ShellBlock title="webhook daemon" lines={webhookLines} />
+      </div>
+    </div>
+    <div class="container provider-strip" aria-label={providerStripLabel}>
+      <span>Live: Xendit</span>
+      <span>Live: Midtrans</span>
+      <span>Next: Doku</span>
+      <span>Roadmap: Flip Business</span>
+      <span>Roadmap: Duitku</span>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container split">
+      <div>
+        <p class="eyebrow">Payment rail clarity</p>
+        <h2>One operational line between your product and many providers.</h2>
+      </div>
+      <p>
+        Rute Bayar keeps your business logic away from provider-specific details. Create payments, check status, receive webhooks, replay events, and forward callbacks without scattering gateway code across every service.
+      </p>
+    </div>
+    <div class="container rail-grid">
+      <article class="rail-card">
+        <h3>CLI-first onboarding</h3>
+        <p>Set provider credentials, test accounts, create payments, request refunds, and inspect status from the same command surface.</p>
+      </article>
+      <article class="rail-card">
+        <h3>Webhook daemon</h3>
+        <p>Receive provider callbacks, verify signatures where configured, persist raw payloads, and replay events for recovery.</p>
+      </article>
+      <article class="rail-card">
+        <h3>Pass-through forwarding</h3>
+        <p>Forward provider webhooks to your own service while keeping the original payload available for audit and debugging.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section ai-band">
+    <div class="container ai-grid">
+      <div>
+        <p class="eyebrow">AI Agent billing</p>
+        <h2>Let agents create invoices and verify payments without embedding gateway code.</h2>
+        <p>
+          An AI Agent can call `rutebayar` to create a dynamic invoice, store its own run reference, check payment status, and react to verified webhooks. The CLI becomes a narrow, inspectable tool boundary between automation and money movement.
+        </p>
+        <a class="button" href="/en/skill/">Open the skill guide</a>
+      </div>
+      <ShellBlock
+        title="agent tool call"
+        lines={LANDING_AGENT_STATUS_LINES}
+      />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container install-grid">
+      <div>
+        <p class="eyebrow">Install</p>
+        <h2>Start with a binary, Homebrew, or source build.</h2>
+        <p class="muted">The current release ships static binaries for Linux, macOS, and Windows.</p>
+      </div>
+      <ShellBlock
+        title="quick install"
+        lines={LANDING_QUICK_INSTALL_LINES}
+      />
+    </div>
+  </section>
+</BaseLayout>

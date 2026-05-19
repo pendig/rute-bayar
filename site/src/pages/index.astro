@@ -1,0 +1,103 @@
+---
+import BaseLayout from "../layouts/BaseLayout.astro";
+import ShellBlock from "../components/ShellBlock.astro";
+import { layoutCopy, type Lang } from "../i18n";
+import { LANDING_AGENT_STATUS_LINES, LANDING_CREATE_PAYMENT_LINES, LANDING_QUICK_INSTALL_LINES, LANDING_WEBHOOK_LINES } from "../data/landing-shell-lines";
+import "../styles/landing.css";
+
+const createPaymentLines = LANDING_CREATE_PAYMENT_LINES;
+const webhookLines = LANDING_WEBHOOK_LINES;
+const lang: Lang = "id";
+const providerStripLabel = layoutCopy[lang].providerStripLabel;
+---
+
+<BaseLayout
+  title="Rute Bayar - Payment router CLI untuk Indonesia"
+  description="Rute Bayar adalah payment router open source berbasis CLI dan daemon untuk payment gateway Indonesia, dibuat untuk developer dan workflow penagihan AI Agent."
+  alternatePath="/en/"
+>
+  <section class="hero">
+    <div class="container hero-grid">
+      <div class="hero-copy">
+        <p class="eyebrow">Payment router open source</p>
+        <h1>Satu CLI untuk semua payment gateway Indonesia.</h1>
+        <p>
+          Rute Bayar menghubungkan payment gateway Indonesia lewat satu CLI Go dan daemon webhook.
+          Logic provider tetap modular, raw JSON tersimpan untuk debugging, dan alur invoice sampai verifikasi webhook jadi lebih jelas.
+        </p>
+        <div class="button-row">
+          <a class="button" href="/docs/">Baca dokumentasi</a>
+          <a class="button secondary" href="/skill/">Panduan skill AI Agent</a>
+        </div>
+      </div>
+      <div class="hero-console">
+        <ShellBlock title="create invoice" lines={createPaymentLines} />
+        <ShellBlock title="webhook daemon" lines={webhookLines} />
+      </div>
+    </div>
+    <div class="container provider-strip" aria-label={providerStripLabel}>
+      <span>Aktif: Xendit</span>
+      <span>Aktif: Midtrans</span>
+      <span>Berikutnya: Doku</span>
+      <span>Roadmap: Flip Business</span>
+      <span>Roadmap: Duitku</span>
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container split">
+      <div>
+        <p class="eyebrow">Jalur payment yang jelas</p>
+        <h2>Satu jalur operasional antara produkmu dan banyak provider.</h2>
+      </div>
+      <p>
+        Rute Bayar menjaga business logic tetap jauh dari detail spesifik provider. Buat payment, cek status, terima webhook, replay event, dan forward callback tanpa menyebar kode gateway ke banyak service.
+      </p>
+    </div>
+    <div class="container rail-grid">
+      <article class="rail-card">
+        <h3>Onboarding CLI-first</h3>
+        <p>Atur credential provider, test account, buat payment, request refund, dan cek status dari satu permukaan command.</p>
+      </article>
+      <article class="rail-card">
+        <h3>Webhook daemon</h3>
+        <p>Terima callback provider, verifikasi signature jika dikonfigurasi, simpan raw payload, dan replay event untuk recovery.</p>
+      </article>
+      <article class="rail-card">
+        <h3>Forwarding pass-through</h3>
+        <p>Forward webhook provider ke service milikmu sambil tetap menyimpan payload asli untuk audit dan debugging.</p>
+      </article>
+    </div>
+  </section>
+
+  <section class="section ai-band">
+    <div class="container ai-grid">
+      <div>
+        <p class="eyebrow">Penagihan AI Agent</p>
+        <h2>Biarkan agent membuat invoice dan memverifikasi payment tanpa menanam kode gateway.</h2>
+        <p>
+          AI Agent bisa memanggil `rutebayar` untuk membuat invoice dinamis, menyimpan reference run, cek status payment, dan bereaksi pada webhook yang sudah terverifikasi. CLI menjadi batas tool yang sempit dan mudah diaudit antara automation dan pergerakan uang.
+        </p>
+        <a class="button" href="/skill/">Buka panduan skill</a>
+      </div>
+      <ShellBlock
+        title="agent tool call"
+        lines={LANDING_AGENT_STATUS_LINES}
+      />
+    </div>
+  </section>
+
+  <section class="section">
+    <div class="container install-grid">
+      <div>
+        <p class="eyebrow">Pasang</p>
+        <h2>Mulai dari binary, Homebrew, atau build source.</h2>
+        <p class="muted">Release saat ini menyediakan binary untuk Linux, macOS, dan Windows.</p>
+      </div>
+      <ShellBlock
+        title="quick install"
+        lines={LANDING_QUICK_INSTALL_LINES}
+      />
+    </div>
+  </section>
+</BaseLayout>
