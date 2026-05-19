@@ -1,0 +1,72 @@
+name: E2E Sandbox
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_xendit:
+        description: Run Xendit sandbox E2E steps
+        type: boolean
+        required: false
+        default: true
+      run_midtrans:
+        description: Run Midtrans sandbox E2E steps
+        type: boolean
+        required: false
+        default: false
+
+permissions:
+  contents: read
+
+jobs:
+  e2e-sandbox:
+    name: E2E Sandbox Provider Flow
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Setup Go
+        uses: actions/setup-go@v6
+        with:
+          go-version-file: go.mod
+          cache: true
+
+      - name: Run sandbox E2E script
+        env:
+          XENDIT_SECRET_KEY: ${{ secrets.XENDIT_SECRET_KEY }}
+          XENDIT_WEBHOOK_TOKEN: ${{ secrets.XENDIT_WEBHOOK_TOKEN }}
+          MIDTRANS_MERCHANT_ID: ${{ secrets.MIDTRANS_MERCHANT_ID }}
+          MIDTRANS_CLIENT_KEY: ${{ secrets.MIDTRANS_CLIENT_KEY }}
+          MIDTRANS_SERVER_KEY: ${{ secrets.MIDTRANS_SERVER_KEY }}
+          RUTE_BAYAR_E2E_KEEP_DB: "1"
+          RUTE_BAYAR_E2E_XENDIT: ${{ inputs.run_xendit }}
+          RUTE_BAYAR_E2E_MIDTRANS: ${{ inputs.run_midtrans }}
+        run: |
+          set -euo pipefail
+
+          xendit_enabled=0
+          midtrans_enabled=0
+
+          if [[ -n "${XENDIT_SECRET_KEY:-}" && "${RUTE_BAYAR_E2E_XENDIT}" == "true" ]]; then
+            xendit_enabled=1
+          elif [[ -n "${XENDIT_SECRET_KEY:-}" && "${RUTE_BAYAR_E2E_XENDIT}" == "1" ]]; then
+            xendit_enabled=1
+          fi
+
+          if [[ -n "${MIDTRANS_MERCHANT_ID:-}" && -n "${MIDTRANS_CLIENT_KEY:-}" && -n "${MIDTRANS_SERVER_KEY:-}" && "${RUTE_BAYAR_E2E_MIDTRANS}" == "true" ]]; then
+            midtrans_enabled=1
+          elif [[ -n "${MIDTRANS_MERCHANT_ID:-}" && -n "${MIDTRANS_CLIENT_KEY:-}" && -n "${MIDTRANS_SERVER_KEY:-}" && "${RUTE_BAYAR_E2E_MIDTRANS}" == "1" ]]; then
+            midtrans_enabled=1
+          fi
+
+          if [[ "$xendit_enabled" -eq 0 && "$midtrans_enabled" -eq 0 ]]; then
+            echo "No provider credentials available in this run. Configure GitHub secrets and rerun."
+            echo "E2E sandbox run skipped."
+            exit 0
+          fi
+
+          export RUTE_BAYAR_E2E_XENDIT="$xendit_enabled"
+          export RUTE_BAYAR_E2E_MIDTRANS="$midtrans_enabled"
+
+          ./scripts/e2e-sandbox.sh

@@ -33,6 +33,26 @@ RUTE_BAYAR_SMOKE_FORWARD_ADDR=127.0.0.1:19081 \
 ./scripts/smoke-local.sh
 ```
 
+## CI/CD E2E
+
+- `CI` sekarang menjalankan `E2E Smoke (Local Webhook Simulation)` otomatis setelah `go test` lulus.
+- `scripts/smoke-local.sh` dipakai sebagai smoke non-interaktif untuk webhook + forwarding end-to-end di runner GitHub.
+- Untuk alur E2E sandbox provider (Xendit/Midtrans API), tersedia workflow manual:
+
+```bash
+gh workflow run "E2E Sandbox" \
+  -f run_xendit=true \
+  -f run_midtrans=false
+```
+
+Workflow `E2E Sandbox` akan:
+
+- Menjalankan `scripts/e2e-sandbox.sh`.
+- Mengecek kredensial provider dari GitHub Secrets.
+- Menjalankan hanya provider yang tersedia (atau yang kamu aktifkan lewat input).
+
+Kedua workflow ini dipisah agar smoke lokal tetap stabil di CI otomatis, dan flow sandbox provider tetap optional karena membutuhkan kredensial eksternal.
+
 ## Smoke Manual Provider Sandbox
 
 Gunakan checklist ini untuk validasi sandbox dengan credential asli yang disimpan di environment lokal, bukan di repo.
