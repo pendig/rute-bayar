@@ -25,11 +25,12 @@ const idPath = lang === "id" ? Astro.url.pathname : switchPath;
 const enPath = lang === "en" ? Astro.url.pathname : switchPath;
 const idUrl = new URL(idPath, siteUrl).toString();
 const enUrl = new URL(enPath, siteUrl).toString();
-const logoUrl = new URL("/brand/rutebayar-logo.png", siteUrl).toString();
 const rssUrl = new URL(lang === "id" ? "/rss.xml" : "/en/rss.xml", siteUrl).toString();
 const gaMeasurementId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
 const ogLocale = lang === "id" ? "id_ID" : "en_US";
 const ogAlternateLocale = lang === "id" ? "en_US" : "id_ID";
+const ogImageUrl = new URL("/og-image.svg", siteUrl).toString();
+const ogImageAlt = copy.ogImageAlt;
 const structuredData = {
   "@context": "https://schema.org",
   "@type": "SoftwareApplication",
@@ -69,12 +70,12 @@ const nav = [
     <meta property="og:site_name" content="Rute Bayar" />
     <meta property="og:locale" content={ogLocale} />
     <meta property="og:locale:alternate" content={ogAlternateLocale} />
-    <meta property="og:image" content={logoUrl} />
-    <meta property="og:image:alt" content="Logo Rute Bayar" />
+    <meta property="og:image" content={ogImageUrl} />
+    <meta property="og:image:alt" content={ogImageAlt} />
     <meta name="twitter:card" content="summary_large_image" />
     <meta name="twitter:title" content={title} />
     <meta name="twitter:description" content={description} />
-    <meta name="twitter:image" content={logoUrl} />
+    <meta name="twitter:image" content={ogImageUrl} />
     <script is:inline type="application/ld+json" set:html={JSON.stringify(structuredData)} />
     {
       gaMeasurementId && (

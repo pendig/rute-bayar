@@ -1,23 +1,13 @@
 ---
 import BaseLayout from "../../layouts/BaseLayout.astro";
 import ShellBlock from "../../components/ShellBlock.astro";
+import { layoutCopy } from "../../i18n";
+import { LANDING_AGENT_STATUS_LINES, LANDING_CREATE_PAYMENT_LINES, LANDING_QUICK_INSTALL_LINES, LANDING_WEBHOOK_LINES } from "../../data/landing-shell-lines";
+import "../../styles/landing.css";
 
-const createPaymentLines = [
-  "$ rutebayar pay create --provider xendit \\",
-  "  --method payment_link \\",
-  "  --reference agent-run-1001 \\",
-  "  --amount 25000",
-  "",
-  "payment_url: https://checkout.example/...",
-  "status: pending",
-];
-
-const webhookLines = [
-  "$ rutebayar webhook serve --addr :8080",
-  "listening on /webhooks/xendit",
-  "listening on /webhooks/midtrans",
-  "forwarding enabled: orders-api",
-];
+const createPaymentLines = LANDING_CREATE_PAYMENT_LINES;
+const webhookLines = LANDING_WEBHOOK_LINES;
+const providerStripLabel = layoutCopy.en.providerStripLabel;
 ---
 
 <BaseLayout
@@ -45,7 +35,7 @@ const webhookLines = [
         <ShellBlock title="webhook daemon" lines={webhookLines} />
       </div>
     </div>
-    <div class="container provider-strip" aria-label="Supported and planned providers">
+    <div class="container provider-strip" aria-label={providerStripLabel}>
       <span>Live: Xendit</span>
       <span>Live: Midtrans</span>
       <span>Next: Doku</span>
@@ -92,15 +82,7 @@ const webhookLines = [
       </div>
       <ShellBlock
         title="agent tool call"
-        lines={[
-          "$ rutebayar pay status --provider xendit --reference agent-run-1001",
-          "reference: agent-run-1001",
-          "provider: xendit",
-          "status: paid",
-          "",
-          "$ rutebayar reconcile --provider xendit --reference agent-run-1001",
-          "local status is in sync",
-        ]}
+        lines={LANDING_AGENT_STATUS_LINES}
       />
     </div>
   </section>
@@ -114,122 +96,8 @@ const webhookLines = [
       </div>
       <ShellBlock
         title="quick install"
-        lines={[
-          "$ brew tap pendig/tap",
-          "$ brew install rutebayar",
-          "",
-          "$ rutebayar provider list",
-          "$ rutebayar onboard xendit --environment sandbox",
-        ]}
+        lines={LANDING_QUICK_INSTALL_LINES}
       />
     </div>
   </section>
 </BaseLayout>
-
-<style>
-  .hero {
-    padding: 84px 0 28px;
-  }
-
-  .hero-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 1.02fr) minmax(340px, 0.98fr);
-    align-items: center;
-    gap: 52px;
-  }
-
-  .hero-copy h1 {
-    max-width: 700px;
-    margin: 18px 0;
-    font-size: clamp(3rem, 8vw, 6.6rem);
-    line-height: 0.9;
-  }
-
-  .hero-copy p:not(.eyebrow) {
-    max-width: 650px;
-    margin: 0 0 26px;
-    color: var(--ink-muted);
-    font-size: 1.12rem;
-    line-height: 1.72;
-  }
-
-  .hero-console {
-    display: grid;
-    gap: 16px;
-  }
-
-  .provider-strip {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 10px;
-    margin-top: 52px;
-    padding-top: 22px;
-    border-top: 1px solid var(--line);
-  }
-
-  .provider-strip span {
-    border: 1px solid var(--line);
-    padding: 9px 12px;
-    background: rgba(255, 255, 255, 0.46);
-    color: var(--ink-muted);
-    font-weight: 700;
-  }
-
-  .split,
-  .install-grid,
-  .ai-grid {
-    display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
-    gap: 42px;
-    align-items: start;
-  }
-
-  h2 {
-    max-width: 640px;
-    margin: 16px 0 22px;
-    font-size: clamp(2rem, 5vw, 4rem);
-    line-height: 1;
-  }
-
-  .split > p,
-  .ai-grid p,
-  .install-grid p {
-    color: var(--ink-muted);
-    font-size: 1.05rem;
-    line-height: 1.75;
-  }
-
-  .ai-band {
-    background:
-      linear-gradient(90deg, rgba(56, 213, 255, 0.1), transparent 32%),
-      linear-gradient(180deg, rgba(155, 225, 93, 0.12), transparent 58%),
-      var(--code);
-    color: #f6fff9;
-  }
-
-  .ai-band .eyebrow {
-    border-color: rgba(255, 255, 255, 0.16);
-    background: rgba(255, 255, 255, 0.06);
-    color: var(--agent-lime);
-  }
-
-  .ai-band p {
-    color: rgba(246, 255, 249, 0.74);
-  }
-
-  .ai-band .button {
-    margin-top: 8px;
-    background: var(--agent-lime);
-    color: var(--code);
-    border-color: var(--agent-lime);
-  }
-
-  @media (max-width: 880px) {
-    .hero-grid,
-    .split,
-    .install-grid,
-    .ai-grid {
-      grid-template-columns: 1fr;
-    }
-  }
-</style>

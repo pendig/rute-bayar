@@ -14,6 +14,8 @@ export const layoutCopy = {
     aria: "Navigasi utama",
     homeLabel: "Beranda Rute Bayar",
     switchLabel: "Pilih bahasa",
+    providerStripLabel: "Penyedia yang didukung dan direncanakan",
+    ogImageAlt: "Satu CLI untuk semua payment gateway Indonesia",
   },
   en: {
     nav: {
@@ -26,6 +28,8 @@ export const layoutCopy = {
     aria: "Primary navigation",
     homeLabel: "Rute Bayar home",
     switchLabel: "Choose language",
+    providerStripLabel: "Supported and planned providers",
+    ogImageAlt: "One CLI for all Indonesian payment gateways",
   },
 } as const;
 
