@@ -1,39 +1,39 @@
 .hero {
-  padding: 84px 0 28px;
+  padding: 36px 0 28px;
 }
 
 .hero-grid {
   display: grid;
-  grid-template-columns: minmax(0, 1.02fr) minmax(340px, 0.98fr);
+  grid-template-columns: minmax(0, 0.86fr) minmax(340px, 1.14fr);
   align-items: center;
-  gap: 52px;
+  gap: 36px;
 }
 
 .hero-copy h1 {
-  max-width: 700px;
-  margin: 18px 0;
-  font-size: clamp(3rem, 8vw, 6.6rem);
-  line-height: 0.9;
+  max-width: 560px;
+  margin: 14px 0;
+  font-size: clamp(2.7rem, 5.2vw, 4.35rem);
+  line-height: 0.98;
 }
 
 .hero-copy p:not(.eyebrow) {
-  max-width: 650px;
-  margin: 0 0 26px;
+  max-width: 570px;
+  margin: 0 0 18px;
   color: var(--ink-muted);
-  font-size: 1.12rem;
-  line-height: 1.72;
+  font-size: 1rem;
+  line-height: 1.58;
 }
 
 .hero-console {
   display: grid;
-  gap: 16px;
+  gap: 14px;
 }
 
 .provider-strip {
   display: flex;
   flex-wrap: wrap;
   gap: 10px;
-  margin-top: 52px;
+  margin-top: 34px;
   padding-top: 22px;
   border-top: 1px solid var(--line);
 }
@@ -78,6 +78,16 @@ h2 {
   color: #f6fff9;
 }
 
+.ai-grid {
+  align-items: center;
+}
+
+.ai-grid h2 {
+  max-width: 560px;
+  font-size: clamp(2rem, 4vw, 3.25rem);
+  line-height: 1.04;
+}
+
 .ai-band .eyebrow {
   border-color: rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.06);
@@ -85,6 +95,7 @@ h2 {
 }
 
 .ai-band p {
+  margin: 18px 0 0;
   color: rgba(246, 255, 249, 0.74);
 }
 
@@ -101,5 +112,13 @@ h2 {
   .install-grid,
   .ai-grid {
     grid-template-columns: 1fr;
+  }
+
+  .hero {
+    padding-top: 32px;
+  }
+
+  .hero-copy h1 {
+    font-size: clamp(2.5rem, 12vw, 4.2rem);
   }
 }

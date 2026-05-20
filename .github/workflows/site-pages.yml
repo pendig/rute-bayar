@@ -39,6 +39,8 @@ jobs:
           SITE_URL: https://rutebayar.id
           SITE_BASE_PATH: ""
           PUBLIC_SITE_BASE_PATH: ""
+          PUBLIC_GA_MEASUREMENT_ID: ${{ vars.PUBLIC_GA_MEASUREMENT_ID }}
+          PUBLIC_GOOGLE_SITE_VERIFICATION: ${{ vars.PUBLIC_GOOGLE_SITE_VERIFICATION }}
         run: npm run build
 
       - name: Upload Pages artifact

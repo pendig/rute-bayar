@@ -75,16 +75,18 @@ const providerStripLabel = layoutCopy[lang].providerStripLabel;
     <div class="container ai-grid">
       <div>
         <p class="eyebrow">Penagihan AI Agent</p>
-        <h2>Biarkan agent membuat invoice dan memverifikasi payment tanpa menanam kode gateway.</h2>
+        <h2>Agent membuat invoice. Rute Bayar memverifikasi payment.</h2>
+      </div>
+      <div>
+        <ShellBlock
+          title="agent tool call"
+          lines={LANDING_AGENT_STATUS_LINES}
+        />
         <p>
-          AI Agent bisa memanggil `rutebayar` untuk membuat invoice dinamis, menyimpan reference run, cek status payment, dan bereaksi pada webhook yang sudah terverifikasi. CLI menjadi batas tool yang sempit dan mudah diaudit antara automation dan pergerakan uang.
+          AI Agent bisa memanggil `rutebayar` untuk membuat invoice dinamis, menyimpan reference run, cek status payment, dan bereaksi pada webhook yang sudah terverifikasi.
         </p>
         <a class="button" href={withSiteBase("/skill/")}>Buka panduan skill</a>
       </div>
-      <ShellBlock
-        title="agent tool call"
-        lines={LANDING_AGENT_STATUS_LINES}
-      />
     </div>
   </section>
 

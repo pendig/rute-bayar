@@ -1,4 +1,4 @@
-:global(.skill-page) {
+body.skill-page {
   background:
     linear-gradient(90deg, rgba(56, 213, 255, 0.12), transparent 36%),
     linear-gradient(180deg, rgba(155, 225, 93, 0.1), transparent 46%),
@@ -7,28 +7,33 @@
 }
 
 .skill-hero {
-  padding: 86px 0 72px;
+  padding: 34px 0 42px;
 }
 
 .skill-grid,
 .skill-checklist {
   display: grid;
-  grid-template-columns: minmax(0, 0.92fr) minmax(320px, 1.08fr);
-  gap: 48px;
+  grid-template-columns: minmax(0, 0.7fr) minmax(320px, 1.3fr);
+  gap: 34px;
   align-items: center;
 }
 
 .skill-grid h1 {
-  margin: 18px 0;
-  font-size: clamp(2.8rem, 8vw, 6.2rem);
-  line-height: 0.92;
+  max-width: 460px;
+  margin: 12px 0;
+  font-size: clamp(2.25rem, 3.9vw, 3.25rem);
+  line-height: 1.06;
 }
 
-.skill-grid p:not(.eyebrow),
-.skill-checklist li {
+.skill-grid p:not(.eyebrow) {
+  max-width: 500px;
   color: rgba(247, 255, 248, 0.74);
-  font-size: 1.08rem;
-  line-height: 1.75;
+  font-size: 0.98rem;
+  line-height: 1.56;
+}
+
+.skill-grid .shell-card {
+  font-size: 0.92rem;
 }
 
 .skill-grid .eyebrow,
@@ -70,6 +75,10 @@
   line-height: 1;
 }
 
+.agent-lanes h2 {
+  color: #f7fff8;
+}
+
 .agent-lanes p {
   color: rgba(247, 255, 248, 0.7);
   line-height: 1.65;
@@ -77,6 +86,13 @@
 
 .skill-checklist {
   align-items: start;
+  color: var(--ink);
+}
+
+.skill-checklist li {
+  color: var(--ink-muted);
+  font-size: 1.08rem;
+  line-height: 1.75;
 }
 
 .skill-checklist ol {

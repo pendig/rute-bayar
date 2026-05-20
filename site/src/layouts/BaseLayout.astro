@@ -24,6 +24,7 @@ const idUrl = new URL(idPath, siteUrl).toString();
 const enUrl = new URL(enPath, siteUrl).toString();
 const rssUrl = new URL(lang === "id" ? withSiteBase("/rss.xml") : withSiteBase("/en/rss.xml"), siteUrl).toString();
 const gaMeasurementId = import.meta.env.PUBLIC_GA_MEASUREMENT_ID;
+const googleSiteVerification = import.meta.env.PUBLIC_GOOGLE_SITE_VERIFICATION;
 const ogLocale = lang === "id" ? "id_ID" : "en_US";
 const ogAlternateLocale = lang === "id" ? "en_US" : "id_ID";
 const ogImageUrl = new URL(withSiteBase("/og-image.svg"), siteUrl).toString();
@@ -45,6 +46,7 @@ const nav = [
   { href: `${prefix}/docs/`, label: copy.nav.docs },
   { href: `${prefix}/skill/`, label: copy.nav.skill },
   { href: `${prefix}/blog/`, label: copy.nav.blog },
+  { href: `${prefix}/changelog/`, label: copy.nav.changelog },
 ];
 ---
 
@@ -55,6 +57,9 @@ const nav = [
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <meta name="description" content={description} />
     <meta name="robots" content="index,follow" />
+    <link rel="icon" type="image/png" href={withSiteBase("/brand/rutebayar-mark.png")} />
+    <link rel="apple-touch-icon" href={withSiteBase("/brand/rutebayar-logo.png")} />
+    {googleSiteVerification && <meta name="google-site-verification" content={googleSiteVerification} />}
     <link rel="canonical" href={canonicalUrl} />
     <link rel="alternate" hreflang="id" href={idUrl} />
     <link rel="alternate" hreflang="en" href={enUrl} />

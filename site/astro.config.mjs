@@ -8,5 +8,8 @@ export default defineConfig({
   site,
   base,
   output: "static",
+  devToolbar: {
+    enabled: false,
+  },
   integrations: [sitemap()],
 });
