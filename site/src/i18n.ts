@@ -111,7 +111,11 @@ export const layoutCopy = {
 } as const;
 
 export function langPrefix(lang: Lang) {
-  return lang === defaultLang ? (normalizedSiteBasePath || "/") : withSiteBase("en");
+  if (lang === defaultLang) {
+    return normalizedSiteBasePath ? withSiteBase("") : "";
+  }
+
+  return withSiteBase("en");
 }
 
 export function stripLangFromId(id: string) {
