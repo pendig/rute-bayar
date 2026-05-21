@@ -29,6 +29,19 @@
   gap: 14px;
 }
 
+.product-hunt-badge {
+  display: inline-flex;
+  width: fit-content;
+  margin-top: 18px;
+}
+
+.product-hunt-badge img {
+  display: block;
+  width: 250px;
+  max-width: 100%;
+  height: auto;
+}
+
 .provider-strip {
   display: flex;
   flex-wrap: wrap;
