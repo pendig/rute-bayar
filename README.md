@@ -119,6 +119,37 @@ Note: if the provider credentials/configuration are not present, webhook verific
 
 ## Installation
 
+### Make sure command is in your shell PATH
+
+If installation succeeds but `rutebayar` command is not found, ensure your binary folder is on PATH.
+
+Homebrew paths are usually:
+
+- Apple Silicon macOS: `/opt/homebrew/bin`
+- Intel macOS: `/usr/local/bin`
+- Linuxbrew: `~/.linuxbrew/bin` or `/home/linuxbrew/.linuxbrew/bin`
+
+```bash
+if command -v brew >/dev/null 2>&1; then
+  eval "$(brew shellenv)"
+fi
+which rutebayar
+```
+
+If you used binary download and placed it in a local folder, run from that folder with `./rutebayar`, or move it to a PATH folder:
+
+```bash
+chmod +x ./rutebayar
+mkdir -p ~/.local/bin
+mv ./rutebayar ~/.local/bin/rutebayar
+export PATH="$HOME/.local/bin:$PATH"
+```
+To persist PATH for future shells, add to `~/.zshrc` or `~/.bashrc`:
+
+```bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+```
+
 Install with Homebrew:
 
 ```bash
@@ -147,6 +178,7 @@ mv $(go env GOPATH)/bin/rute-bayar $(go env GOPATH)/bin/rutebayar
 ```
 
 For stable builds, prefer the latest tagged release or a local build from `main`.
+
 
 ## Usage
 
