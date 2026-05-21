@@ -116,3 +116,117 @@ jobs:
             --title "${VERSION}" \
             --notes-file release-notes.md \
             "${prerelease_args[@]}"
+
+      - name: Sync Homebrew tap
+        if: github.ref_type == 'tag'
+        env:
+          GH_TOKEN: ${{ github.token }}
+          VERSION: ${{ github.ref_name }}
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+          HOMEBREW_TAP_REPO: pendig/homebrew-tap
+          GITHUB_REPOSITORY_NAME: ${{ github.repository }}
+        run: |
+          set -euo pipefail
+
+          if [[ -z "${HOMEBREW_TAP_TOKEN:-}" ]]; then
+            echo "HOMEBREW_TAP_TOKEN not configured. Skipping Homebrew sync."
+            exit 0
+          fi
+
+          export GH_TOKEN="${HOMEBREW_TAP_TOKEN}"
+
+          darwin_amd64_sha="$(awk '$2=="rutebayar-darwin-amd64"{print $1}' dist/checksums.txt)"
+          darwin_arm64_sha="$(awk '$2=="rutebayar-darwin-arm64"{print $1}' dist/checksums.txt)"
+          linux_amd64_sha="$(awk '$2=="rutebayar-linux-amd64"{print $1}' dist/checksums.txt)"
+          linux_arm64_sha="$(awk '$2=="rutebayar-linux-arm64"{print $1}' dist/checksums.txt)"
+
+          if [[ -z "${darwin_amd64_sha}" || -z "${darwin_arm64_sha}" || -z "${linux_amd64_sha}" || -z "${linux_arm64_sha}" ]]; then
+            echo "Missing checksum for expected release assets. Cannot sync Homebrew."
+            exit 1
+          fi
+
+          version_without_v="${VERSION#v}"
+          branch="chore/rute-bayar-${VERSION}"
+          tap_dir="$(mktemp -d)"
+          trap 'rm -rf "${tap_dir}"' EXIT
+
+          git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${HOMEBREW_TAP_REPO}.git" "${tap_dir}/tap"
+          cd "${tap_dir}/tap"
+
+          cat > Formula/rute-bayar.rb <<EOF
+class RuteBayar < Formula
+  desc "Payment router CLI and webhook daemon for Indonesian payment gateways"
+  homepage "https://github.com/${GITHUB_REPOSITORY_NAME}"
+  version "${version_without_v}"
+  license "MIT"
+
+  on_macos do
+    if Hardware::CPU.arm?
+      url "https://github.com/${GITHUB_REPOSITORY_NAME}/releases/download/${VERSION}/rutebayar-darwin-arm64"
+      sha256 "${darwin_arm64_sha}"
+    else
+      url "https://github.com/${GITHUB_REPOSITORY_NAME}/releases/download/${VERSION}/rutebayar-darwin-amd64"
+      sha256 "${darwin_amd64_sha}"
+    end
+  end
+
+  on_linux do
+    if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
+      url "https://github.com/${GITHUB_REPOSITORY_NAME}/releases/download/${VERSION}/rutebayar-linux-arm64"
+      sha256 "${linux_arm64_sha}"
+    else
+      url "https://github.com/${GITHUB_REPOSITORY_NAME}/releases/download/${VERSION}/rutebayar-linux-amd64"
+      sha256 "${linux_amd64_sha}"
+    end
+  end
+
+  def install
+    bin.install Dir["rutebayar-*"].first => "rutebayar"
+  end
+
+  test do
+    system bin/"rutebayar", "version"
+  end
+end
+EOF
+
+          if git diff --quiet -- Formula/rute-bayar.rb; then
+            echo "No Homebrew formula changes for ${VERSION}"
+            exit 0
+          fi
+
+          if git show-ref --verify --quiet "refs/remotes/origin/${branch}"; then
+            git checkout "${branch}"
+            git pull --rebase origin "${branch}"
+          else
+            git checkout -b "${branch}"
+          fi
+
+          git add Formula/rute-bayar.rb
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          if ! git diff --cached --quiet; then
+            git commit -m "chore: bump rute-bayar to ${VERSION}"
+            git push "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${HOMEBREW_TAP_REPO}.git" "${branch}"
+          fi
+
+          existing_pr="$(gh pr list --repo "${HOMEBREW_TAP_REPO}" --state open --head "${branch}" --json number --limit 1 -q '.[0].number')"
+          if [[ -n "${existing_pr}" ]]; then
+            echo "Open Homebrew PR already exists: #${existing_pr}"
+            exit 0
+          fi
+
+          cat > "${tap_dir}/chore-body.md" <<EOF_BODY
+Automated Homebrew update for release ${VERSION}.
+
+- Bump formula version to ${version_without_v}
+- Update darwin/linux binary URLs and SHA256 checksums
+- Keeps install command as \`rutebayar\`
+EOF_BODY
+
+          gh pr create \
+            --repo "${HOMEBREW_TAP_REPO}" \
+            --base main \
+            --head "${branch}" \
+            --title "chore: bump rute-bayar to ${VERSION}" \
+            --body-file "${tap_dir}/chore-body.md"
