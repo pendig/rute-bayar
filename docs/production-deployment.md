@@ -48,8 +48,8 @@ Jika `rutebayar` tidak dikenali setelah install, tambahkan path berikut:
 
 ```bash
 if ! command -v rutebayar >/dev/null 2>&1; then
-  echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc # atau ~/.zshrc
-  export PATH="$HOME/.local/bin:$PATH"
+  echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.bashrc # atau ~/.zshrc
+  export PATH="/usr/local/bin:$PATH"
 fi
 ```
 

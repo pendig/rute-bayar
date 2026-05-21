@@ -144,10 +144,14 @@ mkdir -p ~/.local/bin
 mv ./rutebayar ~/.local/bin/rutebayar
 export PATH="$HOME/.local/bin:$PATH"
 ```
-To persist PATH for future shells, add to `~/.zshrc` or `~/.bashrc`:
+To persist PATH for future shells, add to your shell profile:
 
 ```bash
+# For zsh
 echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.zshrc
+
+# For bash
+echo 'export PATH="$HOME/.local/bin:$PATH"' >> ~/.bashrc
 ```
 
 Install with Homebrew:
