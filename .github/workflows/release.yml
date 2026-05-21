@@ -152,43 +152,44 @@ jobs:
 
           git clone "https://x-access-token:${HOMEBREW_TAP_TOKEN}@github.com/${HOMEBREW_TAP_REPO}.git" "${tap_dir}/tap"
           cd "${tap_dir}/tap"
+          mkdir -p Formula
 
-          cat > Formula/rute-bayar.rb <<EOF
-class RuteBayar < Formula
-  desc "Payment router CLI and webhook daemon for Indonesian payment gateways"
-  homepage "https://github.com/${GITHUB_REPOSITORY_NAME}"
-  version "${version_without_v}"
-  license "MIT"
-
-  on_macos do
-    if Hardware::CPU.arm?
-      url "https://github.com/${GITHUB_REPOSITORY_NAME}/releases/download/${VERSION}/rutebayar-darwin-arm64"
-      sha256 "${darwin_arm64_sha}"
-    else
-      url "https://github.com/${GITHUB_REPOSITORY_NAME}/releases/download/${VERSION}/rutebayar-darwin-amd64"
-      sha256 "${darwin_amd64_sha}"
-    end
-  end
-
-  on_linux do
-    if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?
-      url "https://github.com/${GITHUB_REPOSITORY_NAME}/releases/download/${VERSION}/rutebayar-linux-arm64"
-      sha256 "${linux_arm64_sha}"
-    else
-      url "https://github.com/${GITHUB_REPOSITORY_NAME}/releases/download/${VERSION}/rutebayar-linux-amd64"
-      sha256 "${linux_amd64_sha}"
-    end
-  end
-
-  def install
-    bin.install Dir["rutebayar-*"].first => "rutebayar"
-  end
-
-  test do
-    system bin/"rutebayar", "version"
-  end
-end
-EOF
+          {
+            echo "class RuteBayar < Formula"
+            echo "  desc \"Payment router CLI and webhook daemon for Indonesian payment gateways\""
+            echo "  homepage \"https://github.com/${GITHUB_REPOSITORY_NAME}\""
+            echo "  version \"${version_without_v}\""
+            echo "  license \"MIT\""
+            echo ""
+            echo "  on_macos do"
+            echo "    if Hardware::CPU.arm?"
+            echo "      url \"https://github.com/${GITHUB_REPOSITORY_NAME}/releases/download/${VERSION}/rutebayar-darwin-arm64\""
+            echo "      sha256 \"${darwin_arm64_sha}\""
+            echo "    else"
+            echo "      url \"https://github.com/${GITHUB_REPOSITORY_NAME}/releases/download/${VERSION}/rutebayar-darwin-amd64\""
+            echo "      sha256 \"${darwin_amd64_sha}\""
+            echo "    end"
+            echo "  end"
+            echo ""
+            echo "  on_linux do"
+            echo "    if Hardware::CPU.arm? && Hardware::CPU.is_64_bit?"
+            echo "      url \"https://github.com/${GITHUB_REPOSITORY_NAME}/releases/download/${VERSION}/rutebayar-linux-arm64\""
+            echo "      sha256 \"${linux_arm64_sha}\""
+            echo "    else"
+            echo "      url \"https://github.com/${GITHUB_REPOSITORY_NAME}/releases/download/${VERSION}/rutebayar-linux-amd64\""
+            echo "      sha256 \"${linux_amd64_sha}\""
+            echo "    end"
+            echo "  end"
+            echo ""
+            echo "  def install"
+            echo "    bin.install Dir[\"rutebayar-*\"].first => \"rutebayar\""
+            echo "  end"
+            echo ""
+            echo "  test do"
+            echo "    system bin/\"rutebayar\", \"version\""
+            echo "  end"
+            echo "end"
+          } > Formula/rute-bayar.rb
 
           if git diff --quiet -- Formula/rute-bayar.rb; then
             echo "No Homebrew formula changes for ${VERSION}"
@@ -216,13 +217,13 @@ EOF
             exit 0
           fi
 
-          cat > "${tap_dir}/chore-body.md" <<EOF_BODY
-Automated Homebrew update for release ${VERSION}.
-
-- Bump formula version to ${version_without_v}
-- Update darwin/linux binary URLs and SHA256 checksums
-- Keeps install command as \`rutebayar\`
-EOF_BODY
+          {
+            echo "Automated Homebrew update for release ${VERSION}."
+            echo ""
+            echo "- Bump formula version to ${version_without_v}"
+            echo "- Update darwin/linux binary URLs and SHA256 checksums"
+            echo "- Keeps install command as \`rutebayar\`"
+          } > "${tap_dir}/chore-body.md"
 
           gh pr create \
             --repo "${HOMEBREW_TAP_REPO}" \
