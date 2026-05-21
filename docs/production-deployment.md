@@ -30,7 +30,13 @@ Komponen:
 
 ## Installation
 
-Install dengan Homebrew:
+Instalasi cepat (server):
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pendig/rute-bayar/main/scripts/install.sh | bash
+```
+
+Atau gunakan Homebrew:
 
 ```bash
 brew tap pendig/tap
