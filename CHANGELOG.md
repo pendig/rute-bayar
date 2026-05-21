@@ -2,6 +2,45 @@
 
 All notable changes to Rute Bayar will be documented in this file.
 
+## v0.1.4 - 2026-05-21
+
+### Added
+
+- Add manual release trigger support (`workflow_dispatch`) with a safe `dry-run` mode.
+- Keep release flow configurable for selective execution in CI.
+- Improve reliability of Homebrew synchronization from release workflow.
+
+### Changed
+
+- Harden Homebrew sync implementation used during release publish.
+- Use dynamic release version interpolation in formula URL template.
+- Keep `v`-prefixed tag behavior consistent with Homebrew versioned artifacts.
+
+### Verified
+
+- `go test ./...` passes in release branch.
+- Release artifact checksums and version interpolation are generated from release workflow.
+
+## v0.1.3 - 2026-05-20
+
+### Added
+
+- Add multilingual landing site (Indonesia and English) with `/skill` and `/changelog`.
+- Add deploy workflow adjustments for public landing site hosting and base-path support.
+- Improve landing copy and visual polish, including route strip, AI Agent section, and sitemap.
+
+### Changed
+
+- Rework navigation and layout for GitHub Pages publishing under `rute-bayar` domain/path.
+- Refine logo usage and duplicated components.
+- Reconcile changelog content and page data for landing history.
+
+### Verified
+
+- Landing pages render for ID/EN locales.
+- GitHub Pages deployment pipeline runs with static asset compatibility.
+- Site checks run from CI for lint/build stability.
+
 ## v0.1.2 - 2026-05-19
 
 ### Added

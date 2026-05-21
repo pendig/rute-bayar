@@ -1,5 +1,29 @@
 export const changelogEntries = [
   {
+    version: "v0.1.4",
+    date: "2026-05-21",
+    tag: "Release automation hardening",
+    summary:
+      "Rilis stabil berikutnya menyempurnakan alur release dan sinkronisasi Homebrew agar lebih aman serta fleksibel untuk proses manual/otomatis.",
+    items: [
+      "Menambahkan mode manual dispatch untuk release workflow (`workflow_dispatch`) dengan opsi dry-run.",
+      "Hardening Homebrew sinkronisasi setelah build release, termasuk perbaikan URL versi.",
+      "Mendorong sinkronisasi otomatis formula Homebrew pada proses release agar update rilis tidak manual.",
+    ],
+  },
+  {
+    version: "v0.1.3",
+    date: "2026-05-20",
+    tag: "Landing dan docs polish",
+    summary:
+      "Penambahan landing site multilingual dan perbaikan UX, termasuk halaman changelog, halaman blog, skill page, dan deployment untuk GitHub Pages.",
+    items: [
+      "Menyediakan landing page bilingual (ID/EN) dengan fitur dokumentasi dan panduan AI Agent.",
+      "Penyelarasan navigasi, sitemap, dan base path untuk deployment GitHub Pages.",
+      "Penyesuaian polish untuk branding, spacing, dan struktur halaman publik.",
+    ],
+  },
+  {
     version: "v0.1.2",
     date: "2026-05-19",
     tag: "CI dan provider sandbox",

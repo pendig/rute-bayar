@@ -29,6 +29,10 @@ export const LANDING_QUICK_INSTALL_LINES = [
   "$ brew tap pendig/tap",
   "$ brew install rutebayar",
   "",
+  "$ curl -fSL -o rutebayar https://github.com/pendig/rute-bayar/releases/latest/download/rutebayar-linux-amd64",
+  "$ chmod +x rutebayar",
+  "$ ./rutebayar --version",
+  "",
   "$ rutebayar provider list",
   "$ rutebayar onboard xendit --environment sandbox",
 ];
