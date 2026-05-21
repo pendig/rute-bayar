@@ -1,5 +1,7 @@
 # Rute Bayar
 
+![Rute Bayar banner](./assets/brand/rutebayarid-banner-compress.png)
+
 [![CI](https://github.com/pendig/rute-bayar/actions/workflows/ci.yml/badge.svg)](https://github.com/pendig/rute-bayar/actions/workflows/ci.yml)
 [![Release](https://github.com/pendig/rute-bayar/actions/workflows/release.yml/badge.svg)](https://github.com/pendig/rute-bayar/actions/workflows/release.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/pendig/rute-bayar?include_prereleases)](https://github.com/pendig/rute-bayar/releases)

@@ -68,14 +68,11 @@ if [[ -z "${VERSION}" ]]; then
   VERSION="latest"
 fi
 
-API_URL="https://api.github.com/repos/${REPO}/releases/${VERSION}"
 if [[ "${VERSION}" == "latest" ]]; then
+  API_URL="https://api.github.com/repos/${REPO}/releases/latest"
   ASSET_URL="https://github.com/${REPO}/releases/latest/download/${BINARY_NAME}-${PLATFORM}"
-  if ! command -v curl >/dev/null 2>&1; then
-    echo "curl is required." >&2
-    exit 1
-  fi
 else
+  API_URL="https://api.github.com/repos/${REPO}/releases/tags/${VERSION}"
   ASSET_URL="https://github.com/${REPO}/releases/download/${VERSION}/${BINARY_NAME}-${PLATFORM}"
 fi
 
@@ -91,26 +88,36 @@ if [[ "$VERSION" != "latest" ]]; then
   fi
 fi
 
-tmp="$(mktemp)"
+tmp="$(mktemp "${TMPDIR:-/tmp}/rutebayar.XXXXXX")"
 trap 'rm -f "$tmp"' EXIT
 
 echo "Downloading ${ASSET_URL}"
 curl -fsSL -o "$tmp" "$ASSET_URL"
 chmod +x "$tmp"
 
-mkdir -p "$INSTALL_DIR"
+install_bin() {
+  local src="$1"
+  local dest="$2"
 
-install_cmd="cp \"$tmp\" \"${INSTALL_DIR}/${BINARY_NAME}\""
-if command -v install >/dev/null 2>&1; then
-  install_cmd="install -m 0755 \"$tmp\" \"${INSTALL_DIR}/${BINARY_NAME}\""
-fi
+  if command -v install >/dev/null 2>&1; then
+    install -m 0755 "$src" "$dest"
+  else
+    cp "$src" "$dest"
+    chmod +x "$dest"
+  fi
+}
 
-if ! (eval "$install_cmd"); then
+install_to_dir() {
+  local target_dir="$1"
+
+  mkdir -p "$target_dir"
+  install_bin "$tmp" "${target_dir}/${BINARY_NAME}"
+}
+
+if ! install_to_dir "$INSTALL_DIR"; then
   echo "Failed to write to ${INSTALL_DIR}. Trying fallback to \$HOME/.local/bin." >&2
   INSTALL_DIR="$HOME/.local/bin"
-  mkdir -p "$INSTALL_DIR"
-  install_cmd="install -m 0755 \"$tmp\" \"${INSTALL_DIR}/${BINARY_NAME}\""
-  eval "$install_cmd"
+  install_to_dir "$INSTALL_DIR"
   echo "Saved binary to ${INSTALL_DIR}/${BINARY_NAME}."
   echo "Add to PATH if needed:"
   echo "  echo 'export PATH=\"${HOME}/.local/bin:\$PATH\"' >> ~/.bashrc  # or ~/.zshrc"
@@ -120,4 +127,3 @@ else
 fi
 
 "${INSTALL_DIR}/${BINARY_NAME}" version || true
-EOF
