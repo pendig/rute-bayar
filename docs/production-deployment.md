@@ -44,6 +44,15 @@ Atau gunakan binary release:
 curl -L -o rutebayar https://github.com/pendig/rute-bayar/releases/latest/download/rutebayar-linux-amd64
 ```
 
+Jika `rutebayar` tidak dikenali setelah install, tambahkan path berikut:
+
+```bash
+if ! command -v rutebayar >/dev/null 2>&1; then
+  echo 'export PATH="/usr/local/bin:$PATH"' >> ~/.bashrc # atau ~/.zshrc
+  export PATH="/usr/local/bin:$PATH"
+fi
+```
+
 ```bash
 chmod +x rutebayar
 sudo mv rutebayar /usr/local/bin/rutebayar
