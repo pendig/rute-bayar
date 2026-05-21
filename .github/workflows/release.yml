@@ -4,6 +4,15 @@ on:
   push:
     tags:
       - "v*"
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: "Release tag to publish (e.g. v0.1.4)"
+        required: true
+      dry_run:
+        description: "Build only, skip publish steps (true/false)"
+        required: false
+        default: "false"
 
 permissions:
   contents: write
@@ -12,6 +21,9 @@ jobs:
   release:
     name: Build and Publish
     runs-on: ubuntu-latest
+    env:
+      RELEASE_VERSION: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.tag || github.ref_name }}
+      DRY_RUN: ${{ github.event_name == 'workflow_dispatch' && github.event.inputs.dry_run || 'false' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -34,7 +46,7 @@ jobs:
 
       - name: Build release binaries
         env:
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ env.RELEASE_VERSION }}
         run: |
           set -euo pipefail
           mkdir -p dist
@@ -63,7 +75,7 @@ jobs:
 
       - name: Prepare release notes
         env:
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ env.RELEASE_VERSION }}
         run: |
           set -euo pipefail
           awk -v version="$VERSION" '
@@ -96,9 +108,14 @@ jobs:
       - name: Publish GitHub Release
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ env.RELEASE_VERSION }}
         run: |
           set -euo pipefail
+
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            echo "Dry run enabled. Skipping publish."
+            exit 0
+          fi
 
           prerelease_args=()
           case "${VERSION}" in
@@ -118,15 +135,20 @@ jobs:
             "${prerelease_args[@]}"
 
       - name: Sync Homebrew tap
-        if: github.ref_type == 'tag'
+        if: github.ref_type == 'tag' || github.event_name == 'workflow_dispatch'
         env:
           GH_TOKEN: ${{ github.token }}
-          VERSION: ${{ github.ref_name }}
+          VERSION: ${{ env.RELEASE_VERSION }}
           HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
           HOMEBREW_TAP_REPO: pendig/homebrew-tap
           GITHUB_REPOSITORY_NAME: ${{ github.repository }}
         run: |
           set -euo pipefail
+
+          if [[ "${DRY_RUN}" == "true" ]]; then
+            echo "Dry run enabled. Skipping Homebrew sync."
+            exit 0
+          fi
 
           if [[ -z "${HOMEBREW_TAP_TOKEN:-}" ]]; then
             echo "HOMEBREW_TAP_TOKEN not configured. Skipping Homebrew sync."
