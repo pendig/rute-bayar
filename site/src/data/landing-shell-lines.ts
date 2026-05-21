@@ -32,7 +32,7 @@ export const LANDING_QUICK_INSTALL_LINES = [
   "$ brew tap pendig/tap",
   "$ brew install rutebayar",
   "",
-  "$ go install github.com/pendig/rute-bayar/cmd/rutebayar@latest",
+  "$ go install github.com/pendig/rute-bayar/cmd/rute-bayar@latest",
   "$ which rutebayar",
   "$ rutebayar version",
   "",
