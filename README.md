@@ -1,5 +1,7 @@
 # Rute Bayar
 
+![Rute Bayar banner](./assets/brand/rutebayarid-banner-compress.png)
+
 [![CI](https://github.com/pendig/rute-bayar/actions/workflows/ci.yml/badge.svg)](https://github.com/pendig/rute-bayar/actions/workflows/ci.yml)
 [![Release](https://github.com/pendig/rute-bayar/actions/workflows/release.yml/badge.svg)](https://github.com/pendig/rute-bayar/actions/workflows/release.yml)
 [![GitHub Release](https://img.shields.io/github/v/release/pendig/rute-bayar?include_prereleases)](https://github.com/pendig/rute-bayar/releases)
@@ -118,6 +120,24 @@ The daemon verifies webhook signatures when provider credentials/configuration s
 Note: if the provider credentials/configuration are not present, webhook verification is skipped and requests are stored as raw inbound payloads for debugging.
 
 ## Installation
+
+### Fast install
+
+Use one command to detect OS and install latest stable binary:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/pendig/rute-bayar/main/scripts/install.sh | bash
+```
+
+Optional flags:
+
+```bash
+# install to local user bin only
+curl -fsSL https://raw.githubusercontent.com/pendig/rute-bayar/main/scripts/install.sh | bash -s -- --local
+
+# pin version
+curl -fsSL https://raw.githubusercontent.com/pendig/rute-bayar/main/scripts/install.sh | bash -s -- --version v0.1.4
+```
 
 ### Make sure command is in your shell PATH
 

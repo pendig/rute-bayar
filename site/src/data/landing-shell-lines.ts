@@ -26,8 +26,15 @@ export const LANDING_AGENT_STATUS_LINES = [
 ];
 
 export const LANDING_QUICK_INSTALL_LINES = [
+  "$ curl -fsSL https://raw.githubusercontent.com/pendig/rute-bayar/main/scripts/install.sh | bash",
+  "$ rutebayar version",
+  "",
   "$ brew tap pendig/tap",
   "$ brew install rutebayar",
+  "",
+  "$ go install github.com/pendig/rute-bayar/cmd/rute-bayar@latest",
+  "$ which rutebayar",
+  "$ rutebayar version",
   "",
   "$ curl -fSL -o rutebayar https://github.com/pendig/rute-bayar/releases/latest/download/rutebayar-linux-amd64",
   "$ chmod +x rutebayar",
