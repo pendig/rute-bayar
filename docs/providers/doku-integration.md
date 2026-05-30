@@ -1,78 +1,121 @@
-# Doku Integration (Next Provider)
+# DOKU Integration
 
-Dokumen ini menjadi rencana dan checklist awal untuk integrasi **Doku** sebagai provider berikutnya setelah Midtrans dan Xendit.
+Dokumen ini mencatat implementasi provider **DOKU Checkout** di Rute Bayar.
 
-## Goal
+## Status
 
-- Menyediakan `pay create`, `pay status`, dan `pay refund` (jika didukung) untuk `--provider doku`.
-- Menyinkronkan status dari callback dan polling status API Doku ke status internal.
-- Menangani webhook Doku dengan verifikasi signature (jika didukung dokumentasi).
-- Menambahkan dukungan forwarding webhook pass-through.
-- Menyimpan semua inbound/outbound JSON payload untuk debugging.
+- `pay create --provider doku` tersedia melalui DOKU Checkout.
+- `pay status --provider doku` tersedia melalui DOKU Check Status API.
+- Webhook `/webhooks/doku` tersedia dengan verifikasi signature DOKU.
+- Webhook forwarding tetap pass-through, sama seperti provider lain.
+- Semua outbound request/response dan inbound webhook/header tetap disimpan sebagai JSON.
+- `pay refund --provider doku` belum diaktifkan karena refund DOKU membutuhkan konfigurasi Refund API/disbursement terpisah.
+- DOKU tetap meminta Notification URL aktif di Back Office per channel; override dari CLI harus memakai path yang sama dengan konfigurasi tersebut agar callback benar-benar terkirim.
+
+## Official References
+
+- DOKU Checkout backend integration: `POST /checkout/v1/payment`.
+  https://developers.doku.com/accept-payments/doku-checkout/integration-guide/backend-integration
+- DOKU Check Status API: `GET /orders/v1/status/{invoice_number_or_request_id}`.
+  https://developers.doku.com/get-started-with-doku-api/check-status-api/non-snap
+- DOKU HTTP Notification and webhook setup.
+  https://docs.doku.com/get-started/manage-business/set-up-integration/webhook-payment-notification
+- DOKU signature sample and HMAC-SHA256 header format.
+  https://dashboard.doku.com/docs/docs/technical-references/sample/go-signature-sample/
+- DOKU refund policy and Refund API/disbursement context.
+  https://docs.doku.com/accept-payments/finance-and-settlement/refund-and-chargeback/refund-and-chargeback
 
 ## Onboarding
 
-1. Kumpulkan dokumentasi resmi Doku yang akan dipakai:
-   - API base URL dan environment sandbox/production.
-   - Mekanisme autentikasi (API key/client key atau signature).
-   - Event webhook + header verifikasi.
-   - API untuk status payment dan refund.
-2. Buat template kredensial provider di CLI:
-   - `--api-key`
-   - `--api-secret` (jika diperlukan)
-   - `--environment`
-   - `--merchant-id` (jika diperlukan oleh Doku)
-3. Buat account provisioning sesuai pola umum provider di proyek ini:
-   - `provider_code = doku`
-   - `provider_name = Doku`
-   - `environment = sandbox|production`
-4. Validasi awal:
-   - command `provider test doku` memanggil endpoint ringan (health/status) untuk memastikan kredensial benar.
+```bash
+rutebayar onboard doku \
+  --client-id "$DOKU_CLIENT_ID" \
+  --secret-key "$DOKU_SECRET_KEY" \
+  --environment sandbox
+```
 
-## Command Surface
+Optional webhook path:
 
-- `rutebayar provider add doku`
-- `rutebayar provider test doku`
-- `rutebayar pay create --provider doku ...`
-- `rutebayar pay status --provider doku --reference <ref>`
-- `rutebayar pay refund --provider doku --reference <ref> [--amount <amount>]`
-- `rutebayar webhook forward add --provider doku --name ... --url ...`
-- `rutebayar webhook replay --provider doku --event-id ...`
+```bash
+rutebayar onboard doku \
+  --client-id "$DOKU_CLIENT_ID" \
+  --secret-key "$DOKU_SECRET_KEY" \
+  --webhook-path /webhooks/doku \
+  --environment sandbox
+```
 
-## Runtime Mapping
+`--webhook-path` dipakai untuk verifikasi signature webhook. Nilai default mengikuti endpoint daemon Rute Bayar: `/webhooks/doku`.
 
-- Buat adapter `internal/provider/doku` sesuai pola adapter saat ini.
-- Tambah mapping status internal (contoh: pending, paid, failed, expired, refunded, partial_refunded, settled).
-- Simpan:
-  - outbound request JSON (`request_json`)
-  - outbound response JSON (`response_json`)
-  - inbound webhook JSON (`inbound_json`)
-  - inbound headers JSON (`inbound_headers`)
-- Forwarding tetap pass-through tanpa transformasi payload.
+## Smoke Commands
 
-## Webhook
+```bash
+rutebayar provider test doku --environment sandbox
 
-- Endpoint: `/webhooks/doku`
-- Verifikasi signature berdasarkan dokumentasi resmi Doku.
-- Deduplicate event berbasis event ID/transaction ID jika tersedia.
-- Simpan event agar replay bisa dijalankan ulang dari DB.
-- Update status pembayaran internal setelah validasi event.
+rutebayar pay create \
+  --provider doku \
+  --method checkout \
+  --reference rb-doku-001 \
+  --amount 15000 \
+  --notification-url https://<public-domain>/webhooks/doku
 
-## Non-Goals (MVP)
+rutebayar pay status \
+  --provider doku \
+  --reference rb-doku-001
+```
 
-- Tidak menambahkan provider-specific logic ke core service.
-- Tidak membuat UI atau API baru dalam step ini (tetap CLI + daemon).
-- Tidak mengubah struktur storage yang sudah berjalan.
+`provider test doku` hanya memverifikasi request signed sampai ke API DOKU; `404` pada probe dummy masih berarti auth/signature valid, bukan kegagalan integrasi.
 
-## Open Questions
+## Payment Methods
 
-- Apakah Doku menyediakan endpoint status yang stabil untuk semua jenis payment method?
-- Apakah refund bisa dijalankan per full/partial secara langsung dari payment reference?
-- Apakah sandbox Doku menyediakan simulasi status callback untuk seluruh metode pembayaran?
+`--method checkout` menampilkan metode pembayaran aktif di DOKU Checkout.
 
-## DoD
+Provider adapter juga mendukung filter metode DOKU Checkout berikut:
 
-- Adapter Doku berhasil dipakai dari CLI untuk minimal 1 method payment.
-- Webhook Doku bisa diterima, diverifikasi, dan memicu update internal status.
-- `pay status` Doku tersedia untuk mengecek status langsung.
-- E2E checklist terpisah bisa dijalankan (create → webhook → pay status → reconcile/refund jika memungkinkan).
+- `--method bank_transfer --bank bca`
+- `--method bank_transfer --bank mandiri`
+- `--method bank_transfer --bank bri`
+- `--method bank_transfer --bank bni`
+- `--method qris`
+- `--method credit_card`
+- `--method ewallet --bank ovo`
+- `--method ewallet --bank dana`
+- `--method convenience_store --bank alfa`
+- raw DOKU method type, misalnya `--method VIRTUAL_ACCOUNT_BNI`
+
+## Webhook Verification
+
+DOKU mengirim header:
+
+- `Client-Id`
+- `Request-Id`
+- `Request-Timestamp`
+- `Signature`
+
+Rute Bayar menghitung ulang signature dengan format:
+
+```text
+Client-Id:<client_id>
+Request-Id:<request_id>
+Request-Timestamp:<request_timestamp>
+Request-Target:<webhook_path>
+Digest:<base64_sha256_body>
+```
+
+Hasil HMAC-SHA256 dibandingkan dengan header `Signature` yang diawali `HMACSHA256=`.
+
+## Status Mapping
+
+- `ORDER_GENERATED`, `ORDER_RECOVERED`, `PENDING`, `REDIRECT`, `TIMEOUT` -> `pending`
+- `SUCCESS`, `APPROVE` -> `paid`
+- `FAILED`, `REJECT` -> `failed`
+- `ORDER_EXPIRED`, `EXPIRED` -> `expired`
+- `CANCELLED`, `CANCELED` -> `cancelled`
+- `REFUNDED` -> `refunded`
+- `PARTIAL_REFUNDED` -> `partial_refunded`
+
+## Follow-Up
+
+- Tambahkan DOKU refund setelah credential dan flow Refund API/disbursement disiapkan.
+- Tambahkan E2E sandbox DOKU Checkout ketika akun sandbox DOKU tersedia.
+- Tambahkan contoh webhook fixture DOKU dari dashboard/simulator resmi.
+- Tambahkan smoke flow otomatis untuk memastikan Notification URL DOKU Back Office tersetel per channel sebelum release stabil.

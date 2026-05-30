@@ -10,9 +10,9 @@
 
 Rute Bayar is an open source payment router for Indonesian payment gateways.
 
-The project provides one internal interface for multiple providers, starting with **Xendit** and **Midtrans**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
+The project provides one internal interface for multiple providers, starting with **Xendit**, **Midtrans**, and **DOKU Checkout**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
 
-> Status: stable `v0.1.4`. The repository includes webhook signature verification for Midtrans and callback-token verification for Xendit, plus Midtrans and Xendit `pay create`, `pay status`, `pay refund`, `reconcile`, and SQLite persistence. Real sandbox proof covers Midtrans/Xendit webhook callbacks and Xendit refund reconciliation through final `refund.succeeded` callback. Webhook forwarding target management is also available via CLI.
+> Status: stable `v0.1.4`. The repository includes webhook signature verification for Midtrans and DOKU, callback-token verification for Xendit, plus `pay create`, `pay status`, `reconcile`, and SQLite persistence. Midtrans/Xendit refund flows are implemented; DOKU refund is intentionally disabled until Refund API/disbursement setup is wired. Real sandbox proof covers Midtrans/Xendit webhook callbacks and Xendit refund reconciliation through final `refund.succeeded` callback. Webhook forwarding target management is also available via CLI.
 
 Latest release: [v0.1.4](https://github.com/pendig/rute-bayar/releases/tag/v0.1.4)
 
@@ -24,7 +24,7 @@ Latest release: [v0.1.4](https://github.com/pendig/rute-bayar/releases/tag/v0.1.
 - Pass-through webhook forwarding.
 - Raw inbound and outbound JSON storage for debugging and audit.
 - SQLite-first local storage.
-- Initial support target: Xendit Payment Sessions and Midtrans.
+- Initial support target: Xendit Payment Sessions, Midtrans, and DOKU Checkout.
 
 ## Quick Start
 
@@ -56,6 +56,15 @@ Onboard Midtrans credentials into local SQLite:
 ./bin/rutebayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
 ./bin/rutebayar provider test midtrans
 ```
+
+Onboard DOKU Checkout credentials into local SQLite:
+
+```bash
+./bin/rutebayar onboard doku --client-id "$DOKU_CLIENT_ID" --secret-key "$DOKU_SECRET_KEY" --environment sandbox
+./bin/rutebayar provider test doku
+```
+
+Note: DOKU callback delivery still depends on the matching Notification URL being configured in DOKU Back Office per channel, so keep the path aligned with `/webhooks/doku` before relying on live webhook callbacks.
 
 Start the webhook daemon:
 
@@ -111,11 +120,13 @@ Set provider webhook URL to:
 ```text
 https://xxxx.trycloudflare.com/webhooks/xendit
 https://xxxx.trycloudflare.com/webhooks/midtrans
+https://xxxx.trycloudflare.com/webhooks/doku
 ```
 
 The daemon verifies webhook signatures when provider credentials/configuration support it:
 - Midtrans: `signature_key` is validated with `order_id + status_code + gross_amount + server_key`.
 - Xendit: callback token validation uses `X-Callback-Token` when configured on onboarding.
+- DOKU: `Signature` is validated with DOKU's HMAC-SHA256 header format using the webhook target path, request timestamp, request ID, body digest, client ID, and secret key.
 
 Note: if the provider credentials/configuration are not present, webhook verification is skipped and requests are stored as raw inbound payloads for debugging.
 
@@ -212,13 +223,16 @@ Available command skeleton:
 rutebayar onboard
 rutebayar onboard xendit --secret-key <key> --environment sandbox
 rutebayar onboard midtrans --merchant-id <id> --client-key <key> --server-key <key> --environment sandbox
+rutebayar onboard doku --client-id <id> --secret-key <key> --environment sandbox
 rutebayar provider list
 rutebayar provider accounts
 rutebayar provider test midtrans
 rutebayar provider test xendit
+rutebayar provider test doku
 rutebayar pay create --provider xendit --method payment_link --reference rb-xnd-001 --amount 15000
 rutebayar pay create --provider midtrans --method bank_transfer --bank bca --reference rb-0001 --amount 15000
 rutebayar pay create --provider midtrans --method qris --bank gopay --reference rb-qris-001 --amount 15000 --notification-url https://<public-domain>/webhooks/midtrans
+rutebayar pay create --provider doku --method checkout --reference rb-doku-001 --amount 15000 --notification-url https://<public-domain>/webhooks/doku
 rutebayar pay status --provider midtrans --reference rb-0001
 rutebayar pay refund
 rutebayar webhook serve --addr :8080
@@ -226,7 +240,7 @@ rutebayar webhook forward list
 rutebayar webhook forward add
 rutebayar webhook forward update
 rutebayar webhook forward remove
-rutebayar webhook replay --event-id <id> [--provider midtrans|xendit]
+rutebayar webhook replay --event-id <id> [--provider midtrans|xendit|doku]
 rutebayar webhook forward attempts list --status failed
 rutebayar webhook forward attempts show <attempt-id>
 rutebayar webhook forward attempts retry <attempt-id>
@@ -364,4 +378,4 @@ Copyright (c) 2026 Wahyu Adi Putra Pena Digital.
 - Complete final stable readiness pass for `v0.1.0` before publishing a non-alpha release.
 - Add more Midtrans payment methods and provider-specific diagnostics.
 - Improve operational observability for webhook forwarding and replay.
-- Add Doku as the next provider family.
+- Expand DOKU beyond Checkout into refund/disbursement flows after credential requirements are confirmed.

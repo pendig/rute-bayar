@@ -122,6 +122,52 @@ func TestProcessReconcilesAndForwards(t *testing.T) {
 	}
 }
 
+func TestProcessPreservesWebhookTargetPath(t *testing.T) {
+	t.Parallel()
+
+	recorder := &stubWebhookRecorder{}
+	forwarder := &stubForwarder{}
+	svc := New(recorder, forwarder, map[domain.ProviderCode]provider.Adapter{
+		domain.ProviderDoku: &testWebhookAdapter{
+			verifyFn: func(_ context.Context, req provider.WebhookRequest) error {
+				if req.TargetPath != "/webhooks/doku" {
+					t.Fatalf("TargetPath = %q, want /webhooks/doku", req.TargetPath)
+				}
+				return nil
+			},
+			parseFn: func(context.Context, provider.WebhookRequest) (provider.WebhookEvent, error) {
+				return provider.WebhookEvent{
+					ProviderEventID: "evt-doku-001",
+					EventType:       "payment.success",
+					PaymentRef:      "rb-doku-001",
+					Status:          domain.PaymentStatusPaid,
+				}, nil
+			},
+		},
+	})
+
+	result, err := svc.Process(context.Background(), Input{
+		Provider: domain.ProviderDoku,
+		Request: provider.WebhookRequest{
+			Headers:    http.Header{"Client-Id": []string{"client-id"}},
+			Body:       []byte(`{"order":{"invoice_number":"rb-doku-001"}}`),
+			TargetPath: "/webhooks/doku",
+		},
+	})
+	if err != nil {
+		t.Fatalf("Process returned error: %v", err)
+	}
+	if result.StatusCode != http.StatusAccepted {
+		t.Fatalf("StatusCode = %d, want %d", result.StatusCode, http.StatusAccepted)
+	}
+	if len(forwarder.inbounds) != 1 {
+		t.Fatalf("Forward calls = %d, want 1", len(forwarder.inbounds))
+	}
+	if forwarder.inbounds[0].Provider != domain.ProviderDoku {
+		t.Fatalf("Forward provider = %q, want doku", forwarder.inbounds[0].Provider)
+	}
+}
+
 func TestProcessRejectsDuplicateWebhookEvent(t *testing.T) {
 	t.Parallel()
 

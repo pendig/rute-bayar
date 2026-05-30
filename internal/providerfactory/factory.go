@@ -10,6 +10,7 @@ import (
 
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/provider"
+	"github.com/pendig/rute-bayar/internal/provider/doku"
 	"github.com/pendig/rute-bayar/internal/provider/midtrans"
 	"github.com/pendig/rute-bayar/internal/provider/xendit"
 	"github.com/pendig/rute-bayar/internal/storage/sqlite"
@@ -56,6 +57,12 @@ func (f *Factory) AdapterForStoredAccount(ctx context.Context, providerCode doma
 			return nil, err
 		}
 		return adapter, nil
+	case domain.ProviderDoku:
+		adapter, err := f.DokuAdapterForStoredAccount(ctx, environment, baseURL)
+		if err != nil {
+			return nil, err
+		}
+		return adapter, nil
 	default:
 		return nil, fmt.Errorf("provider %q is not implemented yet", providerCode)
 	}
@@ -71,6 +78,12 @@ func (f *Factory) AdapterForAccount(account domain.ProviderAccount, baseURL stri
 		return adapter, nil
 	case domain.ProviderXendit:
 		adapter, err := f.XenditAdapterForAccount(account, baseURL)
+		if err != nil {
+			return nil, err
+		}
+		return adapter, nil
+	case domain.ProviderDoku:
+		adapter, err := f.DokuAdapterForAccount(account, baseURL)
 		if err != nil {
 			return nil, err
 		}
@@ -119,6 +132,14 @@ func (f *Factory) XenditAdapterForStoredAccount(ctx context.Context, environment
 		return nil, err
 	}
 	return f.XenditAdapterForAccount(account, baseURL)
+}
+
+func (f *Factory) DokuAdapterForStoredAccount(ctx context.Context, environment domain.Environment, baseURL string) (*doku.Adapter, error) {
+	account, err := f.loadAccount(ctx, domain.ProviderDoku, environment)
+	if err != nil {
+		return nil, err
+	}
+	return f.DokuAdapterForAccount(account, baseURL)
 }
 
 func (f *Factory) MidtransAdapterForAccount(account domain.ProviderAccount, baseURL string) (*midtrans.Adapter, error) {
@@ -170,6 +191,37 @@ func (f *Factory) XenditAdapterForAccount(account domain.ProviderAccount, baseUR
 	return xendit.New(options...), nil
 }
 
+func (f *Factory) DokuAdapterForAccount(account domain.ProviderAccount, baseURL string) (*doku.Adapter, error) {
+	credential, err := dokuCredentialFromJSON(account.CredentialJSON)
+	if err != nil {
+		return nil, err
+	}
+
+	var httpClient *http.Client
+	if f != nil {
+		httpClient = f.httpClient
+	}
+
+	options := []doku.Option{
+		doku.WithClientID(credential.ClientID),
+		doku.WithSecretKey(credential.SecretKey),
+	}
+	if client := httpClient; client != nil {
+		options = append(options, doku.WithHTTPClient(client))
+	}
+	if trimmedBaseURL := strings.TrimSpace(baseURL); trimmedBaseURL != "" {
+		options = append(options, doku.WithBaseURL(trimmedBaseURL))
+	} else {
+		options = append(options, doku.WithBaseURL(doku.BaseURLForEnvironment(account.Environment)))
+	}
+	if webhookTargetPath, err := dokuWebhookTargetPathFromConfig(account.ConfigJSON); err != nil {
+		return nil, err
+	} else if webhookTargetPath != "" {
+		options = append(options, doku.WithWebhookTargetPath(webhookTargetPath))
+	}
+	return doku.New(options...), nil
+}
+
 func (f *Factory) loadAccount(ctx context.Context, providerCode domain.ProviderCode, environment domain.Environment) (domain.ProviderAccount, error) {
 	if f == nil || f.loader == nil {
 		return domain.ProviderAccount{}, fmt.Errorf("provider account loader is required")
@@ -218,6 +270,27 @@ func xenditSecretKeyFromJSON(raw []byte) (string, error) {
 	return secretKey, nil
 }
 
+type dokuCredential struct {
+	ClientID  string `json:"client_id"`
+	SecretKey string `json:"secret_key"`
+}
+
+func dokuCredentialFromJSON(raw []byte) (dokuCredential, error) {
+	var credential dokuCredential
+	if err := json.Unmarshal(raw, &credential); err != nil {
+		return dokuCredential{}, fmt.Errorf("read doku credential json: %w", err)
+	}
+	credential.ClientID = strings.TrimSpace(credential.ClientID)
+	credential.SecretKey = strings.TrimSpace(credential.SecretKey)
+	if credential.ClientID == "" {
+		return dokuCredential{}, fmt.Errorf("doku client id is not configured")
+	}
+	if credential.SecretKey == "" {
+		return dokuCredential{}, fmt.Errorf("doku secret key is not configured")
+	}
+	return credential, nil
+}
+
 func xenditWebhookTokenFromConfig(raw json.RawMessage) (string, error) {
 	if len(raw) == 0 {
 		return "", nil
@@ -230,4 +303,18 @@ func xenditWebhookTokenFromConfig(raw json.RawMessage) (string, error) {
 		return "", fmt.Errorf("read xendit config json: %w", err)
 	}
 	return strings.TrimSpace(config.WebhookToken), nil
+}
+
+func dokuWebhookTargetPathFromConfig(raw json.RawMessage) (string, error) {
+	if len(raw) == 0 {
+		return "", nil
+	}
+
+	var config struct {
+		WebhookTargetPath string `json:"webhook_target_path"`
+	}
+	if err := json.Unmarshal(raw, &config); err != nil {
+		return "", fmt.Errorf("read doku config json: %w", err)
+	}
+	return strings.TrimSpace(config.WebhookTargetPath), nil
 }
