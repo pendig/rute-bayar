@@ -1,5 +1,18 @@
 export const changelogEntries = [
   {
+    version: "v0.1.5",
+    date: "2026-05-30",
+    tag: "DOKU release update",
+    summary:
+      "Rilis update ini menambahkan DOKU Checkout, webhook verification, forwarding pass-through, dan hardening dokumentasi callback agar release lebih siap dipakai.",
+    items: [
+      "Onboarding DOKU Checkout dengan client ID dan secret key sandbox.",
+      "Pay create/status DOKU serta webhook `/webhooks/doku` dengan signature verification.",
+      "Webhook forwarding tetap pass-through dan menyimpan raw JSON inbound/outbound untuk debugging.",
+      "Docs dan site diselaraskan untuk setup callback dan release flow DOKU.",
+    ],
+  },
+  {
     version: "v0.1.4",
     date: "2026-05-21",
     tag: "Release automation hardening",

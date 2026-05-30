@@ -10,6 +10,7 @@ Dokumen ini mencatat implementasi provider **DOKU Checkout** di Rute Bayar.
 - Webhook forwarding tetap pass-through, sama seperti provider lain.
 - Semua outbound request/response dan inbound webhook/header tetap disimpan sebagai JSON.
 - `pay refund --provider doku` belum diaktifkan karena refund DOKU membutuhkan konfigurasi Refund API/disbursement terpisah.
+- DOKU tetap meminta Notification URL aktif di Back Office per channel; override dari CLI harus memakai path yang sama dengan konfigurasi tersebut agar callback benar-benar terkirim.
 
 ## Official References
 
@@ -61,6 +62,8 @@ rutebayar pay status \
   --provider doku \
   --reference rb-doku-001
 ```
+
+`provider test doku` hanya memverifikasi request signed sampai ke API DOKU; `404` pada probe dummy masih berarti auth/signature valid, bukan kegagalan integrasi.
 
 ## Payment Methods
 
@@ -115,3 +118,4 @@ Hasil HMAC-SHA256 dibandingkan dengan header `Signature` yang diawali `HMACSHA25
 - Tambahkan DOKU refund setelah credential dan flow Refund API/disbursement disiapkan.
 - Tambahkan E2E sandbox DOKU Checkout ketika akun sandbox DOKU tersedia.
 - Tambahkan contoh webhook fixture DOKU dari dashboard/simulator resmi.
+- Tambahkan smoke flow otomatis untuk memastikan Notification URL DOKU Back Office tersetel per channel sebelum release stabil.

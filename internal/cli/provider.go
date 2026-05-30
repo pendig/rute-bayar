@@ -5,6 +5,7 @@ import (
 	"flag"
 	"fmt"
 	"io"
+	"net/http"
 	"strings"
 
 	"github.com/pendig/rute-bayar/internal/config"
@@ -164,9 +165,13 @@ func providerTestDoku(ctx context.Context, w io.Writer, args []string) error {
 		return err
 	}
 
-	fmt.Fprintln(w, "doku auth ok")
+	fmt.Fprintln(w, "doku auth probe reached api")
 	fmt.Fprintf(w, "environment: %s\n", environmentValue)
 	fmt.Fprintf(w, "status_code: %d\n", info.StatusCode)
+	if info.StatusCode == http.StatusNotFound {
+		fmt.Fprintln(w, "note: 404 is expected for the dummy probe reference; the signed request still reached DOKU")
+	}
+	fmt.Fprintln(w, "note: configure the matching Notification URL in DOKU Back Office per channel before relying on webhook callbacks")
 	return nil
 }
 

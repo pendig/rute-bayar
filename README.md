@@ -64,6 +64,8 @@ Onboard DOKU Checkout credentials into local SQLite:
 ./bin/rutebayar provider test doku
 ```
 
+Note: DOKU callback delivery still depends on the matching Notification URL being configured in DOKU Back Office per channel, so keep the path aligned with `/webhooks/doku` before relying on live webhook callbacks.
+
 Start the webhook daemon:
 
 ```bash

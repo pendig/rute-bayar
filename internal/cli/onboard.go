@@ -221,5 +221,6 @@ func onboardDoku(ctx context.Context, stdout, stderr io.Writer, args []string) e
 	fmt.Fprintf(stdout, "secret key: %s\n", maskSecret(*secretKey))
 	fmt.Fprintf(stdout, "webhook path: %s\n", strings.TrimSpace(*webhookTargetPath))
 	fmt.Fprintf(stdout, "database: %s\n", *dbPath)
+	fmt.Fprintln(stdout, "note: configure the same notification path in DOKU Back Office per channel before relying on webhook callbacks")
 	return nil
 }
