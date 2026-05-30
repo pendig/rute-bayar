@@ -360,7 +360,7 @@ func (a *Adapter) ParseWebhook(_ context.Context, req provider.WebhookRequest) (
 		ProviderEventID: strings.TrimSpace(eventID),
 		EventType:       eventType,
 		PaymentRef:      reference,
-		Status:          mapDokuStatus(status),
+		Status:          mapDokuWebhookStatus(status),
 		RawPayloadJSON:  req.Body,
 		RawHeadersJSON:  marshalHeaders(req.Headers),
 	}, nil
@@ -627,6 +627,13 @@ var dokuStatusMap = provider.StatusMap{
 
 func mapDokuStatus(status string) domain.PaymentStatus {
 	return provider.MapPaymentStatus(status, dokuStatusMap, domain.PaymentStatusPending)
+}
+
+func mapDokuWebhookStatus(status string) domain.PaymentStatus {
+	if strings.EqualFold(strings.TrimSpace(status), "FAILED") {
+		return domain.PaymentStatusPending
+	}
+	return mapDokuStatus(status)
 }
 
 func firstNonEmpty(values ...string) string {

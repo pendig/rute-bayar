@@ -218,6 +218,42 @@ func TestVerifyAndParseWebhook(t *testing.T) {
 	}
 }
 
+func TestParseWebhookTreatsCheckoutFailedAsPending(t *testing.T) {
+	t.Parallel()
+
+	body := []byte(`{
+		"order":{"invoice_number":"rb-doku-002","amount":20000},
+		"transaction":{"status":"FAILED","original_request_id":"request-456"},
+		"channel":{"id":"VIRTUAL_ACCOUNT_BCA"}
+	}`)
+	requestID := "webhook-request-456"
+	timestamp := "2026-05-30T00:00:00Z"
+	signature := dokuSignature("client-id", requestID, timestamp, "/webhooks/doku", dokuDigest(body), "secret")
+
+	adapter := New(WithClientID("client-id"), WithSecretKey("secret"))
+	req := provider.WebhookRequest{
+		Headers: http.Header{
+			"Client-Id":         []string{"client-id"},
+			"Request-Id":        []string{requestID},
+			"Request-Timestamp": []string{timestamp},
+			"Signature":         []string{signature},
+		},
+		Body:       body,
+		TargetPath: "/webhooks/doku",
+	}
+
+	event, err := adapter.ParseWebhook(context.Background(), req)
+	if err != nil {
+		t.Fatalf("ParseWebhook returned error: %v", err)
+	}
+	if event.PaymentRef != "rb-doku-002" {
+		t.Fatalf("PaymentRef = %q, want rb-doku-002", event.PaymentRef)
+	}
+	if event.Status != domain.PaymentStatusPending {
+		t.Fatalf("Status = %q, want pending", event.Status)
+	}
+}
+
 func TestDokuPaymentMethodTypes(t *testing.T) {
 	t.Parallel()
 
