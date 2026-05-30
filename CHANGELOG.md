@@ -2,6 +2,17 @@
 
 All notable changes to Rute Bayar will be documented in this file.
 
+## Unreleased
+
+### Added
+
+- Add DOKU Checkout provider support for onboarding, auth test, `pay create`, `pay status`, webhook signature verification, webhook parsing, and pass-through forwarding.
+- Add DOKU provider docs, status mapping, and usage examples.
+
+### Notes
+
+- DOKU refund remains disabled until Refund API/disbursement setup is implemented.
+
 ## v0.1.4 - 2026-05-21
 
 ### Added

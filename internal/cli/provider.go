@@ -42,6 +42,8 @@ func providerTest(ctx context.Context, w io.Writer, args []string) error {
 		return providerTestMidtrans(ctx, w, args[1:])
 	case "xendit":
 		return providerTestXendit(ctx, w, args[1:])
+	case "doku":
+		return providerTestDoku(ctx, w, args[1:])
 	default:
 		return fmt.Errorf("provider test for %q is not implemented yet", args[0])
 	}
@@ -128,6 +130,43 @@ func providerTestXendit(ctx context.Context, w io.Writer, args []string) error {
 	if info.Balance != nil {
 		fmt.Fprintf(w, "balance: %.0f\n", *info.Balance)
 	}
+	return nil
+}
+
+func providerTestDoku(ctx context.Context, w io.Writer, args []string) error {
+	cfg := config.Load()
+	fs := flag.NewFlagSet("provider test doku", flag.ContinueOnError)
+	fs.SetOutput(w)
+	environment := fs.String("environment", cfg.Environment, "provider environment: sandbox or production")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	baseURL := fs.String("base-url", "", "override DOKU API base URL")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	environmentValue := strings.TrimSpace(*environment)
+	if err := validateEnvironment(environmentValue); err != nil {
+		return err
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	factory := providerfactory.New(store)
+	adapter, err := factory.DokuAdapterForStoredAccount(ctx, domain.Environment(environmentValue), *baseURL)
+	if err != nil {
+		return err
+	}
+	info, err := adapter.TestAuth(ctx)
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintln(w, "doku auth ok")
+	fmt.Fprintf(w, "environment: %s\n", environmentValue)
+	fmt.Fprintf(w, "status_code: %d\n", info.StatusCode)
 	return nil
 }
 

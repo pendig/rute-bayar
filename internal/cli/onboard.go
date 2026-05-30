@@ -18,6 +18,7 @@ func onboard(ctx context.Context, stdout, stderr io.Writer, args []string) error
 		fmt.Fprintln(stdout, "Available onboarding providers:")
 		fmt.Fprintln(stdout, "  xendit")
 		fmt.Fprintln(stdout, "  midtrans")
+		fmt.Fprintln(stdout, "  doku")
 		return nil
 	}
 
@@ -26,6 +27,8 @@ func onboard(ctx context.Context, stdout, stderr io.Writer, args []string) error
 		return onboardXendit(ctx, stdout, stderr, args[1:])
 	case "midtrans":
 		return onboardMidtrans(ctx, stdout, stderr, args[1:])
+	case "doku":
+		return onboardDoku(ctx, stdout, stderr, args[1:])
 	default:
 		return fmt.Errorf("unknown onboarding provider %q", args[0])
 	}
@@ -152,6 +155,71 @@ func onboardXendit(ctx context.Context, stdout, stderr io.Writer, args []string)
 	fmt.Fprintf(stdout, "xendit account saved: %s\n", accountID)
 	fmt.Fprintf(stdout, "environment: %s\n", environmentVal)
 	fmt.Fprintf(stdout, "secret key: %s\n", maskSecret(*secretKey))
+	fmt.Fprintf(stdout, "database: %s\n", *dbPath)
+	return nil
+}
+
+func onboardDoku(ctx context.Context, stdout, stderr io.Writer, args []string) error {
+	cfg := config.Load()
+	fs := flag.NewFlagSet("onboard doku", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	clientID := fs.String("client-id", "", "DOKU client ID")
+	secretKey := fs.String("secret-key", "", "DOKU secret key")
+	environment := fs.String("environment", cfg.Environment, "provider environment: sandbox or production")
+	displayName := fs.String("name", "DOKU", "provider account display name")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	webhookTargetPath := fs.String("webhook-path", "/webhooks/doku", "DOKU webhook target path used for signature verification")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+
+	if strings.TrimSpace(*clientID) == "" {
+		return fmt.Errorf("doku --client-id is required")
+	}
+	if strings.TrimSpace(*secretKey) == "" {
+		return fmt.Errorf("doku --secret-key is required")
+	}
+	environmentVal := strings.TrimSpace(*environment)
+	if err := validateEnvironment(environmentVal); err != nil {
+		return err
+	}
+
+	credentialJSON, err := json.Marshal(map[string]string{
+		"client_id":  strings.TrimSpace(*clientID),
+		"secret_key": strings.TrimSpace(*secretKey),
+	})
+	if err != nil {
+		return fmt.Errorf("marshal doku credential: %w", err)
+	}
+	configJSON, err := json.Marshal(map[string]string{
+		"webhook_target_path": strings.TrimSpace(*webhookTargetPath),
+	})
+	if err != nil {
+		return fmt.Errorf("marshal doku config: %w", err)
+	}
+
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+
+	accountID, err := store.UpsertProviderAccount(ctx, domain.ProviderAccount{
+		ProviderCode:   domain.ProviderDoku,
+		Environment:    domain.Environment(environmentVal),
+		DisplayName:    *displayName,
+		CredentialJSON: credentialJSON,
+		ConfigJSON:     configJSON,
+	})
+	if err != nil {
+		return err
+	}
+
+	fmt.Fprintf(stdout, "doku account saved: %s\n", accountID)
+	fmt.Fprintf(stdout, "environment: %s\n", environmentVal)
+	fmt.Fprintf(stdout, "client id: %s\n", strings.TrimSpace(*clientID))
+	fmt.Fprintf(stdout, "secret key: %s\n", maskSecret(*secretKey))
+	fmt.Fprintf(stdout, "webhook path: %s\n", strings.TrimSpace(*webhookTargetPath))
 	fmt.Fprintf(stdout, "database: %s\n", *dbPath)
 	return nil
 }
