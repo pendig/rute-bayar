@@ -193,9 +193,9 @@ func normalizeProvider(value domain.ProviderCode) (domain.ProviderCode, error) {
 
 	valid := make([]string, 0, len(domain.SupportedProviders()))
 	for _, supportedProvider := range domain.SupportedProviders() {
-		valid = append(valid, string(supportedProvider))
+		valid = append(valid, fmt.Sprintf("%q", supportedProvider))
 	}
-	return "", fmt.Errorf("provider must be one of %q", strings.Join(valid, "\", \""))
+	return "", fmt.Errorf("provider must be one of %s", strings.Join(valid, ", "))
 }
 
 func normalizeProviders(value domain.ProviderCode) ([]domain.ProviderCode, error) {
