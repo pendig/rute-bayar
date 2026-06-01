@@ -17,6 +17,7 @@ Provider callback URLs:
 ```text
 https://<public-domain>/webhooks/xendit
 https://<public-domain>/webhooks/midtrans
+https://<public-domain>/webhooks/doku
 ```
 
 When credentials are configured, the daemon verifies signatures or callback tokens according to each provider adapter.

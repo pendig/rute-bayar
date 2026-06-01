@@ -78,8 +78,9 @@ func (s *Service) Process(ctx context.Context, input Input) (Result, error) {
 	}
 
 	request := provider.WebhookRequest{
-		Headers: cloneHeaders(input.Request.Headers),
-		Body:    cloneBytes(input.Request.Body),
+		Headers:    cloneHeaders(input.Request.Headers),
+		Body:       cloneBytes(input.Request.Body),
+		TargetPath: strings.TrimSpace(input.Request.TargetPath),
 	}
 	event := domain.WebhookEvent{
 		ProviderCode:     providerCode,

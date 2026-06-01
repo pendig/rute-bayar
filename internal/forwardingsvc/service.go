@@ -184,14 +184,18 @@ func (s *Service) Remove(ctx context.Context, targetID string) error {
 }
 
 func normalizeProvider(value domain.ProviderCode) (domain.ProviderCode, error) {
-	switch domain.ProviderCode(strings.ToLower(strings.TrimSpace(string(value)))) {
-	case domain.ProviderMidtrans:
-		return domain.ProviderMidtrans, nil
-	case domain.ProviderXendit:
-		return domain.ProviderXendit, nil
-	default:
-		return "", fmt.Errorf("provider must be one of %q or %q", domain.ProviderMidtrans, domain.ProviderXendit)
+	providerCode := domain.ProviderCode(strings.ToLower(strings.TrimSpace(string(value))))
+	for _, supportedProvider := range domain.SupportedProviders() {
+		if providerCode == supportedProvider {
+			return supportedProvider, nil
+		}
 	}
+
+	valid := make([]string, 0, len(domain.SupportedProviders()))
+	for _, supportedProvider := range domain.SupportedProviders() {
+		valid = append(valid, fmt.Sprintf("%q", supportedProvider))
+	}
+	return "", fmt.Errorf("provider must be one of %s", strings.Join(valid, ", "))
 }
 
 func normalizeProviders(value domain.ProviderCode) ([]domain.ProviderCode, error) {

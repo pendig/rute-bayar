@@ -51,6 +51,7 @@ Contoh:
 
 - `providers/midtrans`
 - `providers/xendit`
+- `providers/doku`
 
 Tanggung jawab adapter:
 
@@ -77,6 +78,7 @@ Daemon expose endpoint webhook per provider, misalnya:
 
 - `/webhooks/midtrans`
 - `/webhooks/xendit`
+- `/webhooks/doku`
 
 Fungsi daemon:
 

@@ -64,6 +64,28 @@ Tujuannya agar perubahan adapter Midtrans/Xendit tetap konsisten dan mudah direv
 | `CANCELED` | `cancelled` |
 | unknown | `pending` |
 
+## DOKU Checkout / Check Status / HTTP Notification
+
+| Provider status | Rute Bayar status |
+| --- | --- |
+| `ORDER_GENERATE` | `pending` |
+| `ORDER_GENERATED` | `pending` |
+| `ORDER_RECOVERED` | `pending` |
+| `ORDER_EXPIRED` | `expired` |
+| `PENDING` | `pending` |
+| `SUCCESS` | `paid` |
+| `FAILED` | `failed` |
+| `EXPIRED` | `expired` |
+| `REFUNDED` | `refunded` |
+| `PARTIAL_REFUNDED` | `partial_refunded` |
+| `TIMEOUT` | `pending` |
+| `REDIRECT` | `pending` |
+| `CANCELLED` | `cancelled` |
+| `CANCELED` | `cancelled` |
+| `APPROVE` | `paid` |
+| `REJECT` | `failed` |
+| unknown | `pending` |
+
 ## Implementasi
 
 Normalisasi status provider dilakukan lewat `internal/provider.MapPaymentStatus`.

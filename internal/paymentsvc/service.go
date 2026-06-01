@@ -528,8 +528,10 @@ func normalizeProvider(value domain.ProviderCode) (domain.ProviderCode, error) {
 		return domain.ProviderMidtrans, nil
 	case domain.ProviderXendit:
 		return domain.ProviderXendit, nil
+	case domain.ProviderDoku:
+		return domain.ProviderDoku, nil
 	default:
-		return "", fmt.Errorf("provider must be one of %q or %q", domain.ProviderMidtrans, domain.ProviderXendit)
+		return "", fmt.Errorf("provider must be one of %q, %q, or %q", domain.ProviderMidtrans, domain.ProviderXendit, domain.ProviderDoku)
 	}
 }
 
