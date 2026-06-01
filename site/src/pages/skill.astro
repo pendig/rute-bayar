@@ -64,6 +64,31 @@ const steps = [
   </section>
 
   <section class="section">
+    <div class="container skill-install">
+      <div>
+        <p class="eyebrow">Install skill</p>
+        <h2>Pakai skill Rute Bayar di AI Agent kamu.</h2>
+        <p>
+          Skill ini memberi agent panduan siap pakai untuk sandbox, production, invoice dinamis, webhook forwarding, kontribusi provider, dan release checklist.
+        </p>
+        <div class="skill-actions">
+          <a class="button" href="https://www.skills.sh/pendig/rutebayar-agent-contributor" target="_blank" rel="noopener noreferrer">Buka di skills.sh</a>
+          <a class="button secondary" href="https://github.com/pendig/rutebayar-agent-contributor" target="_blank" rel="noopener noreferrer">Repo skill</a>
+        </div>
+      </div>
+      <ShellBlock
+        title="install ai agent skill"
+        lines={[
+          "$ npx skills add pendig/rutebayar-agent-contributor",
+          "",
+          "# contoh prompt",
+          "Gunakan $rutebayar-agent-contributor untuk menyiapkan pengujian webhook sandbox.",
+        ]}
+      />
+    </div>
+  </section>
+
+  <section class="section">
     <div class="container skill-checklist">
       <div>
         <p class="eyebrow">Panduan</p>

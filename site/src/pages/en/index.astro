@@ -93,7 +93,10 @@ const providerStripLabel = layoutCopy.en.providerStripLabel;
         <p>
           An AI Agent can call `rutebayar` to create a dynamic invoice, store its own run reference, check payment status, and react to verified webhooks. The CLI becomes a narrow, inspectable tool boundary between automation and money movement.
         </p>
-        <a class="button" href={withSiteBase("/en/skill/")}>Open the skill guide</a>
+        <div class="button-row">
+          <a class="button" href={withSiteBase("/en/skill/")}>Open the skill guide</a>
+          <a class="button secondary" href="https://www.skills.sh/pendig/rutebayar-agent-contributor" target="_blank" rel="noopener noreferrer">Install skill</a>
+        </div>
       </div>
       <ShellBlock
         title="agent tool call"
