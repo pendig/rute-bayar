@@ -91,10 +91,6 @@ body.skill-page {
   color: var(--ink);
 }
 
-.skill-install {
-  align-items: center;
-}
-
 .skill-install h2 {
   margin: 12px 0;
   font-size: clamp(2rem, 4vw, 3.8rem);
