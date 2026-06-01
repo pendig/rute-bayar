@@ -11,7 +11,8 @@ body.skill-page {
 }
 
 .skill-grid,
-.skill-checklist {
+.skill-checklist,
+.skill-install {
   display: grid;
   grid-template-columns: minmax(0, 0.7fr) minmax(320px, 1.3fr);
   gap: 34px;
@@ -37,6 +38,7 @@ body.skill-page {
 }
 
 .skill-grid .eyebrow,
+.skill-install .eyebrow,
 .skill-checklist .eyebrow {
   border-color: rgba(255, 255, 255, 0.16);
   background: rgba(255, 255, 255, 0.06);
@@ -89,6 +91,29 @@ body.skill-page {
   color: var(--ink);
 }
 
+.skill-install {
+  align-items: center;
+}
+
+.skill-install h2 {
+  margin: 12px 0;
+  font-size: clamp(2rem, 4vw, 3.8rem);
+  line-height: 1;
+}
+
+.skill-install p:not(.eyebrow) {
+  max-width: 560px;
+  color: var(--ink-muted);
+  line-height: 1.7;
+}
+
+.skill-actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+  margin-top: 22px;
+}
+
 .skill-checklist li {
   color: var(--ink-muted);
   font-size: 1.08rem;
@@ -107,6 +132,7 @@ body.skill-page {
 
 @media (max-width: 860px) {
   .skill-grid,
+  .skill-install,
   .skill-checklist,
   .agent-lanes {
     grid-template-columns: 1fr;

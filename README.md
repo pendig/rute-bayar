@@ -26,6 +26,28 @@ Latest release: [v0.1.6](https://github.com/pendig/rute-bayar/releases/tag/v0.1.
 - SQLite-first local storage.
 - Initial support target: Xendit Payment Sessions, Midtrans, and DOKU Checkout.
 
+## AI Agent Skill
+
+Rute Bayar also ships an AI Agent skill for agent runners and coding assistants that need a clear workflow for sandbox/prod setup, invoice creation, payment status checks, webhook forwarding, provider contribution, and release readiness.
+
+Install the skill with skills.sh:
+
+```bash
+npx skills add pendig/rutebayar-agent-contributor
+```
+
+Skill page: [skills.sh/pendig/rutebayar-agent-contributor](https://www.skills.sh/pendig/rutebayar-agent-contributor)
+
+Example prompts:
+
+```text
+Use $rutebayar-agent-contributor to set up Rute Bayar sandbox webhook testing with Xendit forwarding.
+```
+
+```text
+Use $rutebayar-agent-contributor to add a new payment provider adapter and prepare the PR checklist.
+```
+
 ## Quick Start
 
 Clone the repository:
