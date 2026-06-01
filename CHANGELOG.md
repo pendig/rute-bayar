@@ -4,6 +4,17 @@ All notable changes to Rute Bayar will be documented in this file.
 
 ## Unreleased
 
+## v0.1.6 - 2026-06-01
+
+### Changed
+
+- Bump GitHub Pages actions: `actions/upload-pages-artifact` to v5, `actions/setup-node` to v6, and `actions/deploy-pages` to v5.
+- Bump `modernc.org/sqlite` from v1.50.1 to v1.51.0.
+
+### Fixed
+
+- Make sandbox E2E payment references unique per GitHub run attempt to avoid Xendit duplicate-reference `409` collisions when trusted PR checks run in parallel.
+
 ## v0.1.5 - 2026-05-31
 
 ### Added
