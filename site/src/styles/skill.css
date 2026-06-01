@@ -99,7 +99,7 @@ body.skill-page {
 
 .skill-install p:not(.eyebrow) {
   max-width: 560px;
-  color: var(--ink-muted);
+  color: rgba(247, 255, 248, 0.76);
   line-height: 1.7;
 }
 
@@ -108,6 +108,18 @@ body.skill-page {
   flex-wrap: wrap;
   gap: 12px;
   margin-top: 22px;
+}
+
+.skill-install .button {
+  background: var(--agent-lime);
+  color: var(--code);
+  border-color: var(--agent-lime);
+}
+
+.skill-install .button.secondary {
+  background: rgba(255, 255, 255, 0.06);
+  color: #f7fff8;
+  border-color: rgba(255, 255, 255, 0.28);
 }
 
 .skill-checklist li {
