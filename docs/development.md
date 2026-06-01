@@ -30,6 +30,8 @@ go build -o ./bin/rutebayar ./cmd/rute-bayar
 ./bin/rutebayar provider test xendit
 ./bin/rutebayar onboard midtrans --merchant-id "$MIDTRANS_MERCHANT_ID" --client-key "$MIDTRANS_CLIENT_KEY" --server-key "$MIDTRANS_SERVER_KEY" --environment sandbox
 ./bin/rutebayar provider test midtrans
+./bin/rutebayar onboard doku --client-id "$DOKU_CLIENT_ID" --secret-key "$DOKU_SECRET_KEY" --environment sandbox
+./bin/rutebayar provider test doku
 ./bin/rutebayar webhook forward add --provider midtrans --name orders --url https://example.com/webhooks/orders --event-filter event=payment_session.created
 ./bin/rutebayar webhook forward list --provider midtrans
 ./bin/rutebayar webhook replay --event-id webhook_0001 --provider midtrans

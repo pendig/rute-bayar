@@ -52,8 +52,9 @@ func (s *Server) webhook(w http.ResponseWriter, r *http.Request) {
 	result, err := s.processor.Process(r.Context(), webhooksvc.Input{
 		Provider: domain.ProviderCode(strings.TrimSpace(r.PathValue("provider"))),
 		Request: provider.WebhookRequest{
-			Headers: r.Header,
-			Body:    body,
+			Headers:    r.Header,
+			Body:       body,
+			TargetPath: r.URL.Path,
 		},
 	})
 	if err != nil && result.StatusCode == 0 {

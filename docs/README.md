@@ -1,6 +1,6 @@
 # Rute Bayar Docs
 
-Kumpulan dokumentasi awal untuk proyek **Rute Bayar**, payment router berbasis Go yang menjembatani provider pembayaran Indonesia seperti Midtrans dan Xendit.
+Kumpulan dokumentasi awal untuk proyek **Rute Bayar**, payment router berbasis Go yang menjembatani provider pembayaran Indonesia seperti Midtrans, Xendit, dan DOKU.
 
 ## Dokumen
 
@@ -18,7 +18,7 @@ Kumpulan dokumentasi awal untuk proyek **Rute Bayar**, payment router berbasis G
 - [Operations Runbook](./operations-runbook.md)
 - [Production Deployment](./production-deployment.md)
 - [End-to-End Smoke Test](./end-to-end-smoke.md)
-- [Doku Integration Plan](./providers/doku-integration.md)
+- [DOKU Integration](./providers/doku-integration.md)
 - [Development](./development.md)
 - [Xendit Sandbox Simulation](./xendit-sandbox-simulation.md)
 - [Midtrans Sandbox Simulation](./midtrans-sandbox-simulation.md)

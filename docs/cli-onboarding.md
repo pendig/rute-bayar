@@ -29,10 +29,12 @@ Contoh alur:
 - `rutebayar onboard`
 - `rutebayar onboard xendit --secret-key <key> --environment sandbox`
 - `rutebayar onboard midtrans --merchant-id <id> --client-key <key> --server-key <key> --environment sandbox`
+- `rutebayar onboard doku --client-id <id> --secret-key <key> --environment sandbox`
 - `rutebayar provider list`
 - `rutebayar provider accounts`
 - `rutebayar provider test midtrans`
 - `rutebayar provider test xendit`
+- `rutebayar provider test doku`
 - `rutebayar config show`
 - `rutebayar config set`
 - `rutebayar pay create`
@@ -93,6 +95,29 @@ Command awal yang sudah ditargetkan:
 rutebayar onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox
 rutebayar provider accounts
 rutebayar provider test xendit
+```
+
+### DOKU
+
+CLI harus meminta:
+
+- client ID
+- secret key
+- environment
+- webhook target path untuk signature verification
+
+Setelah itu CLI harus:
+
+- test signed request ke Check Status API
+- simpan provider account
+- pakai `/webhooks/doku` sebagai default webhook path
+
+Command awal yang sudah tersedia:
+
+```bash
+rutebayar onboard doku --client-id "$DOKU_CLIENT_ID" --secret-key "$DOKU_SECRET_KEY" --environment sandbox
+rutebayar provider accounts
+rutebayar provider test doku
 ```
 
 ## UX yang Disarankan

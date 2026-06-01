@@ -17,6 +17,7 @@ Callback URL provider:
 ```text
 https://<public-domain>/webhooks/xendit
 https://<public-domain>/webhooks/midtrans
+https://<public-domain>/webhooks/doku
 ```
 
 Saat credential tersedia, daemon memverifikasi signature atau callback token sesuai adapter masing-masing provider.
