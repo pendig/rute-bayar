@@ -71,6 +71,14 @@ masked_presence_report() {
   done
 }
 
+e2e_reference_suffix() {
+  local timestamp run_id run_attempt
+  timestamp="$(date -u +%Y%m%d%H%M%S)"
+  run_id="${GITHUB_RUN_ID:-local}"
+  run_attempt="${GITHUB_RUN_ATTEMPT:-1}"
+  printf '%s-%s-%s' "$timestamp" "${run_id: -10}" "$run_attempt"
+}
+
 cd "$ROOT_DIR"
 
 export GOCACHE="${GOCACHE:-$TMP_DIR/go-build}"
@@ -104,7 +112,7 @@ fi
 run_step "migrate database" "$BIN_PATH" db migrate
 
 if [[ "$RUN_XENDIT" == "1" ]]; then
-  xendit_ref="${RUTE_BAYAR_E2E_XENDIT_REF:-rb-e2e-xendit-$(date +%Y%m%d%H%M%S)}"
+  xendit_ref="${RUTE_BAYAR_E2E_XENDIT_REF:-rb-e2e-xendit-$(e2e_reference_suffix)}"
   xendit_onboard=("$BIN_PATH" onboard xendit --secret-key "$XENDIT_SECRET_KEY" --environment sandbox)
   if [[ -n "${XENDIT_WEBHOOK_TOKEN:-}" ]]; then
     xendit_onboard+=(--webhook-token "$XENDIT_WEBHOOK_TOKEN")
@@ -136,7 +144,7 @@ if [[ "$RUN_XENDIT" == "1" ]]; then
 fi
 
 if [[ "$RUN_MIDTRANS" == "1" ]]; then
-  midtrans_ref="${RUTE_BAYAR_E2E_MIDTRANS_REF:-rb-e2e-midtrans-$(date +%Y%m%d%H%M%S)}"
+  midtrans_ref="${RUTE_BAYAR_E2E_MIDTRANS_REF:-rb-e2e-midtrans-$(e2e_reference_suffix)}"
   midtrans_method="${RUTE_BAYAR_E2E_MIDTRANS_METHOD:-bank_transfer}"
 
   run_step "onboard midtrans" "$BIN_PATH" onboard midtrans \
