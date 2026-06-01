@@ -76,7 +76,7 @@ e2e_reference_suffix() {
   timestamp="$(date -u +%Y%m%d%H%M%S)"
   run_id="${GITHUB_RUN_ID:-local}"
   run_attempt="${GITHUB_RUN_ATTEMPT:-1}"
-  printf '%s-%s-%s' "$timestamp" "${run_id:0:10}" "$run_attempt"
+  printf '%s-%s-%s' "$timestamp" "${run_id: -10}" "$run_attempt"
 }
 
 cd "$ROOT_DIR"
