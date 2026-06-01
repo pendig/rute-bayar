@@ -1,5 +1,17 @@
 export const changelogEntries = [
   {
+    version: "v0.1.6",
+    date: "2026-06-01",
+    tag: "Maintenance release",
+    summary:
+      "Rilis maintenance ini merapikan dependency CI/GitHub Pages, memperbarui SQLite driver, dan membuat sandbox E2E lebih tahan saat beberapa PR berjalan paralel.",
+    items: [
+      "GitHub Pages actions diperbarui ke `upload-pages-artifact@v5`, `setup-node@v6`, dan `deploy-pages@v5`.",
+      "`modernc.org/sqlite` diperbarui ke v1.51.0.",
+      "Reference sandbox E2E dibuat unik per GitHub run attempt agar Xendit tidak kena duplicate reference `409` saat trusted PR checks paralel.",
+    ],
+  },
+  {
     version: "v0.1.5",
     date: "2026-05-30",
     tag: "DOKU release update",
