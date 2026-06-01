@@ -82,8 +82,9 @@ type RefundResponse struct {
 }
 
 type WebhookRequest struct {
-	Headers http.Header
-	Body    []byte
+	Headers    http.Header
+	Body       []byte
+	TargetPath string
 }
 
 type WebhookEvent struct {

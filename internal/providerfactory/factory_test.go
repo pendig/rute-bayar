@@ -78,6 +78,29 @@ func TestXenditSecretKeyFromJSONRequiresSecret(t *testing.T) {
 	}
 }
 
+func TestDokuCredentialFromJSON(t *testing.T) {
+	t.Parallel()
+
+	credential, err := dokuCredentialFromJSON([]byte(`{"client_id":" client ","secret_key":" secret "}`))
+	if err != nil {
+		t.Fatalf("dokuCredentialFromJSON returned error: %v", err)
+	}
+	if credential.ClientID != "client" {
+		t.Fatalf("ClientID = %q, want client", credential.ClientID)
+	}
+	if credential.SecretKey != "secret" {
+		t.Fatalf("SecretKey = %q, want secret", credential.SecretKey)
+	}
+}
+
+func TestDokuCredentialFromJSONRequiresFields(t *testing.T) {
+	t.Parallel()
+
+	if _, err := dokuCredentialFromJSON([]byte(`{"client_id":"client"}`)); err == nil {
+		t.Fatal("dokuCredentialFromJSON returned nil error for missing secret key")
+	}
+}
+
 func TestAdapterForAccountBuildsMidtransAdapter(t *testing.T) {
 	t.Parallel()
 
@@ -169,6 +192,55 @@ func TestAdapterForAccountBuildsXenditAdapter(t *testing.T) {
 	}
 }
 
+func TestAdapterForAccountBuildsDokuAdapter(t *testing.T) {
+	t.Parallel()
+
+	var (
+		requestURL string
+		clientID   string
+		signature  string
+	)
+	client := &http.Client{Transport: roundTripperFunc(func(req *http.Request) (*http.Response, error) {
+		requestURL = req.URL.String()
+		clientID = req.Header.Get("Client-Id")
+		signature = req.Header.Get("Signature")
+		return response(http.StatusNotFound, `{"error_messages":["not found"]}`), nil
+	})}
+
+	factory := New(nil, WithHTTPClient(client))
+	adapter, err := factory.DokuAdapterForAccount(domain.ProviderAccount{
+		ProviderCode: domain.ProviderDoku,
+		Environment:  domain.EnvironmentSandbox,
+		CredentialJSON: mustJSON(t, map[string]string{
+			"client_id":  "client-id",
+			"secret_key": "secret",
+		}),
+		ConfigJSON: mustJSON(t, map[string]string{
+			"webhook_target_path": "/webhooks/doku",
+		}),
+	}, "https://example.com")
+	if err != nil {
+		t.Fatalf("DokuAdapterForAccount returned error: %v", err)
+	}
+
+	info, err := adapter.TestAuth(context.Background())
+	if err != nil {
+		t.Fatalf("TestAuth returned error: %v", err)
+	}
+	if info.StatusCode != http.StatusNotFound {
+		t.Fatalf("StatusCode = %d, want 404", info.StatusCode)
+	}
+	if requestURL != "https://example.com/orders/v1/status/rute-bayar-auth-test" {
+		t.Fatalf("request URL = %q, want override status endpoint", requestURL)
+	}
+	if clientID != "client-id" {
+		t.Fatalf("Client-Id = %q, want client-id", clientID)
+	}
+	if !strings.HasPrefix(signature, "HMACSHA256=") {
+		t.Fatalf("Signature = %q, want HMACSHA256 prefix", signature)
+	}
+}
+
 func TestWebhookHandlersAllowUnconfiguredProviders(t *testing.T) {
 	t.Parallel()
 
@@ -220,12 +292,23 @@ func TestWebhookHandlersBuildsConfiguredProviders(t *testing.T) {
 		t.Fatalf("UpsertProviderAccount xendit returned error: %v", err)
 	}
 
+	_, err = store.UpsertProviderAccount(ctx, domain.ProviderAccount{
+		ProviderCode:   domain.ProviderDoku,
+		Environment:    domain.EnvironmentSandbox,
+		DisplayName:    "Doku Sandbox",
+		CredentialJSON: mustJSON(t, map[string]string{"client_id": "client", "secret_key": "secret"}),
+		ConfigJSON:     mustJSON(t, map[string]string{"webhook_target_path": "/webhooks/doku"}),
+	})
+	if err != nil {
+		t.Fatalf("UpsertProviderAccount doku returned error: %v", err)
+	}
+
 	handlers, err := New(store).WebhookHandlers(ctx, domain.EnvironmentSandbox)
 	if err != nil {
 		t.Fatalf("WebhookHandlers returned error: %v", err)
 	}
-	if len(handlers) != 2 {
-		t.Fatalf("handlers length = %d, want 2", len(handlers))
+	if len(handlers) != 3 {
+		t.Fatalf("handlers length = %d, want 3", len(handlers))
 	}
 	if err := handlers[domain.ProviderXendit].VerifyWebhook(ctx, provider.WebhookRequest{
 		Headers: http.Header{"X-Callback-Token": []string{"expected-token"}},

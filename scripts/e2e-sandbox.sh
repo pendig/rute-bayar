@@ -35,6 +35,32 @@ run_step() {
   "$@"
 }
 
+run_step_retry() {
+  local name="$1"
+  local retries="$2"
+  shift 2
+
+  local attempt=1
+  local output status
+  while true; do
+    printf '\n==> %s (attempt %d/%d)\n' "$name" "$attempt" "$retries"
+    if output="$("$@" 2>&1)"; then
+      printf '%s\n' "$output"
+      return 0
+    fi
+
+    status=$?
+    printf '%s\n' "$output"
+    if [[ "$attempt" -ge "$retries" ]] || ! grep -Eqi 'unexpected EOF|connection reset|i/o timeout|TLS handshake timeout|temporary failure|EOF' <<<"$output"; then
+      return "$status"
+    fi
+
+    printf 'transient failure detected, retrying %s...\n' "$name"
+    attempt=$((attempt + 1))
+    sleep 2
+  done
+}
+
 masked_presence_report() {
   for key in "$@"; do
     if [[ -n "${!key:-}" ]]; then
@@ -86,7 +112,7 @@ if [[ "$RUN_XENDIT" == "1" ]]; then
 
   run_step "onboard xendit" "${xendit_onboard[@]}"
   run_step "provider test xendit" "$BIN_PATH" provider test xendit
-  run_step "pay create xendit" "$BIN_PATH" pay create \
+  run_step_retry "pay create xendit" 3 "$BIN_PATH" pay create \
     --provider xendit \
     --method payment_link \
     --reference "$xendit_ref" \
