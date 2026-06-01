@@ -4,6 +4,7 @@ import (
 	"fmt"
 	"io"
 
+	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/paymentsvc"
 	"github.com/pendig/rute-bayar/internal/provider"
 )
@@ -27,6 +28,9 @@ func printPaymentCreate(w io.Writer, providerCode, reference string, response pr
 	}
 	if response.RedirectURL != "" {
 		fmt.Fprintf(w, "redirect_url: %s\n", response.RedirectURL)
+	}
+	if providerCode == string(domain.ProviderDoku) {
+		fmt.Fprintln(w, "note: configure the matching Notification URL in DOKU Back Office per channel before relying on webhook callbacks")
 	}
 }
 

@@ -54,6 +54,16 @@ Catatan: mapping `settlement -> settled` dipilih agar status provider tetap info
 
 Mapping Xendit lain perlu dilengkapi saat implementasi create/status Payment Session masuk.
 
+### Mapping Awal DOKU
+
+- Checkout `ORDER_GENERATED` -> `pending`
+- Transaction `PENDING` -> `pending`
+- Transaction `SUCCESS` -> `paid`
+- Transaction `FAILED` -> `failed`
+- Transaction `EXPIRED` -> `expired`
+- Transaction `REFUNDED` -> `refunded`
+- Transaction `PARTIAL_REFUNDED` -> `partial_refunded`
+
 ### Xendit `pay create`
 
 - Endpoint aktif: `POST /sessions` (Payment Session API).
@@ -62,6 +72,15 @@ Mapping Xendit lain perlu dilengkapi saat implementasi create/status Payment Ses
 - `items[].category` dan `items[].type` wajib sesuai simulasi untuk menghindari validasi gagal.
 - Response status awal umumnya `ACTIVE` dan dipetakan ke `pending`.
 - URL pembayaran diambil dari `payment_link_url` dan ditampilkan sebagai `redirect_url`.
+
+### DOKU Checkout `pay create`
+
+- Endpoint aktif: `POST /checkout/v1/payment`.
+- `CreatePaymentRequest` dipetakan ke payload `order.amount`, `order.invoice_number`, `order.currency`, dan `payment.payment_due_date`.
+- `--method checkout` membiarkan DOKU Checkout menampilkan metode pembayaran aktif dari dashboard.
+- `--notification-url` dikirim sebagai `additional_info.override_notification_url`.
+- Request ditandatangani dengan header `Client-Id`, `Request-Id`, `Request-Timestamp`, `Digest`, dan `Signature`.
+- URL pembayaran diambil dari `response.payment.url` dan ditampilkan sebagai `redirect_url`.
 
 ## Webhook Handling
 
@@ -128,6 +147,29 @@ https://<public-domain>/webhooks/xendit
 Jika payload perlu diteruskan ke aplikasi lain, gunakan fitur forwarding Rute Bayar agar webhook tetap masuk, tersimpan, diverifikasi, dan bisa direplay dari daemon.
 
 Adapter harus menyimpan raw request dan raw response JSON ke payment attempt.
+
+### DOKU Checkout webhook URL
+
+Konfigurasikan notification URL DOKU ke endpoint daemon:
+
+```text
+https://<public-domain>/webhooks/doku
+```
+
+Rute Bayar memverifikasi `Signature` DOKU dengan target path webhook, digest body, client ID, request ID, timestamp, dan secret key.
+
+Untuk per-payment override, gunakan:
+
+```bash
+rutebayar pay create \
+  --provider doku \
+  --method checkout \
+  --reference rb-doku-001 \
+  --amount 15000 \
+  --notification-url https://<public-domain>/webhooks/doku
+```
+
+Refund DOKU belum diaktifkan karena membutuhkan setup Refund API/disbursement.
 
 ## Forwarding Policy
 
