@@ -4,6 +4,26 @@ All notable changes to Rute Bayar will be documented in this file.
 
 ## Unreleased
 
+## v0.1.7 - 2026-06-05
+
+### Added
+
+- Add iPaymu provider support for credential onboarding, auth testing, redirect/direct payment creation, status checks, webhook parsing, and reconciliation.
+- Add iPaymu SQLite provider account migration entry and provider factory wiring.
+- Add iPaymu CLI documentation for onboarding, redirect payment creation, notification URL setup, and status mapping.
+
+### Verified
+
+- `go test ./...` passes locally.
+- `PATH=/usr/local/go/bin:$PATH ./scripts/smoke-local.sh` passes locally.
+- `npm --prefix site run build` passes locally after `npm --prefix site ci`.
+- Real iPaymu sandbox QRIS redirect payment completed successfully and reconciled local payment intent status from `pending` to `paid`.
+
+### Known Limitations
+
+- iPaymu refund is not implemented yet.
+- iPaymu sandbox callback payloads are received by `/webhooks/ipaymu`, but form-urlencoded callback signature verification is still a known limitation; use reconciliation as the fallback source of truth when callback verification fails.
+
 ## v0.1.6 - 2026-06-01
 
 ### Changed

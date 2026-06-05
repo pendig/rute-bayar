@@ -11,6 +11,7 @@ import (
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/provider"
 	"github.com/pendig/rute-bayar/internal/provider/doku"
+	"github.com/pendig/rute-bayar/internal/provider/ipaymu"
 	"github.com/pendig/rute-bayar/internal/provider/midtrans"
 	"github.com/pendig/rute-bayar/internal/provider/xendit"
 	"github.com/pendig/rute-bayar/internal/storage/sqlite"
@@ -63,6 +64,12 @@ func (f *Factory) AdapterForStoredAccount(ctx context.Context, providerCode doma
 			return nil, err
 		}
 		return adapter, nil
+	case domain.ProviderIPaymu:
+		adapter, err := f.IPaymuAdapterForStoredAccount(ctx, environment, baseURL)
+		if err != nil {
+			return nil, err
+		}
+		return adapter, nil
 	default:
 		return nil, fmt.Errorf("provider %q is not implemented yet", providerCode)
 	}
@@ -84,6 +91,12 @@ func (f *Factory) AdapterForAccount(account domain.ProviderAccount, baseURL stri
 		return adapter, nil
 	case domain.ProviderDoku:
 		adapter, err := f.DokuAdapterForAccount(account, baseURL)
+		if err != nil {
+			return nil, err
+		}
+		return adapter, nil
+	case domain.ProviderIPaymu:
+		adapter, err := f.IPaymuAdapterForAccount(account, baseURL)
 		if err != nil {
 			return nil, err
 		}
@@ -140,6 +153,14 @@ func (f *Factory) DokuAdapterForStoredAccount(ctx context.Context, environment d
 		return nil, err
 	}
 	return f.DokuAdapterForAccount(account, baseURL)
+}
+
+func (f *Factory) IPaymuAdapterForStoredAccount(ctx context.Context, environment domain.Environment, baseURL string) (*ipaymu.Adapter, error) {
+	account, err := f.loadAccount(ctx, domain.ProviderIPaymu, environment)
+	if err != nil {
+		return nil, err
+	}
+	return f.IPaymuAdapterForAccount(account, baseURL)
 }
 
 func (f *Factory) MidtransAdapterForAccount(account domain.ProviderAccount, baseURL string) (*midtrans.Adapter, error) {
@@ -222,6 +243,27 @@ func (f *Factory) DokuAdapterForAccount(account domain.ProviderAccount, baseURL 
 	return doku.New(options...), nil
 }
 
+func (f *Factory) IPaymuAdapterForAccount(account domain.ProviderAccount, baseURL string) (*ipaymu.Adapter, error) {
+	credential, err := ipaymuCredentialFromJSON(account.CredentialJSON)
+	if err != nil {
+		return nil, err
+	}
+	var httpClient *http.Client
+	if f != nil {
+		httpClient = f.httpClient
+	}
+	options := []ipaymu.Option{ipaymu.WithVA(credential.VA), ipaymu.WithAPIKey(credential.APIKey), ipaymu.WithAccount(credential.Account)}
+	if client := httpClient; client != nil {
+		options = append(options, ipaymu.WithHTTPClient(client))
+	}
+	if trimmedBaseURL := strings.TrimSpace(baseURL); trimmedBaseURL != "" {
+		options = append(options, ipaymu.WithBaseURL(trimmedBaseURL))
+	} else {
+		options = append(options, ipaymu.WithBaseURL(ipaymu.BaseURLForEnvironment(account.Environment)))
+	}
+	return ipaymu.New(options...), nil
+}
+
 func (f *Factory) loadAccount(ctx context.Context, providerCode domain.ProviderCode, environment domain.Environment) (domain.ProviderAccount, error) {
 	if f == nil || f.loader == nil {
 		return domain.ProviderAccount{}, fmt.Errorf("provider account loader is required")
@@ -273,6 +315,32 @@ func xenditSecretKeyFromJSON(raw []byte) (string, error) {
 type dokuCredential struct {
 	ClientID  string `json:"client_id"`
 	SecretKey string `json:"secret_key"`
+}
+
+type ipaymuCredential struct {
+	VA      string `json:"va"`
+	APIKey  string `json:"api_key"`
+	Account string `json:"account"`
+}
+
+func ipaymuCredentialFromJSON(raw []byte) (ipaymuCredential, error) {
+	var credential ipaymuCredential
+	if err := json.Unmarshal(raw, &credential); err != nil {
+		return ipaymuCredential{}, fmt.Errorf("read ipaymu credential json: %w", err)
+	}
+	credential.VA = strings.TrimSpace(credential.VA)
+	credential.APIKey = strings.TrimSpace(credential.APIKey)
+	credential.Account = strings.TrimSpace(credential.Account)
+	if credential.Account == "" {
+		credential.Account = credential.VA
+	}
+	if credential.VA == "" {
+		return ipaymuCredential{}, fmt.Errorf("ipaymu va is not configured")
+	}
+	if credential.APIKey == "" {
+		return ipaymuCredential{}, fmt.Errorf("ipaymu api key is not configured")
+	}
+	return credential, nil
 }
 
 func dokuCredentialFromJSON(raw []byte) (dokuCredential, error) {

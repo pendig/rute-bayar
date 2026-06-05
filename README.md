@@ -10,11 +10,11 @@
 
 Rute Bayar is an open source payment router for Indonesian payment gateways.
 
-The project provides one internal interface for multiple providers, starting with **Xendit**, **Midtrans**, and **DOKU Checkout**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
+The project provides one internal interface for multiple providers, starting with **Xendit**, **Midtrans**, **DOKU Checkout**, and **iPaymu**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
 
-> Status: stable `v0.1.6`. The repository includes webhook signature verification for Midtrans and DOKU, callback-token verification for Xendit, plus `pay create`, `pay status`, `reconcile`, and SQLite persistence. Midtrans/Xendit refund flows are implemented; DOKU refund is intentionally disabled until Refund API/disbursement setup is wired. Real sandbox proof covers Midtrans/Xendit webhook callbacks, Xendit refund reconciliation through final `refund.succeeded` callback, and DOKU sandbox checkout/status plus signed webhook forwarding simulation. Webhook forwarding target management is also available via CLI.
+> Status: stable `v0.1.7`. The repository includes webhook signature verification for Midtrans and DOKU, callback-token verification for Xendit, plus `pay create`, `pay status`, `reconcile`, and SQLite persistence. Midtrans/Xendit refund flows are implemented; DOKU and iPaymu refunds are intentionally disabled until provider-specific refund/disbursement setup is wired. Real sandbox proof covers Midtrans/Xendit webhook callbacks, Xendit refund reconciliation through final `refund.succeeded` callback, DOKU sandbox checkout/status plus signed webhook forwarding simulation, and iPaymu sandbox QRIS redirect payment reconciliation to `paid`. Webhook forwarding target management is also available via CLI.
 
-Latest release: [v0.1.6](https://github.com/pendig/rute-bayar/releases/tag/v0.1.6)
+Latest release: [v0.1.7](https://github.com/pendig/rute-bayar/releases/tag/v0.1.7)
 
 ## Features
 
@@ -24,7 +24,7 @@ Latest release: [v0.1.6](https://github.com/pendig/rute-bayar/releases/tag/v0.1.
 - Pass-through webhook forwarding.
 - Raw inbound and outbound JSON storage for debugging and audit.
 - SQLite-first local storage.
-- Initial support target: Xendit Payment Sessions, Midtrans, and DOKU Checkout.
+- Initial support target: Xendit Payment Sessions, Midtrans, DOKU Checkout, and iPaymu.
 
 ## AI Agent Skill
 
@@ -86,6 +86,13 @@ Onboard DOKU Checkout credentials into local SQLite:
 ./bin/rutebayar provider test doku
 ```
 
+Onboard iPaymu credentials into local SQLite:
+
+```bash
+./bin/rutebayar onboard ipaymu --va "$IPAYMU_VA" --api-key "$IPAYMU_API_KEY" --environment sandbox
+./bin/rutebayar provider test ipaymu
+```
+
 Note: DOKU callback delivery still depends on the matching Notification URL being configured in DOKU Back Office per channel, so keep the path aligned with `/webhooks/doku` before relying on live webhook callbacks.
 
 Start the webhook daemon:
@@ -143,12 +150,14 @@ Set provider webhook URL to:
 https://xxxx.trycloudflare.com/webhooks/xendit
 https://xxxx.trycloudflare.com/webhooks/midtrans
 https://xxxx.trycloudflare.com/webhooks/doku
+https://xxxx.trycloudflare.com/webhooks/ipaymu
 ```
 
 The daemon verifies webhook signatures when provider credentials/configuration support it:
 - Midtrans: `signature_key` is validated with `order_id + status_code + gross_amount + server_key`.
 - Xendit: callback token validation uses `X-Callback-Token` when configured on onboarding.
 - DOKU: `Signature` is validated with DOKU's HMAC-SHA256 header format using the webhook target path, request timestamp, request ID, body digest, client ID, and secret key.
+- iPaymu: callback payloads are received and stored, but missing or mismatched signatures are rejected; form-urlencoded callback signature verification still needs hardening, so use `reconcile` as the fallback source of truth when verification fails.
 
 Note: if the provider credentials/configuration are not present, webhook verification is skipped and requests are stored as raw inbound payloads for debugging.
 

@@ -134,4 +134,5 @@ INSERT OR IGNORE INTO providers (id, name, code, status, created_at, updated_at)
 VALUES
   ('provider_midtrans', 'Midtrans', 'midtrans', 'active', datetime('now'), datetime('now')),
   ('provider_xendit', 'Xendit', 'xendit', 'active', datetime('now'), datetime('now')),
-  ('provider_doku', 'DOKU', 'doku', 'active', datetime('now'), datetime('now'));
+  ('provider_doku', 'DOKU', 'doku', 'active', datetime('now'), datetime('now')),
+  ('provider_ipaymu', 'iPaymu', 'ipaymu', 'active', datetime('now'), datetime('now'));

@@ -1,5 +1,18 @@
 export const changelogEntries = [
   {
+    version: "v0.1.7",
+    date: "2026-06-05",
+    tag: "iPaymu sandbox release",
+    summary:
+      "Rilis ini menambahkan provider iPaymu untuk onboarding, payment redirect/direct, status check, webhook parsing, dan reconciliation berbasis SQLite.",
+    items: [
+      "Credential onboarding iPaymu dengan VA dan API key untuk sandbox/production config.",
+      "`pay create`, `pay status`, dan `reconcile` mendukung iPaymu, termasuk sandbox QRIS redirect proof sampai status `paid`.",
+      "Webhook `/webhooks/ipaymu` menerima callback provider dan menyimpan raw payload untuk debugging.",
+      "Known limitation: signature verification callback form-urlencoded iPaymu masih perlu hardening; gunakan reconciliation sebagai fallback source-of-truth.",
+    ],
+  },
+  {
     version: "v0.1.6",
     date: "2026-06-01",
     tag: "Maintenance release",

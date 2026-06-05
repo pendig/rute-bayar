@@ -11,10 +11,11 @@ const (
 	ProviderMidtrans ProviderCode = "midtrans"
 	ProviderXendit   ProviderCode = "xendit"
 	ProviderDoku     ProviderCode = "doku"
+	ProviderIPaymu   ProviderCode = "ipaymu"
 )
 
 func SupportedProviders() []ProviderCode {
-	return []ProviderCode{ProviderMidtrans, ProviderXendit, ProviderDoku}
+	return []ProviderCode{ProviderMidtrans, ProviderXendit, ProviderDoku, ProviderIPaymu}
 }
 
 type Environment string

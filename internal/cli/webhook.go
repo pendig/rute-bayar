@@ -92,7 +92,7 @@ func webhookForwardList(ctx context.Context, w io.Writer, args []string) error {
 	cfg := config.Load()
 	fs := flag.NewFlagSet("webhook forward list", flag.ContinueOnError)
 	fs.SetOutput(w)
-	providerCode := fs.String("provider", "", "filter by provider code: midtrans, xendit, or doku")
+	providerCode := fs.String("provider", "", "filter by provider code: midtrans, xendit, doku, or ipaymu")
 	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
 	includeDisabled := fs.Bool("all", false, "include disabled targets")
 	if err := fs.Parse(args); err != nil {
@@ -309,7 +309,7 @@ func webhookForwardAttemptsList(ctx context.Context, stdout, stderr io.Writer, a
 	cfg := config.Load()
 	fs := flag.NewFlagSet("webhook forward attempts list", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	providerCode := fs.String("provider", "", "filter by provider code: midtrans, xendit, or doku")
+	providerCode := fs.String("provider", "", "filter by provider code: midtrans, xendit, doku, or ipaymu")
 	targetID := fs.String("target-id", "", "filter by forwarding target id")
 	eventID := fs.String("event-id", "", "filter by webhook event id")
 	status := fs.String("status", "", "filter by forwarding status: success or failed")

@@ -523,16 +523,18 @@ func (s *Service) lookupPaymentIntent(ctx context.Context, reference string) (do
 }
 
 func normalizeProvider(value domain.ProviderCode) (domain.ProviderCode, error) {
-	switch domain.ProviderCode(strings.ToLower(strings.TrimSpace(string(value)))) {
-	case domain.ProviderMidtrans:
-		return domain.ProviderMidtrans, nil
-	case domain.ProviderXendit:
-		return domain.ProviderXendit, nil
-	case domain.ProviderDoku:
-		return domain.ProviderDoku, nil
-	default:
-		return "", fmt.Errorf("provider must be one of %q, %q, or %q", domain.ProviderMidtrans, domain.ProviderXendit, domain.ProviderDoku)
+	normalized := domain.ProviderCode(strings.ToLower(strings.TrimSpace(string(value))))
+	for _, supportedProvider := range domain.SupportedProviders() {
+		if normalized == supportedProvider {
+			return supportedProvider, nil
+		}
 	}
+	supported := domain.SupportedProviders()
+	valid := make([]string, 0, len(supported))
+	for _, supportedProvider := range supported {
+		valid = append(valid, string(supportedProvider))
+	}
+	return "", fmt.Errorf("provider must be one of %q", strings.Join(valid, "\", \""))
 }
 
 func validateEnvironment(value domain.Environment) error {
