@@ -101,13 +101,21 @@ func TestCreateRedirectPayment(t *testing.T) {
 	}
 }
 
+func TestCreatePaymentValidatesNotificationURL(t *testing.T) {
+	adapter := New(WithVA("1179000899"), WithAPIKey("secret-key"))
+	_, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{ExternalRef: "INV-1", Amount: 10000, Method: "redirect"})
+	if err == nil || !strings.Contains(err.Error(), "notification url") {
+		t.Fatalf("error = %v, want notification url", err)
+	}
+}
+
 func TestCreateDirectPaymentValidatesRequiredCustomerFields(t *testing.T) {
 	adapter := New(WithVA("1179000899"), WithAPIKey("secret-key"))
-	_, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{ExternalRef: "INV-1", Amount: 10000, Method: "qris", CustomerEmail: "buyer@example.test"})
+	_, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{ExternalRef: "INV-1", Amount: 10000, Method: "qris", NotificationURL: "https://example.test/webhooks/ipaymu", CustomerEmail: "buyer@example.test"})
 	if err == nil || !strings.Contains(err.Error(), "customer phone") {
 		t.Fatalf("error = %v, want customer phone", err)
 	}
-	_, err = adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{ExternalRef: "INV-1", Amount: 10000, Method: "qris", CustomerPhone: "08123456789"})
+	_, err = adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{ExternalRef: "INV-1", Amount: 10000, Method: "qris", NotificationURL: "https://example.test/webhooks/ipaymu", CustomerPhone: "08123456789"})
 	if err == nil || !strings.Contains(err.Error(), "customer email") {
 		t.Fatalf("error = %v, want customer email", err)
 	}
@@ -122,7 +130,7 @@ func TestCreateDirectPaymentAcceptsStringTotals(t *testing.T) {
 	}))
 	defer server.Close()
 	adapter := New(WithVA("1179000899"), WithAPIKey("secret-key"), WithBaseURL(server.URL))
-	res, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{ExternalRef: "INV-2", Amount: 500000, Method: "qris", CustomerPhone: "08123456789", CustomerEmail: "buyer@example.test"})
+	res, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{ExternalRef: "INV-2", Amount: 500000, Method: "qris", NotificationURL: "https://example.test/webhooks/ipaymu", CustomerPhone: "08123456789", CustomerEmail: "buyer@example.test"})
 	if err != nil {
 		t.Fatal(err)
 	}

@@ -124,6 +124,9 @@ func (a *Adapter) CreatePayment(ctx context.Context, request provider.CreatePaym
 	if request.Amount <= 0 {
 		return provider.CreatePaymentResponse{}, errors.New("ipaymu amount must be greater than zero")
 	}
+	if strings.TrimSpace(request.NotificationURL) == "" {
+		return provider.CreatePaymentResponse{}, errors.New("ipaymu notification url is required")
+	}
 
 	method := strings.ToLower(strings.TrimSpace(request.Method))
 	if method == "" || method == "redirect" || method == "checkout" || method == "payment" {
