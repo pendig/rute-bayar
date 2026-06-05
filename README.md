@@ -157,7 +157,7 @@ The daemon verifies webhook signatures when provider credentials/configuration s
 - Midtrans: `signature_key` is validated with `order_id + status_code + gross_amount + server_key`.
 - Xendit: callback token validation uses `X-Callback-Token` when configured on onboarding.
 - DOKU: `Signature` is validated with DOKU's HMAC-SHA256 header format using the webhook target path, request timestamp, request ID, body digest, client ID, and secret key.
-- iPaymu: callback payloads are parsed and stored; form-urlencoded callback signature verification is a known limitation, so use `reconcile` as the fallback source of truth when verification fails.
+- iPaymu: callback payloads are received and stored, but missing or mismatched signatures are rejected; form-urlencoded callback signature verification still needs hardening, so use `reconcile` as the fallback source of truth when verification fails.
 
 Note: if the provider credentials/configuration are not present, webhook verification is skipped and requests are stored as raw inbound payloads for debugging.
 

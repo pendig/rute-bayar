@@ -164,6 +164,12 @@ func (a *Adapter) createRedirectPayment(ctx context.Context, request provider.Cr
 }
 
 func (a *Adapter) createDirectPayment(ctx context.Context, request provider.CreatePaymentRequest, method string) (provider.CreatePaymentResponse, error) {
+	if strings.TrimSpace(request.CustomerPhone) == "" {
+		return provider.CreatePaymentResponse{}, errors.New("ipaymu direct payment requires customer phone")
+	}
+	if strings.TrimSpace(request.CustomerEmail) == "" {
+		return provider.CreatePaymentResponse{}, errors.New("ipaymu direct payment requires customer email")
+	}
 	values := url.Values{}
 	values.Set("name", firstNonEmpty(request.CustomerName, "Rute Bayar Customer"))
 	values.Set("phone", request.CustomerPhone)
@@ -226,7 +232,7 @@ func (a *Adapter) RefundPayment(context.Context, provider.RefundRequest) (provid
 func (a *Adapter) VerifyWebhook(_ context.Context, request provider.WebhookRequest) error {
 	sig := strings.TrimSpace(firstNonEmpty(request.Headers.Get("X-Signature"), request.Headers.Get("signature")))
 	if sig == "" {
-		return nil
+		return errors.New("ipaymu webhook signature is missing")
 	}
 	timestamp := strings.TrimSpace(request.Headers.Get("X-Timestamp"))
 	externalID := strings.TrimSpace(request.Headers.Get("X-External-ID"))
@@ -242,11 +248,21 @@ func (a *Adapter) ParseWebhook(_ context.Context, request provider.WebhookReques
 	if err != nil {
 		return provider.WebhookEvent{}, fmt.Errorf("parse ipaymu webhook form: %w", err)
 	}
-	statusCode, _ := strconv.Atoi(values.Get("status_code"))
-	trxID := values.Get("trx_id")
-	ref := values.Get("reference_id")
+	statusCodeValue := strings.TrimSpace(values.Get("status_code"))
+	if statusCodeValue == "" {
+		return provider.WebhookEvent{}, errors.New("ipaymu webhook missing status_code")
+	}
+	statusCode, err := strconv.Atoi(statusCodeValue)
+	if err != nil {
+		return provider.WebhookEvent{}, fmt.Errorf("ipaymu webhook invalid status_code: %w", err)
+	}
+	trxID := strings.TrimSpace(values.Get("trx_id"))
+	ref := strings.TrimSpace(values.Get("reference_id"))
+	if trxID == "" && ref == "" {
+		return provider.WebhookEvent{}, errors.New("ipaymu webhook missing trx_id or reference_id")
+	}
 	headersJSON, _ := json.Marshal(request.Headers)
-	return provider.WebhookEvent{ProviderEventID: provider.BuildWebhookEventID("ipaymu", trxID, ref, values.Get("status_code")), EventType: firstNonEmpty(values.Get("status"), "payment.status"), PaymentRef: firstNonEmpty(ref, trxID), Status: MapStatusCode(statusCode), RawPayloadJSON: request.Body, RawHeadersJSON: headersJSON}, nil
+	return provider.WebhookEvent{ProviderEventID: provider.BuildWebhookEventID("ipaymu", trxID, ref, statusCodeValue), EventType: firstNonEmpty(values.Get("status"), "payment.status"), PaymentRef: firstNonEmpty(ref, trxID), Status: MapStatusCode(statusCode), RawPayloadJSON: request.Body, RawHeadersJSON: headersJSON}, nil
 }
 
 func MapStatusCode(code int) domain.PaymentStatus {
@@ -257,11 +273,9 @@ func MapStatusCode(code int) domain.PaymentStatus {
 		return domain.PaymentStatusPending
 	case 1, 6, 7:
 		return domain.PaymentStatusPaid
-	case 2:
-		return domain.PaymentStatusCancelled
 	case 3:
 		return domain.PaymentStatusRefunded
-	case 4, 5:
+	case 2, 4, 5:
 		return domain.PaymentStatusFailed
 	default:
 		return domain.PaymentStatusPending
@@ -282,14 +296,17 @@ func (a *Adapter) validateCredential() error {
 }
 
 func (a *Adapter) doForm(ctx context.Context, method, path string, values url.Values, out any) (int, []byte, error) {
-	payload := formSignaturePayload(values)
-	rawBody, err := json.Marshal(payload)
-	if err != nil {
-		return 0, nil, fmt.Errorf("marshal ipaymu request body: %w", err)
-	}
-	body := strings.NewReader(string(rawBody))
+	var payload any
+	var body io.Reader = http.NoBody
 	if method == http.MethodGet {
-		body = strings.NewReader("")
+		body = http.NoBody
+	} else {
+		payload = formSignaturePayload(values)
+		rawBody, err := json.Marshal(payload)
+		if err != nil {
+			return 0, nil, fmt.Errorf("marshal ipaymu request body: %w", err)
+		}
+		body = strings.NewReader(string(rawBody))
 	}
 	req, err := http.NewRequestWithContext(ctx, method, a.baseURL+path, body)
 	if err != nil {
@@ -315,14 +332,17 @@ func (a *Adapter) doForm(ctx context.Context, method, path string, values url.Va
 	return resp.StatusCode, raw, nil
 }
 
-func (a *Adapter) signRequest(req *http.Request, method string, payload map[string]any) {
+func (a *Adapter) signRequest(req *http.Request, method string, payload any) {
 	req.Header.Set("va", a.va)
 	req.Header.Set("signature", GenerateSignature(method, a.va, a.apiKey, payload))
 	req.Header.Set("timestamp", a.timestamp().Format(time.RFC3339))
 }
 
 func GenerateSignature(method, va, apiKey string, payload any) string {
-	payloadJSON, _ := json.Marshal(payload)
+	var payloadJSON []byte
+	if payload != nil {
+		payloadJSON, _ = json.Marshal(payload)
+	}
 	bodyHash := sha256.Sum256(payloadJSON)
 	stringToSign := strings.ToUpper(method) + ":" + va + ":" + hex.EncodeToString(bodyHash[:]) + ":" + apiKey
 	mac := hmac.New(sha256.New, []byte(apiKey))
@@ -383,8 +403,8 @@ type directPaymentResponse struct {
 		Channel       string `json:"Channel"`
 		PaymentNo     string `json:"PaymentNo"`
 		PaymentName   string `json:"PaymentName"`
-		Total         int64  `json:"Total"`
-		Fee           int64  `json:"Fee"`
+		Total         any    `json:"Total"`
+		Fee           any    `json:"Fee"`
 		Expired       string `json:"Expired"`
 		QrString      string `json:"QrString"`
 		QrImage       string `json:"QrImage"`

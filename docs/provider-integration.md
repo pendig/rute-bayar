@@ -69,7 +69,7 @@ Mapping Xendit lain perlu dilengkapi saat implementasi create/status Payment Ses
 - `status_code=-2` -> `expired`
 - `status_code=0` -> `pending`
 - `status_code=1` -> `paid`
-- `status_code=2` -> `cancelled`
+- `status_code=2` -> `failed`
 - `status_code=3` -> `refunded`
 - `status_code=4` -> `failed`
 - `status_code=5` -> `failed`
