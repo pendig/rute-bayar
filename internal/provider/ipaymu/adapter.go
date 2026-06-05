@@ -176,6 +176,10 @@ func (a *Adapter) createDirectPayment(ctx context.Context, request provider.Crea
 	if strings.TrimSpace(request.CustomerEmail) == "" {
 		return provider.CreatePaymentResponse{}, errors.New("ipaymu direct payment requires customer email")
 	}
+	channel, err := ipaymuPaymentChannel(method, request.Channel)
+	if err != nil {
+		return provider.CreatePaymentResponse{}, err
+	}
 	values := url.Values{}
 	values.Set("name", firstNonEmpty(request.CustomerName, "Rute Bayar Customer"))
 	values.Set("phone", request.CustomerPhone)
@@ -186,9 +190,7 @@ func (a *Adapter) createDirectPayment(ctx context.Context, request provider.Crea
 	}
 	values.Set("referenceId", request.ExternalRef)
 	values.Set("paymentMethod", method)
-	if request.Channel != "" {
-		values.Set("paymentChannel", strings.ToLower(request.Channel))
-	}
+	values.Set("paymentChannel", channel)
 	values.Set("feeDirection", "MERCHANT")
 	values.Set("escrow", "0")
 	values.Add("product[]", request.ExternalRef)
@@ -395,6 +397,23 @@ func firstNonZero(values ...int) int {
 		}
 	}
 	return 0
+}
+
+func ipaymuPaymentChannel(method, channel string) (string, error) {
+	method = strings.ToLower(strings.TrimSpace(method))
+	channel = strings.ToLower(strings.TrimSpace(channel))
+	if method == "qris" {
+		// The shared CLI uses --bank=bca as a generic default. For iPaymu QRIS,
+		// paymentChannel must match the method, so normalize that default to qris.
+		if channel == "" || channel == "bca" || channel == "qris" {
+			return "qris", nil
+		}
+		return "", fmt.Errorf("ipaymu qris direct payment requires payment channel qris, got %q", channel)
+	}
+	if channel == "" {
+		return "", fmt.Errorf("ipaymu direct payment requires payment channel for method %q", method)
+	}
+	return channel, nil
 }
 
 type redirectPaymentResponse struct {

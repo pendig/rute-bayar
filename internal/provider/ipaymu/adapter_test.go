@@ -121,6 +121,33 @@ func TestCreateDirectPaymentValidatesRequiredCustomerFields(t *testing.T) {
 	}
 }
 
+func TestCreateDirectPaymentNormalizesQrisChannel(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		var payload map[string]any
+		if err := json.NewDecoder(r.Body).Decode(&payload); err != nil {
+			t.Fatal(err)
+		}
+		if payload["paymentMethod"] != "qris" || payload["paymentChannel"] != "qris" {
+			t.Fatalf("unexpected method/channel payload: %#v", payload)
+		}
+		_, _ = w.Write([]byte(`{"Status":200,"Data":{"SessionId":"SID-2","TransactionId":210898,"ReferenceId":"INV-2","Via":"qris","PaymentNo":"PAY-1","Total":"500000","Fee":"0","Expired":"2026-06-06T00:00:00Z"},"Message":"success"}`))
+	}))
+	defer server.Close()
+	adapter := New(WithVA("1179000899"), WithAPIKey("secret-key"), WithBaseURL(server.URL))
+	_, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{ExternalRef: "INV-2", Amount: 500000, Method: "qris", Channel: "bca", NotificationURL: "https://example.test/webhooks/ipaymu", CustomerPhone: "08123456789", CustomerEmail: "buyer@example.test"})
+	if err != nil {
+		t.Fatal(err)
+	}
+}
+
+func TestCreateDirectPaymentRequiresChannelForNonQris(t *testing.T) {
+	adapter := New(WithVA("1179000899"), WithAPIKey("secret-key"))
+	_, err := adapter.CreatePayment(context.Background(), provider.CreatePaymentRequest{ExternalRef: "INV-1", Amount: 10000, Method: "va", NotificationURL: "https://example.test/webhooks/ipaymu", CustomerPhone: "08123456789", CustomerEmail: "buyer@example.test"})
+	if err == nil || !strings.Contains(err.Error(), "payment channel") {
+		t.Fatalf("error = %v, want payment channel", err)
+	}
+}
+
 func TestCreateDirectPaymentAcceptsStringTotals(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path != "/api/v2/payment/direct" {
