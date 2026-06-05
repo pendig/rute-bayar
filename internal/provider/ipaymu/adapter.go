@@ -108,6 +108,9 @@ func (a *Adapter) TestAuth(ctx context.Context) (AuthTestResult, error) {
 	if err != nil {
 		return AuthTestResult{StatusCode: status, RawJSON: raw}, err
 	}
+	if status < 200 || status >= 300 || payload.Status >= 400 {
+		return AuthTestResult{StatusCode: status, RawJSON: raw}, fmt.Errorf("ipaymu auth probe returned status %d", firstNonZero(payload.Status, status))
+	}
 	return AuthTestResult{StatusCode: status, RawJSON: raw}, nil
 }
 
@@ -335,7 +338,7 @@ func (a *Adapter) doForm(ctx context.Context, method, path string, values url.Va
 func (a *Adapter) signRequest(req *http.Request, method string, payload any) {
 	req.Header.Set("va", a.va)
 	req.Header.Set("signature", GenerateSignature(method, a.va, a.apiKey, payload))
-	req.Header.Set("timestamp", a.timestamp().Format(time.RFC3339))
+	req.Header.Set("timestamp", a.timestamp().Format("20060102150405"))
 }
 
 func GenerateSignature(method, va, apiKey string, payload any) string {
@@ -380,6 +383,15 @@ func firstNonEmpty(values ...string) string {
 		}
 	}
 	return ""
+}
+
+func firstNonZero(values ...int) int {
+	for _, value := range values {
+		if value != 0 {
+			return value
+		}
+	}
+	return 0
 }
 
 type redirectPaymentResponse struct {

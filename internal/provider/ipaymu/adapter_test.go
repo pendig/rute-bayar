@@ -31,7 +31,7 @@ func TestGenerateSignatureNilPayloadHashesEmptyBody(t *testing.T) {
 	}
 }
 
-func TestAuthSignsEmptyGETBody(t *testing.T) {
+func TestAuthSignsEmptyGETBodyAndCompactTimestamp(t *testing.T) {
 	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.Method != http.MethodGet || r.URL.Path != "/api/v2/payment-channels" {
 			t.Fatalf("%s %s", r.Method, r.URL.Path)
@@ -46,12 +46,27 @@ func TestAuthSignsEmptyGETBody(t *testing.T) {
 		if got, want := r.Header.Get("signature"), GenerateSignature("GET", "1179000899", "secret-key", nil); got != want {
 			t.Fatalf("signature = %s, want %s", got, want)
 		}
+		if got, want := r.Header.Get("timestamp"), "20260604200000"; got != want {
+			t.Fatalf("timestamp = %s, want %s", got, want)
+		}
 		_, _ = w.Write([]byte(`{"Status":200,"Message":"ok"}`))
 	}))
 	defer server.Close()
-	adapter := New(WithVA("1179000899"), WithAPIKey("secret-key"), WithBaseURL(server.URL))
+	adapter := New(WithVA("1179000899"), WithAPIKey("secret-key"), WithBaseURL(server.URL), WithTimestamp(func() time.Time { return time.Date(2026, 6, 4, 20, 0, 0, 0, time.UTC) }))
 	if _, err := adapter.TestAuth(context.Background()); err != nil {
 		t.Fatal(err)
+	}
+}
+
+func TestAuthRejectsProviderAuthFailure(t *testing.T) {
+	server := httptest.NewServer(http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		_, _ = w.Write([]byte(`{"Status":401,"Message":"unauthorized"}`))
+	}))
+	defer server.Close()
+	adapter := New(WithVA("1179000899"), WithAPIKey("bad-secret"), WithBaseURL(server.URL))
+	_, err := adapter.TestAuth(context.Background())
+	if err == nil || !strings.Contains(err.Error(), "status 401") {
+		t.Fatalf("error = %v, want status 401", err)
 	}
 }
 
