@@ -45,6 +45,8 @@ func providerTest(ctx context.Context, w io.Writer, args []string) error {
 		return providerTestXendit(ctx, w, args[1:])
 	case "doku":
 		return providerTestDoku(ctx, w, args[1:])
+	case "ipaymu":
+		return providerTestIPaymu(ctx, w, args[1:])
 	default:
 		return fmt.Errorf("provider test for %q is not implemented yet", args[0])
 	}
@@ -172,6 +174,40 @@ func providerTestDoku(ctx context.Context, w io.Writer, args []string) error {
 		fmt.Fprintln(w, "note: 404 is expected for the dummy probe reference; the signed request still reached DOKU")
 	}
 	fmt.Fprintln(w, "note: configure the matching Notification URL in DOKU Back Office per channel before relying on webhook callbacks")
+	return nil
+}
+
+func providerTestIPaymu(ctx context.Context, w io.Writer, args []string) error {
+	cfg := config.Load()
+	fs := flag.NewFlagSet("provider test ipaymu", flag.ContinueOnError)
+	fs.SetOutput(w)
+	environment := fs.String("environment", cfg.Environment, "provider environment: sandbox or production")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	baseURL := fs.String("base-url", "", "override iPaymu API base URL")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	environmentValue := strings.TrimSpace(*environment)
+	if err := validateEnvironment(environmentValue); err != nil {
+		return err
+	}
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	factory := providerfactory.New(store)
+	adapter, err := factory.IPaymuAdapterForStoredAccount(ctx, domain.Environment(environmentValue), *baseURL)
+	if err != nil {
+		return err
+	}
+	info, err := adapter.TestAuth(ctx)
+	if err != nil {
+		return err
+	}
+	fmt.Fprintln(w, "ipaymu auth probe reached api")
+	fmt.Fprintf(w, "environment: %s\n", environmentValue)
+	fmt.Fprintf(w, "status_code: %d\n", info.StatusCode)
 	return nil
 }
 

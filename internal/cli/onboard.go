@@ -19,6 +19,7 @@ func onboard(ctx context.Context, stdout, stderr io.Writer, args []string) error
 		fmt.Fprintln(stdout, "  xendit")
 		fmt.Fprintln(stdout, "  midtrans")
 		fmt.Fprintln(stdout, "  doku")
+		fmt.Fprintln(stdout, "  ipaymu")
 		return nil
 	}
 
@@ -29,6 +30,8 @@ func onboard(ctx context.Context, stdout, stderr io.Writer, args []string) error
 		return onboardMidtrans(ctx, stdout, stderr, args[1:])
 	case "doku":
 		return onboardDoku(ctx, stdout, stderr, args[1:])
+	case "ipaymu":
+		return onboardIPaymu(ctx, stdout, stderr, args[1:])
 	default:
 		return fmt.Errorf("unknown onboarding provider %q", args[0])
 	}
@@ -222,5 +225,64 @@ func onboardDoku(ctx context.Context, stdout, stderr io.Writer, args []string) e
 	fmt.Fprintf(stdout, "webhook path: %s\n", strings.TrimSpace(*webhookTargetPath))
 	fmt.Fprintf(stdout, "database: %s\n", *dbPath)
 	fmt.Fprintln(stdout, "note: configure the same notification path in DOKU Back Office per channel before relying on webhook callbacks")
+	return nil
+}
+
+func onboardIPaymu(ctx context.Context, stdout, stderr io.Writer, args []string) error {
+	cfg := config.Load()
+	fs := flag.NewFlagSet("onboard ipaymu", flag.ContinueOnError)
+	fs.SetOutput(stderr)
+	va := fs.String("va", "", "iPaymu virtual account / VA")
+	apiKey := fs.String("api-key", "", "iPaymu API key")
+	account := fs.String("account", "", "iPaymu account identifier; defaults to --va")
+	environment := fs.String("environment", cfg.Environment, "provider environment: sandbox or production")
+	displayName := fs.String("name", "iPaymu", "provider account display name")
+	dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
+	if err := fs.Parse(args); err != nil {
+		return err
+	}
+	if strings.TrimSpace(*va) == "" {
+		return fmt.Errorf("ipaymu --va is required")
+	}
+	if strings.TrimSpace(*apiKey) == "" {
+		return fmt.Errorf("ipaymu --api-key is required")
+	}
+	environmentVal := strings.TrimSpace(*environment)
+	if err := validateEnvironment(environmentVal); err != nil {
+		return err
+	}
+	accountValue := strings.TrimSpace(*account)
+	if accountValue == "" {
+		accountValue = strings.TrimSpace(*va)
+	}
+	credentialJSON, err := json.Marshal(map[string]string{
+		"va":      strings.TrimSpace(*va),
+		"api_key": strings.TrimSpace(*apiKey),
+		"account": accountValue,
+	})
+	if err != nil {
+		return fmt.Errorf("marshal ipaymu credential: %w", err)
+	}
+	store, err := sqlite.Open(ctx, *dbPath)
+	if err != nil {
+		return err
+	}
+	defer store.Close()
+	accountID, err := store.UpsertProviderAccount(ctx, domain.ProviderAccount{
+		ProviderCode:   domain.ProviderIPaymu,
+		Environment:    domain.Environment(environmentVal),
+		DisplayName:    *displayName,
+		CredentialJSON: credentialJSON,
+		ConfigJSON:     []byte(`{}`),
+	})
+	if err != nil {
+		return err
+	}
+	fmt.Fprintf(stdout, "ipaymu account saved: %s\n", accountID)
+	fmt.Fprintf(stdout, "environment: %s\n", environmentVal)
+	fmt.Fprintf(stdout, "va: %s\n", strings.TrimSpace(*va))
+	fmt.Fprintf(stdout, "api key: %s\n", maskSecret(*apiKey))
+	fmt.Fprintf(stdout, "account: %s\n", accountValue)
+	fmt.Fprintf(stdout, "database: %s\n", *dbPath)
 	return nil
 }

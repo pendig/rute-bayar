@@ -64,6 +64,18 @@ Mapping Xendit lain perlu dilengkapi saat implementasi create/status Payment Ses
 - Transaction `REFUNDED` -> `refunded`
 - Transaction `PARTIAL_REFUNDED` -> `partial_refunded`
 
+### Mapping Awal iPaymu
+
+- `status_code=-2` -> `expired`
+- `status_code=0` -> `pending`
+- `status_code=1` -> `paid`
+- `status_code=2` -> `cancelled`
+- `status_code=3` -> `refunded`
+- `status_code=4` -> `failed`
+- `status_code=5` -> `failed`
+- `status_code=6` -> `paid`
+- `status_code=7` / `StatusDesc=Escrow` dengan `PaidStatus=paid` -> `paid` (terlihat pada sandbox QRIS iPaymu setelah pembayaran sukses)
+
 ### Xendit `pay create`
 
 - Endpoint aktif: `POST /sessions` (Payment Session API).
@@ -170,6 +182,38 @@ rutebayar pay create \
 ```
 
 Refund DOKU belum diaktifkan karena membutuhkan setup Refund API/disbursement.
+
+### iPaymu `pay create`
+
+- Base URL sandbox: `https://sandbox.ipaymu.com`.
+- Base URL production: `https://my.ipaymu.com`.
+- Redirect payment memakai `POST /api/v2/payment`.
+- Request body iPaymu API v2 dikirim sebagai JSON; signature dihitung dari JSON body tersebut sesuai dokumen signature iPaymu.
+- `notifyUrl` wajib untuk create payment sandbox/production, termasuk redirect payment.
+- Direct payment memakai `POST /api/v2/payment/direct` untuk metode/channel yang dikirim via `--method` dan `--bank`.
+- Status lookup memakai `POST /api/v2/transaction` dengan `transactionId` provider.
+- Sandbox QRIS dapat mengirim callback `pending` lalu `berhasil`, tetapi callback memakai `application/x-www-form-urlencoded`; pastikan verifikasi signature webhook memakai canonical body callback yang benar, dan gunakan reconciliation sebagai fallback source-of-truth jika verifikasi gagal.
+- Credential onboarding menyimpan `va`, `api_key`, dan optional `account`:
+
+```bash
+rutebayar onboard ipaymu \
+  --va "$IPAYMU_VA" \
+  --api-key "$IPAYMU_API_KEY" \
+  --environment sandbox
+```
+
+Create redirect payment:
+
+```bash
+rutebayar pay create \
+  --provider ipaymu \
+  --method redirect \
+  --reference rb-ipaymu-001 \
+  --amount 15000 \
+  --notification-url https://<public-domain>/webhooks/ipaymu
+```
+
+Refund iPaymu belum diimplementasikan.
 
 ## Forwarding Policy
 
