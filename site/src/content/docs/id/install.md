@@ -5,13 +5,15 @@ lang: id
 order: 1
 ---
 
-Rute Bayar tersedia sebagai binary static dan ditargetkan bisa dipasang lewat Homebrew.
+Rute Bayar tersedia sebagai binary static untuk Linux, macOS, dan Windows. Jalur utama untuk mulai cepat adalah script installer.
 
 ```bash
-brew tap pendig/tap
-brew install rutebayar
+curl -fsSL https://raw.githubusercontent.com/pendig/rute-bayar/main/scripts/install.sh | bash
+rutebayar version
 rutebayar provider list
 ```
+
+Butuh Homebrew, Go install, atau binary manual? Buka [opsi install](/docs/install-options/).
 
 Untuk development dari source:
 
