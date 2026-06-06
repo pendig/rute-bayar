@@ -30,7 +30,7 @@ If you use Instagram or a marketplace, clean up the bio, highlights, catalog, pr
 
 ## After approval
 
-After production access is active, separate sandbox and production credentials. For Rute Bayar integrations, store Midtrans credentials in environment configuration or local storage, then validate the provider before accepting real transactions.
+After production access is active, separate sandbox and production credentials. For Rute Bayar integrations, store Midtrans credentials in environment configuration or local database, then validate the provider before accepting real transactions.
 
 ```bash
 rutebayar onboard midtrans --environment production

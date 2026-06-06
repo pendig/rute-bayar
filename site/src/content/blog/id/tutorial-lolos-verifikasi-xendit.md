@@ -21,7 +21,7 @@ Akun baru Xendit bisa dipakai di Test Mode untuk simulasi. Untuk masuk Live Mode
 6. Siapkan bukti otorisasi jika representative tidak tercantum sebagai pihak berwenang di dokumen legal.
 7. Pastikan kamera dan browser siap untuk liveness verification.
 
-Untuk Indonesia, Xendit menyediakan halaman dokumen bisnis khusus Indonesia yang diperbarui pada 5 Januari 2026. Karena daftar dokumen dapat berbeda per tipe entity dan produk, gunakan halaman tersebut sebagai rujukan final sebelum submit.
+Untuk Indonesia, Xendit menyediakan halaman dokumen bisnis khusus Indonesia yang diperbarui pada 5 Januari 2026. Karena daftar dokumen dapat berbeda per tipe entitas dan produk, gunakan halaman tersebut sebagai rujukan final sebelum submit.
 
 ## Aktivasi instan bukan full approval
 
