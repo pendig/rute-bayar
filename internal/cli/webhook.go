@@ -61,26 +61,42 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 		if err != nil {
 			return err
 		}
+		environmentValue := strings.TrimSpace(*environment)
+		if environmentValue == "" {
+			environmentValue = string(domain.EnvironmentSandbox)
+		}
+		if err := validateEnvironment(environmentValue); err != nil {
+			return err
+		}
 
 		srv := daemon.NewServer(*addr, nil, nil, nil)
-		apiServer := api.NewServer(api.Config{
-			Version:            strings.TrimSpace(build.Version),
-			APIKey:             cfg.APIKey,
-			AllowedOrigins:     cfg.APIAllowedOrigins,
-			RateLimitPerMinute: cfg.APIRateLimit,
-		})
+		var apiServer *api.Server
 
 		if selectedMode == webhookModeAPI {
+			store, err := sqlite.Open(ctx, *dbPath)
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+
+			factory := providerfactory.New(store)
+			apiServer = api.NewServer(api.Config{
+				Version:            strings.TrimSpace(build.Version),
+				APIKey:             cfg.APIKey,
+				AllowedOrigins:     cfg.APIAllowedOrigins,
+				RateLimitPerMinute: cfg.APIRateLimit,
+				AuditSink:          store,
+				Store:              store,
+				PaymentService:     paymentsvc.New(store, factory),
+				DatabasePath:       *dbPath,
+				DefaultEnvironment: domain.Environment(environmentValue),
+			})
+
 			fmt.Fprintf(stdout, "Rute Bayar API daemon listening on %s\n", *addr)
-			fmt.Fprintf(stdout, "api environment: %s\n", strings.TrimSpace(*environment))
+			fmt.Fprintf(stdout, "api environment: %s\n", environmentValue)
 			fmt.Fprintf(stdout, "SQLite database: %s\n", *dbPath)
 			srv = srv.WithAPIHandler(apiServer.Handler())
 			return srv.ListenAndServe()
-		}
-
-		environmentValue := strings.TrimSpace(*environment)
-		if err := validateEnvironment(environmentValue); err != nil {
-			return err
 		}
 
 		store, err := sqlite.Open(ctx, *dbPath)
@@ -103,6 +119,7 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 			AuditSink:          store,
 			Store:              store,
 			PaymentService:     paymentsvc.New(store, factory),
+			DatabasePath:       *dbPath,
 			DefaultEnvironment: domain.Environment(environmentValue),
 		})
 
