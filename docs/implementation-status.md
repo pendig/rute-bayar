@@ -45,6 +45,7 @@ Dokumen ini mencatat status implementasi teknis Rute Bayar agar contributor muda
 ## Belum Ada
 
 - DOKU refund API/disbursement flow.
+- Refund iPaymu via API. API publik iPaymu v2 belum mengekspos endpoint refund yang terdokumentasi/terverifikasi, jadi capability ini tetap unsupported sampai ada endpoint resmi dari iPaymu.
 - Perluasan metode Direct API provider selain jalur checkout/payment-link utama.
 
 ## Catatan Rework Berjalan

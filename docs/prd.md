@@ -10,7 +10,7 @@ Rute Bayar adalah payment router yang berfungsi sebagai jembatan antara aplikasi
 
 Produk ini tersedia dalam dua mode utama:
 
-- **CLI** untuk onboarding, konfigurasi, pembayaran manual, status check, dan refund.
+- **CLI** untuk onboarding, konfigurasi, pembayaran manual, status check, dan refund jika capability provider tersedia.
 - **Daemon** untuk menerima webhook provider, memproses event, dan menyinkronkan status transaksi.
 
 ## Tujuan
@@ -39,7 +39,7 @@ Produk ini tersedia dalam dua mode utama:
 3. Provider mengirim webhook ke daemon.
 4. Daemon memverifikasi webhook, menyimpan payload mentah, lalu menormalisasi event.
 5. Sistem melakukan update status transaksi.
-6. Merchant dapat melakukan status inquiry atau refund lewat CLI.
+6. Merchant dapat melakukan status inquiry atau refund lewat CLI untuk provider/channel yang mendukung refund.
 
 ## Fitur MVP
 
@@ -47,7 +47,7 @@ Produk ini tersedia dalam dua mode utama:
 - Konfigurasi credential provider.
 - Create payment.
 - Cek status payment.
-- Refund.
+- Refund berbasis capability provider. Xendit/Midtrans punya flow awal; DOKU dan iPaymu tetap unsupported sampai endpoint/capability resmi tersedia.
 - Webhook receiver per provider.
 - Verifikasi signature/token webhook.
 - Idempotency handling.

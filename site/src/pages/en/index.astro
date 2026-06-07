@@ -9,6 +9,7 @@ import "../../styles/landing.css";
 const createPaymentLines = LANDING_CREATE_PAYMENT_LINES;
 const webhookLines = LANDING_WEBHOOK_LINES;
 const providerStripLabel = layoutCopy.en.providerStripLabel;
+const supportedGateways = ["Xendit", "Midtrans", "DOKU", "iPaymu"];
 ---
 
 <BaseLayout
@@ -54,8 +55,24 @@ const providerStripLabel = layoutCopy.en.providerStripLabel;
       <span>Live: Xendit</span>
       <span>Live: Midtrans</span>
   <span>Released: Doku</span>
+  <span>Released: iPaymu*</span>
   <span>Roadmap: Flip Business</span>
   <span>Roadmap: Duitku</span>
+    </div>
+  </section>
+
+  <section class="gateway-marquee-section" aria-labelledby="supported-gateways-heading">
+    <div class="container gateway-marquee-copy">
+      <p class="eyebrow">Available payment gateways</p>
+      <h2 id="supported-gateways-heading">Providers already supported by Rute Bayar.</h2>
+      <p>These logo/wordmark cards represent active gateways that already have Rute Bayar adapters. Refund behavior still follows each provider's capability.</p>
+    </div>
+    <div class="gateway-marquee" tabindex="0" aria-label="Xendit, Midtrans, DOKU, and iPaymu. Focus this area to pause the gateway logo animation.">
+      <div class="gateway-marquee-track">
+        {[...supportedGateways, ...supportedGateways].map((gateway) => (
+          <span class="gateway-logo-card" aria-label={gateway}>{gateway}</span>
+        ))}
+      </div>
     </div>
   </section>
 
@@ -72,7 +89,11 @@ const providerStripLabel = layoutCopy.en.providerStripLabel;
     <div class="container rail-grid">
       <article class="rail-card">
         <h3>CLI-first onboarding</h3>
-        <p>Set provider credentials, test accounts, create payments, request refunds, and inspect status from the same command surface.</p>
+        <p>
+          Set provider credentials, test accounts, create payments, request refunds for providers that support them, and inspect status from the same command surface.
+          <br />
+          <small>*iPaymu refunds are not available yet because the public iPaymu API v2 does not expose an official verified refund endpoint.</small>
+        </p>
       </article>
       <article class="rail-card">
         <h3>Webhook daemon</h3>
