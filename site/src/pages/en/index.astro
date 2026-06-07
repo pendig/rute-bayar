@@ -9,7 +9,28 @@ import "../../styles/landing.css";
 const createPaymentLines = LANDING_CREATE_PAYMENT_LINES;
 const webhookLines = LANDING_WEBHOOK_LINES;
 const providerStripLabel = layoutCopy.en.providerStripLabel;
-const supportedGateways = ["Xendit", "Midtrans", "DOKU", "iPaymu"];
+const supportedGateways = [
+  {
+    name: "Xendit",
+    href: "https://www.xendit.co/",
+    logo: withSiteBase("/assets/providers/xendit.png"),
+  },
+  {
+    name: "Midtrans",
+    href: "https://midtrans.com/",
+    logo: withSiteBase("/assets/providers/midtrans.png"),
+  },
+  {
+    name: "DOKU",
+    href: "https://www.doku.com/",
+    logo: withSiteBase("/assets/providers/doku.png"),
+  },
+  {
+    name: "iPaymu",
+    href: "https://ipaymu.com/",
+    logo: withSiteBase("/assets/providers/ipaymu.png"),
+  },
+];
 ---
 
 <BaseLayout
@@ -67,10 +88,18 @@ const supportedGateways = ["Xendit", "Midtrans", "DOKU", "iPaymu"];
       <h2 id="supported-gateways-heading">Providers already supported by Rute Bayar.</h2>
       <p>These logo/wordmark cards represent active gateways that already have Rute Bayar adapters. Refund behavior still follows each provider's capability.</p>
     </div>
-    <div class="gateway-marquee" tabindex="0" aria-label="Xendit, Midtrans, DOKU, and iPaymu. Focus this area to pause the gateway logo animation.">
+    <div class="gateway-marquee" aria-label="Xendit, Midtrans, DOKU, and iPaymu provider logos.">
       <div class="gateway-marquee-track">
-        {[...supportedGateways, ...supportedGateways].map((gateway) => (
-          <span class="gateway-logo-card" aria-label={gateway}>{gateway}</span>
+        {supportedGateways.map((gateway) => (
+          <a
+            class="gateway-logo-card"
+            href={gateway.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Open ${gateway.name} website`}
+          >
+            <img src={gateway.logo} alt="" loading="eager" decoding="async" />
+          </a>
         ))}
       </div>
     </div>
