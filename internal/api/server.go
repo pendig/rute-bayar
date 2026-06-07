@@ -129,6 +129,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/payments/{reference}", s.wrap(s.getPayment, true))
 	mux.HandleFunc("GET /api/v1/payments/{reference}/status", s.wrap(s.getPaymentStatus, true))
 	mux.HandleFunc("POST /api/v1/payments/{reference}/refund", s.wrap(s.refundPayment, true))
+	mux.HandleFunc("GET /api/v1/webhook-events", s.wrap(s.listWebhookEvents, true))
+	mux.HandleFunc("GET /api/v1/webhook-events/{id}", s.wrap(s.getWebhookEvent, true))
+	mux.HandleFunc("GET /api/v1/webhook-events/{id}/forwarding-attempts", s.wrap(s.listWebhookEventAttempts, true))
+	mux.HandleFunc("POST /api/v1/webhook-events/{id}/replay", s.wrap(s.replayWebhookEvent, true))
 	mux.Handle("/", http.NotFoundHandler())
 	return mux
 }

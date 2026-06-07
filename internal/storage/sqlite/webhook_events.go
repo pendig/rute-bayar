@@ -4,10 +4,99 @@ import (
 	"context"
 	"database/sql"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pendig/rute-bayar/internal/domain"
 )
+
+func (s *Store) ListWebhookEvents(ctx context.Context, provider domain.ProviderCode, status string, signatureValid *bool, limit, offset int) ([]domain.WebhookEvent, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	args := []any{}
+	conditions := []string{}
+	if strings.TrimSpace(string(provider)) != "" {
+		conditions = append(conditions, "p.code = ?")
+		args = append(args, string(provider))
+	}
+	if trimmedStatus := strings.TrimSpace(status); trimmedStatus != "" {
+		conditions = append(conditions, "we.processing_status = ?")
+		args = append(args, trimmedStatus)
+	}
+	if signatureValid != nil {
+		conditions = append(conditions, "we.signature_valid = ?")
+		if *signatureValid {
+			args = append(args, 1)
+		} else {
+			args = append(args, 0)
+		}
+	}
+
+	query := `
+		SELECT
+			we.id,
+			p.code,
+			we.provider_event_id,
+			we.event_type,
+			we.signature_valid,
+			we.payload_json,
+			we.headers_json,
+			we.received_at,
+			we.processed_at,
+			we.processing_status
+		FROM webhook_events we
+		JOIN providers p ON p.id = we.provider_id
+	`
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+	query += " ORDER BY we.received_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list webhook events: %w", err)
+	}
+	defer rows.Close()
+
+	var events []domain.WebhookEvent
+	for rows.Next() {
+		var (
+			event          domain.WebhookEvent
+			providerCode   string
+			signatureValid int
+			receivedAt     string
+			processedAt    sql.NullString
+			payloadJSON    string
+			headersJSON    string
+		)
+		if err := rows.Scan(&event.ID, &providerCode, &event.ProviderEventID, &event.EventType, &signatureValid, &payloadJSON, &headersJSON, &receivedAt, &processedAt, &event.ProcessingStatus); err != nil {
+			return nil, fmt.Errorf("scan webhook event: %w", err)
+		}
+		event.ProviderCode = domain.ProviderCode(providerCode)
+		event.SignatureValid = signatureValid == 1
+		event.PayloadJSON = []byte(payloadJSON)
+		event.HeadersJSON = []byte(headersJSON)
+		event.ReceivedAt = parseTime(receivedAt)
+		if processedAt.Valid {
+			parsed := parseTime(processedAt.String)
+			event.ProcessedAt = &parsed
+		}
+		events = append(events, event)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate webhook events: %w", err)
+	}
+	return events, nil
+}
 
 func (s *Store) RecordWebhookEvent(ctx context.Context, event domain.WebhookEvent) (string, error) {
 	id := event.ID
