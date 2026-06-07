@@ -133,6 +133,11 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("GET /api/v1/webhook-events/{id}", s.wrap(s.getWebhookEvent, true))
 	mux.HandleFunc("GET /api/v1/webhook-events/{id}/forwarding-attempts", s.wrap(s.listWebhookEventAttempts, true))
 	mux.HandleFunc("POST /api/v1/webhook-events/{id}/replay", s.wrap(s.replayWebhookEvent, true))
+	mux.HandleFunc("GET /api/v1/webhook-forwarding-targets", s.wrap(s.listForwardingTargets, true))
+	mux.HandleFunc("POST /api/v1/webhook-forwarding-targets", s.wrap(s.createForwardingTarget, true))
+	mux.HandleFunc("PUT /api/v1/webhook-forwarding-targets/{id}", s.wrap(s.updateForwardingTarget, true))
+	mux.HandleFunc("DELETE /api/v1/webhook-forwarding-targets/{id}", s.wrap(s.deleteForwardingTarget, true))
+	mux.HandleFunc("GET /api/v1/webhook-forwarding-attempts", s.wrap(s.listForwardingAttempts, true))
 	mux.Handle("/", http.NotFoundHandler())
 	return mux
 }
