@@ -36,7 +36,7 @@ Checklist, changelog, dan release notes sudah disiapkan untuk release publik sta
 
 ### Core Payments
 
-- Konfirmasi `pay create`, `pay status`, dan `pay refund` tetap hijau lewat CI dan smoke test untuk provider yang mendukung refund. Jangan jadikan iPaymu blocker refund sampai ada endpoint resmi dari iPaymu.
+- Konfirmasi `pay create`, `pay status`, dan `pay refund` tetap hijau lewat CI dan smoke test untuk provider yang mendukung refund. Jangan jadikan ketiadaan refund iPaymu sebagai blocker rilis sampai ada endpoint resmi dari iPaymu.
 - Pastikan status mapping yang terdokumentasi masih sesuai dengan adapter.
 - Midtrans refund E2E masih dapat dicatat sebagai known sandbox limitation jika balance sandbox tidak tersedia.
 

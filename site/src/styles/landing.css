@@ -150,6 +150,7 @@
     animation: none;
     flex-wrap: wrap;
     justify-content: center;
+    width: 100%;
   }
 }
 

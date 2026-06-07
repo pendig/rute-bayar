@@ -213,7 +213,7 @@ rutebayar pay create \
   --notification-url https://<public-domain>/webhooks/ipaymu
 ```
 
-- Refund iPaymu belum diimplementasikan dan belum dapat diverifikasi lewat API publik iPaymu v2. Collection publik iPaymu tidak mengekspos endpoint refund; probe sandbox bertanda tangan ke beberapa kandidat endpoint refund/cancel juga mengembalikan `404`/`405` bahkan untuk transaksi QRIS paid. Perlakukan refund iPaymu sebagai unsupported sampai iPaymu support/dashboard memberikan endpoint resmi dan payload yang wajib.
+- Refund iPaymu belum diimplementasikan dan belum dapat diverifikasi lewat API publik iPaymu v2. Collection publik iPaymu tidak mengekspos endpoint refund; probe sandbox bertanda tangan ke beberapa kandidat endpoint refund/cancel juga mengembalikan `404`/`405` bahkan untuk transaksi QRIS paid. Perlakukan refund iPaymu sebagai unsupported sampai iPaymu support/dashboard memberikan endpoint resmi dan payload yang dibutuhkan.
 
 ## Forwarding Policy
 
