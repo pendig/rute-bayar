@@ -50,7 +50,7 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 		fs.SetOutput(stderr)
 		cfg := config.Load()
 		addr := fs.String("addr", cfg.WebhookAddr, "daemon listen address")
-		mode := fs.String("mode", webhookModeWebhook, "daemon runtime mode: webhook, api, or all")
+		mode := fs.String("mode", "webhook", "daemon runtime mode: webhook, api, or all")
 		environment := fs.String("environment", cfg.Environment, "webhook provider credential environment")
 		dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
 		if err := fs.Parse(args[1:]); err != nil {
@@ -63,22 +63,39 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 		}
 
 		srv := daemon.NewServer(*addr, nil, nil, nil)
-		apiServer := api.NewServer(api.Config{
-			Version:            strings.TrimSpace(build.Version),
-			APIKey:             cfg.APIKey,
-			AllowedOrigins:     cfg.APIAllowedOrigins,
-			RateLimitPerMinute: cfg.APIRateLimit,
-		})
 
-		if selectedMode == webhookModeAPI {
-			fmt.Fprintf(stdout, "Rute Bayar API daemon listening on %s\n", *addr)
-			fmt.Fprintf(stdout, "api environment: %s\n", strings.TrimSpace(*environment))
-			fmt.Fprintf(stdout, "SQLite database: %s\n", *dbPath)
+		environmentValue := strings.TrimSpace(*environment)
+		if selectedMode == webhookModeAPI || selectedMode == webhookModeAll {
+			if err := validateEnvironment(environmentValue); err != nil {
+				return err
+			}
+		}
+
+		switch selectedMode {
+		case webhookModeAPI:
+			store, err := sqlite.Open(ctx, *dbPath)
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+
+			apiServer := api.NewServer(api.Config{
+				Version:            strings.TrimSpace(build.Version),
+				APIKey:             cfg.APIKey,
+				AllowedOrigins:     cfg.APIAllowedOrigins,
+				RateLimitPerMinute: cfg.APIRateLimit,
+				AuditSink:          store,
+				Store:              store,
+				PaymentService:     paymentsvc.New(store, providerfactory.New(store)),
+				DefaultEnvironment: domain.Environment(environmentValue),
+			})
 			srv = srv.WithAPIHandler(apiServer.Handler())
+			fmt.Fprintf(stdout, "Rute Bayar API daemon listening on %s\n", *addr)
+			fmt.Fprintf(stdout, "api environment: %s\n", environmentValue)
+			fmt.Fprintf(stdout, "SQLite database: %s\n", *dbPath)
 			return srv.ListenAndServe()
 		}
 
-		environmentValue := strings.TrimSpace(*environment)
 		if err := validateEnvironment(environmentValue); err != nil {
 			return err
 		}
@@ -95,7 +112,7 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 			return err
 		}
 
-		apiServer = api.NewServer(api.Config{
+		apiServer := api.NewServer(api.Config{
 			Version:            strings.TrimSpace(build.Version),
 			APIKey:             cfg.APIKey,
 			AllowedOrigins:     cfg.APIAllowedOrigins,
@@ -105,20 +122,18 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 			PaymentService:     paymentsvc.New(store, factory),
 			DefaultEnvironment: domain.Environment(environmentValue),
 		})
-
-		srv = daemon.NewServer(*addr, store, forwarding.NewService(store), handlers)
-		if selectedMode == webhookModeAll {
-			srv = srv.WithAPIHandler(apiServer.Handler())
-		}
-
+		handler := apiServer.Handler()
 		if selectedMode == webhookModeWebhook {
+			srv = daemon.NewServer(*addr, store, forwarding.NewService(store), handlers)
 			fmt.Fprintf(stdout, "Rute Bayar webhook daemon listening on %s\n", *addr)
 		} else {
+			srv = daemon.NewServer(*addr, store, forwarding.NewService(store), handlers).WithAPIHandler(handler)
 			fmt.Fprintf(stdout, "Rute Bayar webhook+api daemon listening on %s\n", *addr)
 		}
 		fmt.Fprintf(stdout, "webhook environment: %s\n", environmentValue)
 		fmt.Fprintf(stdout, "SQLite database: %s\n", *dbPath)
 		return srv.ListenAndServe()
+
 	case "replay":
 		return webhookReplayCommand(ctx, stdout, stderr, args[1:])
 	case "forward":

@@ -138,6 +138,10 @@ func (s *Server) Handler() http.Handler {
 	mux.HandleFunc("PUT /api/v1/webhook-forwarding-targets/{id}", s.wrap(s.updateForwardingTarget, true))
 	mux.HandleFunc("DELETE /api/v1/webhook-forwarding-targets/{id}", s.wrap(s.deleteForwardingTarget, true))
 	mux.HandleFunc("GET /api/v1/webhook-forwarding-attempts", s.wrap(s.listForwardingAttempts, true))
+	mux.HandleFunc("POST /api/v1/reconcile/{provider}/{reference}", s.wrap(s.reconcilePayment, true))
+	mux.HandleFunc("POST /api/v1/reconcile/{provider}", s.wrap(s.reconcilePayment, true))
+	mux.HandleFunc("POST /api/v1/reconcile", s.wrap(s.reconcilePayment, true))
+	mux.HandleFunc("GET /api/v1/stats", s.wrap(s.stats, true))
 	mux.Handle("/", http.NotFoundHandler())
 	return mux
 }

@@ -54,7 +54,10 @@ func envIntOrDefault(fileEnv map[string]string, key string, fallback int) int {
 		return fallback
 	}
 	parsed, err := strconv.Atoi(trimmed)
-	if err != nil || parsed < 0 {
+	if err != nil {
+		return fallback
+	}
+	if parsed < 0 {
 		return fallback
 	}
 	return parsed
