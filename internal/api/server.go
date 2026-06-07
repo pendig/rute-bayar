@@ -74,6 +74,7 @@ type Store interface {
 	UpsertProviderAccount(context.Context, domain.ProviderAccount) (string, error)
 	UpdateProviderAccountByID(context.Context, domain.ProviderAccount) error
 	DeleteProviderAccount(context.Context, string) error
+	ListEnabledTargets(context.Context, domain.ProviderCode) ([]forwarding.Target, error)
 	GetWebhookEventByID(context.Context, string) (domain.WebhookEvent, error)
 	ListWebhookEvents(context.Context, domain.ProviderCode, string, *bool, int, int) ([]domain.WebhookEvent, error)
 	CountWebhookEvents(context.Context, domain.ProviderCode, string, *bool) (int, error)
@@ -1063,7 +1064,7 @@ func (s *Server) webhookForwardingTargetUpdateHandler(r *http.Request) (any, err
 		input.EnabledSet = true
 	}
 	if payload.Headers != nil {
-		headers, err := parseHeadersPayload(payload.Headers)
+		headers, err := parseHeadersPayload(*payload.Headers)
 		if err != nil {
 			return nil, err
 		}
@@ -1071,7 +1072,7 @@ func (s *Server) webhookForwardingTargetUpdateHandler(r *http.Request) (any, err
 		input.HeadersSet = true
 	}
 	if payload.EventFilter != nil {
-		eventFilter, err := parseEventFilter(payload.EventFilter)
+		eventFilter, err := parseEventFilter(*payload.EventFilter)
 		if err != nil {
 			return nil, err
 		}
