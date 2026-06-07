@@ -59,6 +59,100 @@
   font-weight: 700;
 }
 
+.gateway-marquee-section {
+  overflow: hidden;
+  padding: 42px 0 38px;
+  border-top: 1px solid var(--line);
+  border-bottom: 1px solid var(--line);
+  background:
+    linear-gradient(90deg, rgba(56, 213, 255, 0.08), transparent 34%),
+    rgba(255, 255, 255, 0.36);
+}
+
+.gateway-marquee-copy {
+  margin-bottom: 26px;
+}
+
+.gateway-marquee-copy h2 {
+  max-width: 780px;
+  margin-bottom: 12px;
+  font-size: clamp(1.9rem, 4vw, 3.25rem);
+}
+
+.gateway-marquee-copy p:not(.eyebrow) {
+  max-width: 720px;
+  color: var(--ink-muted);
+  line-height: 1.7;
+}
+
+.gateway-marquee {
+  position: relative;
+  width: 100%;
+  overflow: hidden;
+  mask-image: linear-gradient(90deg, transparent, #000 12%, #000 88%, transparent);
+}
+
+.gateway-marquee-track {
+  display: flex;
+  width: max-content;
+  gap: 18px;
+  animation: gateway-scroll 24s linear infinite;
+}
+
+.gateway-marquee:hover .gateway-marquee-track {
+  animation-play-state: paused;
+}
+
+.gateway-logo-card {
+  display: inline-flex;
+  min-width: 220px;
+  min-height: 92px;
+  align-items: center;
+  justify-content: center;
+  border: 1px solid rgba(10, 20, 18, 0.14);
+  background: rgba(255, 255, 255, 0.78);
+  box-shadow: 0 18px 45px rgba(8, 18, 16, 0.08);
+  color: var(--code);
+  font-family: "IBM Plex Mono", monospace;
+  font-size: clamp(1.25rem, 2vw, 1.75rem);
+  font-weight: 800;
+  letter-spacing: -0.04em;
+  text-transform: none;
+}
+
+.gateway-logo-card:nth-child(4n + 1) {
+  color: #1f6fff;
+}
+
+.gateway-logo-card:nth-child(4n + 2) {
+  color: #1b2f7a;
+}
+
+.gateway-logo-card:nth-child(4n + 3) {
+  color: #ef7d00;
+}
+
+.gateway-logo-card:nth-child(4n) {
+  color: #13a15d;
+}
+
+@keyframes gateway-scroll {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(calc(-50% - 9px));
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .gateway-marquee-track {
+    animation: none;
+    flex-wrap: wrap;
+    justify-content: center;
+  }
+}
+
 .split,
 .install-grid,
 .ai-grid {
@@ -133,5 +227,10 @@ h2 {
 
   .hero-copy h1 {
     font-size: clamp(2.5rem, 12vw, 4.2rem);
+  }
+
+  .gateway-logo-card {
+    min-width: 170px;
+    min-height: 76px;
   }
 }

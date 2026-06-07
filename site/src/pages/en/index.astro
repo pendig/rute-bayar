@@ -9,6 +9,7 @@ import "../../styles/landing.css";
 const createPaymentLines = LANDING_CREATE_PAYMENT_LINES;
 const webhookLines = LANDING_WEBHOOK_LINES;
 const providerStripLabel = layoutCopy.en.providerStripLabel;
+const supportedGateways = ["Xendit", "Midtrans", "DOKU", "iPaymu"];
 ---
 
 <BaseLayout
@@ -57,6 +58,21 @@ const providerStripLabel = layoutCopy.en.providerStripLabel;
   <span>Released: iPaymu*</span>
   <span>Roadmap: Flip Business</span>
   <span>Roadmap: Duitku</span>
+    </div>
+  </section>
+
+  <section class="gateway-marquee-section" aria-labelledby="supported-gateways-heading">
+    <div class="container gateway-marquee-copy">
+      <p class="eyebrow">Available payment gateways</p>
+      <h2 id="supported-gateways-heading">Providers already supported by Rute Bayar.</h2>
+      <p>These logo/wordmark cards represent active gateways that already have Rute Bayar adapters. Refund behavior still follows each provider's capability.</p>
+    </div>
+    <div class="gateway-marquee" aria-label="Xendit, Midtrans, DOKU, and iPaymu">
+      <div class="gateway-marquee-track">
+        {[...supportedGateways, ...supportedGateways].map((gateway) => (
+          <span class="gateway-logo-card" aria-label={gateway}>{gateway}</span>
+        ))}
+      </div>
     </div>
   </section>
 

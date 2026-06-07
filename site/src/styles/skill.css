@@ -88,7 +88,12 @@ body.skill-page {
 
 .skill-checklist {
   align-items: start;
-  color: var(--ink);
+  color: #f7fff8;
+}
+
+.skill-checklist h2 {
+  color: #f7fff8;
+  text-shadow: 0 1px 0 rgba(0, 0, 0, 0.18);
 }
 
 .skill-install h2 {
@@ -123,9 +128,14 @@ body.skill-page {
 }
 
 .skill-checklist li {
-  color: var(--ink-muted);
+  color: rgba(247, 255, 248, 0.78);
   font-size: 1.08rem;
   line-height: 1.75;
+}
+
+.skill-checklist li::marker {
+  color: rgba(155, 225, 93, 0.86);
+  font-weight: 800;
 }
 
 .skill-checklist ol {
