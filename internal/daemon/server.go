@@ -15,21 +15,36 @@ import (
 type WebhookRecorder = webhooksvc.Recorder
 
 type Server struct {
-	addr      string
-	processor *webhooksvc.Service
+	addr       string
+	processor  *webhooksvc.Service
+	apiHandler http.Handler
 }
 
 func NewServer(addr string, recorder WebhookRecorder, forwarder *forwarding.Service, handlers map[domain.ProviderCode]provider.Adapter) *Server {
 	if addr == "" {
 		addr = ":8080"
 	}
-	return &Server{addr: addr, processor: webhooksvc.New(recorder, forwarder, handlers)}
+	var processor *webhooksvc.Service
+	if recorder != nil || forwarder != nil || len(handlers) > 0 {
+		processor = webhooksvc.New(recorder, forwarder, handlers)
+	}
+	return &Server{addr: addr, processor: processor}
+}
+
+func (s *Server) WithAPIHandler(handler http.Handler) *Server {
+	s.apiHandler = handler
+	return s
 }
 
 func (s *Server) ListenAndServe() error {
 	mux := http.NewServeMux()
 	mux.HandleFunc("GET /healthz", s.health)
-	mux.HandleFunc("POST /webhooks/{provider}", s.webhook)
+	if s.processor != nil {
+		mux.HandleFunc("POST /webhooks/{provider}", s.webhook)
+	}
+	if s.apiHandler != nil {
+		mux.Handle("/", s.apiHandler)
+	}
 	return http.ListenAndServe(s.addr, mux)
 }
 
