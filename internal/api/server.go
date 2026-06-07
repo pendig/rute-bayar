@@ -89,6 +89,7 @@ type Store interface {
 	DeleteForwardingTarget(context.Context, string) error
 	ListForwardingAttempts(context.Context, forwarding.AttemptFilter) ([]forwarding.AttemptRecord, error)
 	CountForwardingAttempts(context.Context, forwarding.AttemptFilter) (int, error)
+	RecordAttempt(context.Context, forwarding.Attempt) error
 	CountForwardingTargets(context.Context, domain.ProviderCode, bool) (int, error)
 }
 
