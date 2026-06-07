@@ -11,7 +11,7 @@ Rute Bayar sudah layak untuk:
 - uji integrasi provider secara manual
 - stable `v0.1.0`
 
-Rute Bayar sudah memiliki bukti real provider webhook callback dan Xendit refund E2E di sandbox.
+Rute Bayar sudah memiliki bukti real provider webhook callback dan Xendit refund E2E di sandbox. Refund tetap capability-specific; iPaymu refund belum tersedia karena API publik iPaymu v2 belum mengekspos endpoint refund resmi/terverifikasi.
 Checklist, changelog, dan release notes sudah disiapkan untuk release publik stabil `v0.1.0`.
 
 ## Sudah Siap
@@ -36,7 +36,7 @@ Checklist, changelog, dan release notes sudah disiapkan untuk release publik sta
 
 ### Core Payments
 
-- Konfirmasi `pay create`, `pay status`, dan `pay refund` tetap hijau lewat CI dan smoke test.
+- Konfirmasi `pay create`, `pay status`, dan `pay refund` tetap hijau lewat CI dan smoke test untuk provider yang mendukung refund. Jangan jadikan iPaymu blocker refund sampai ada endpoint resmi dari iPaymu.
 - Pastikan status mapping yang terdokumentasi masih sesuai dengan adapter.
 - Midtrans refund E2E masih dapat dicatat sebagai known sandbox limitation jika balance sandbox tidak tersedia.
 

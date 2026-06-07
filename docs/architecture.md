@@ -26,7 +26,7 @@ Menangani:
 - setup credential
 - create payment
 - check status
-- refund
+- refund jika capability provider tersedia
 - replay webhook
 - reconcile transaksi
 
@@ -39,7 +39,7 @@ Menangani use case bisnis:
 - normalize provider response
 - process webhook event
 - sync status
-- issue refund
+- issue refund untuk provider yang mendukung capability refund
 - evaluate forwarding rule
 - dispatch forward job
 
@@ -71,6 +71,8 @@ SQLite dipakai untuk:
 - refunds
 - provider configuration
 - audit logs
+
+Catatan: tabel/domain `refunds` tersedia untuk provider yang mendukung refund. iPaymu saat ini tidak mengaktifkan refund karena API publik iPaymu v2 belum menyediakan endpoint refund resmi/terverifikasi.
 
 ### 5. Daemon Layer
 
