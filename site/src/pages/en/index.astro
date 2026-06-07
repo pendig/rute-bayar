@@ -67,7 +67,7 @@ const supportedGateways = ["Xendit", "Midtrans", "DOKU", "iPaymu"];
       <h2 id="supported-gateways-heading">Providers already supported by Rute Bayar.</h2>
       <p>These logo/wordmark cards represent active gateways that already have Rute Bayar adapters. Refund behavior still follows each provider's capability.</p>
     </div>
-    <div class="gateway-marquee" aria-label="Xendit, Midtrans, DOKU, and iPaymu">
+    <div class="gateway-marquee" tabindex="0" aria-label="Xendit, Midtrans, DOKU, and iPaymu. Focus this area to pause the gateway logo animation.">
       <div class="gateway-marquee-track">
         {[...supportedGateways, ...supportedGateways].map((gateway) => (
           <span class="gateway-logo-card" aria-label={gateway}>{gateway}</span>

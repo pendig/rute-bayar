@@ -99,7 +99,9 @@
   animation: gateway-scroll 24s linear infinite;
 }
 
-.gateway-marquee:hover .gateway-marquee-track {
+.gateway-marquee:hover .gateway-marquee-track,
+.gateway-marquee:focus .gateway-marquee-track,
+.gateway-marquee:focus-within .gateway-marquee-track {
   animation-play-state: paused;
 }
 

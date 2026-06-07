@@ -67,7 +67,7 @@ const supportedGateways = ["Xendit", "Midtrans", "DOKU", "iPaymu"];
       <h2 id="supported-gateways-heading">Provider yang sudah disupport Rute Bayar.</h2>
       <p>Logo/wordmark berikut mewakili gateway aktif yang sudah punya adapter di Rute Bayar. Refund tetap mengikuti capability masing-masing provider.</p>
     </div>
-    <div class="gateway-marquee" aria-label="Xendit, Midtrans, DOKU, dan iPaymu">
+    <div class="gateway-marquee" tabindex="0" aria-label="Xendit, Midtrans, DOKU, dan iPaymu. Fokuskan area ini untuk menjeda animasi logo gateway.">
       <div class="gateway-marquee-track">
         {[...supportedGateways, ...supportedGateways].map((gateway) => (
           <span class="gateway-logo-card" aria-label={gateway}>{gateway}</span>
