@@ -1,0 +1,828 @@
+openapi: 3.1.0
+info:
+  title: Rute Bayar API
+  version: 1.0.0
+  description: |
+    HTTP API v1 for payments, webhooks, forwarding targets/attempts, and operations.
+    Service runs in three daemon modes: webhook, api, all.
+    MCP mapping notes are included under x-mcp-operation for each route.
+servers:
+  - url: http://localhost:8080
+    description: Local daemon server
+components:
+  securitySchemes:
+    ApiKeyAuth:
+      type: apiKey
+      in: header
+      name: X-API-Key
+  schemas:
+    StandardResponse:
+      type: object
+      required:
+        - request_id
+        - timestamp
+      properties:
+        request_id:
+          type: string
+          format: uuid
+        timestamp:
+          type: string
+          format: date-time
+    ErrorResponse:
+      allOf:
+        - $ref: '#/components/schemas/StandardResponse'
+        - type: object
+          required:
+            - error_code
+            - message
+          properties:
+            error_code:
+              type: string
+              enum: [bad_request, unauthorized, forbidden, not_found, conflict, rate_limited, internal_error]
+            message:
+              type: string
+            details:
+              type: object
+              additionalProperties: true
+    ProviderAccount:
+      type: object
+      required:
+        - id
+        - provider
+        - environment
+      properties:
+        id:
+          type: string
+        provider:
+          type: string
+          enum: [midtrans, xendit, doku, ipaymu]
+        environment:
+          type: string
+          enum: [sandbox, production]
+        display_name:
+          type: string
+        credential_json:
+          type: object
+          additionalProperties: true
+        config_json:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    PaymentIntent:
+      type: object
+      required:
+        - reference
+        - provider
+      properties:
+        reference:
+          type: string
+        provider:
+          type: string
+          enum: [midtrans, xendit, doku, ipaymu]
+        environment:
+          type: string
+          enum: [sandbox, production]
+        amount:
+          type: integer
+          minimum: 1
+        currency:
+          type: string
+          default: IDR
+        method:
+          type: string
+        channel:
+          type: string
+        customer_name:
+          type: string
+        customer_email:
+          type: string
+        customer_phone:
+          type: string
+        notification_url:
+          type: string
+          format: uri
+    PaymentAttempt:
+      type: object
+      properties:
+        id:
+          type: string
+        payment_reference:
+          type: string
+        provider:
+          type: string
+        provider_reference:
+          type: string
+        status:
+          type: string
+        created_at:
+          type: string
+          format: date-time
+    RefundResult:
+      type: object
+      properties:
+        id:
+          type: string
+        payment_reference:
+          type: string
+        provider:
+          type: string
+        status:
+          type: string
+        amount:
+          type: integer
+        request_id:
+          type: string
+    WebhookEvent:
+      type: object
+      required:
+        - id
+        - provider
+      properties:
+        id:
+          type: string
+        provider:
+          type: string
+          enum: [midtrans, xendit, doku, ipaymu]
+        provider_event_id:
+          type: string
+        event_type:
+          type: string
+        signature_valid:
+          type: boolean
+        processing_status:
+          type: string
+        received_at:
+          type: string
+          format: date-time
+        processed_at:
+          type: string
+          format: date-time
+          nullable: true
+        payload_json:
+          type: object
+          additionalProperties: true
+        headers_json:
+          type: object
+          additionalProperties: true
+    ForwardingTarget:
+      type: object
+      required:
+        - id
+        - provider
+        - name
+        - url
+      properties:
+        id:
+          type: string
+        provider:
+          type: string
+          enum: [midtrans, xendit, doku, ipaymu]
+        name:
+          type: string
+        url:
+          type: string
+          format: uri
+        event_filter:
+          type: object
+          additionalProperties: true
+        headers:
+          type: object
+          additionalProperties: true
+        retry_policy:
+          type: object
+          properties:
+            max_attempts:
+              type: integer
+            timeout_ms:
+              type: integer
+            backoff_ms:
+              type: integer
+        enabled:
+          type: boolean
+          default: true
+    ForwardingAttempt:
+      type: object
+      required:
+        - id
+        - webhook_event_id
+      properties:
+        id:
+          type: string
+        webhook_event_id:
+          type: string
+        target_id:
+          type: string
+        target_name:
+          type: string
+        target_url:
+          type: string
+        provider:
+          type: string
+        status:
+          type: string
+          enum: [success, failed]
+        attempt_no:
+          type: integer
+        request_json:
+          type: object
+          additionalProperties: true
+        response_json:
+          type: object
+          additionalProperties: true
+        created_at:
+          type: string
+          format: date-time
+        updated_at:
+          type: string
+          format: date-time
+    ReconcileResult:
+      type: object
+      properties:
+        provider:
+          type: string
+        reference:
+          type: string
+        provider_reference:
+          type: string
+        local_status:
+          type: string
+        provider_status:
+          type: string
+        matched:
+          type: boolean
+        updated:
+          type: boolean
+        message:
+          type: string
+    Stats:
+      type: object
+      properties:
+        totals:
+          type: object
+          additionalProperties:
+            type: integer
+        environment:
+          type: string
+        database_path:
+          type: string
+        updated_at:
+          type: string
+          format: date-time
+    EnvelopePaymentCreate:
+      allOf:
+        - $ref: '#/components/schemas/StandardResponse'
+        - type: object
+          properties:
+            data:
+              type: object
+              properties:
+                provider:
+                  type: string
+                reference:
+                  type: string
+                status:
+                  type: string
+    EnvelopeData:
+      allOf:
+        - $ref: '#/components/schemas/StandardResponse'
+        - type: object
+          properties:
+            data:
+              nullable: true
+    EnvelopeList:
+      allOf:
+        - $ref: '#/components/schemas/StandardResponse'
+        - type: object
+          properties:
+            data:
+              type: array
+              items:
+                type: object
+                additionalProperties: true
+    EnvelopeMeta:
+      allOf:
+        - $ref: '#/components/schemas/StandardResponse'
+        - type: object
+          properties:
+            data:
+              additionalProperties: true
+            page:
+              type: object
+              properties:
+                limit:
+                  type: integer
+                offset:
+                  type: integer
+                total:
+                  type: integer
+security:
+  - ApiKeyAuth: []
+paths:
+  /healthz:
+    get:
+      tags: [ops]
+      summary: Daemon health check
+      security: []
+      responses:
+        '200':
+          description: healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+  /api/v1/version:
+    post:
+      tags: [ops]
+      summary: API version probe
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: version response
+          content:
+            application/json:
+              schema:
+                type: object
+                properties:
+                  version:
+                    type: string
+                  api:
+                    type: string
+  /api/v1/healthz:
+    get:
+      tags: [ops]
+      summary: API health check
+      security:
+        - ApiKeyAuth: []
+      responses:
+        '200':
+          description: healthy
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+  /api/v1/provider-accounts:
+    get:
+      tags: [provider]
+      summary: List provider accounts
+      parameters:
+        - in: query
+          name: provider
+          schema:
+            type: string
+        - in: query
+          name: environment
+          schema:
+            type: string
+      responses:
+        '200':
+          description: provider accounts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeList'
+        '401':
+          $ref: '#/components/schemas/ErrorResponse'
+    post:
+      tags: [provider]
+      summary: Create or update provider account
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              required:
+                - provider
+                - environment
+                - credential_json
+              properties:
+                provider:
+                  type: string
+                environment:
+                  type: string
+                  enum: [sandbox, production]
+                display_name:
+                  type: string
+                credential_json:
+                  type: object
+                  additionalProperties: true
+                config_json:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: upserted account
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+        '400':
+          $ref: '#/components/schemas/ErrorResponse'
+  /api/v1/provider-accounts/{id}:
+    put:
+      tags: [provider]
+      summary: Update provider account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                display_name:
+                  type: string
+                environment:
+                  type: string
+                  enum: [sandbox, production]
+                credential_json:
+                  type: object
+                  additionalProperties: true
+                config_json:
+                  type: object
+                  additionalProperties: true
+      responses:
+        '200':
+          description: account updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+      x-mcp-operation: provider-account-update
+    delete:
+      tags: [provider]
+      summary: Delete provider account
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: account deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+      x-mcp-operation: provider-account-delete
+  /api/v1/payments:
+    get:
+      tags: [payment]
+      summary: List payment intents
+      parameters:
+        - in: query
+          name: provider
+          schema:
+            type: string
+        - in: query
+          name: environment
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+      responses:
+        '200':
+          description: payments
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeList'
+    post:
+      tags: [payment]
+      summary: Create payment intent
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/PaymentIntent'
+              
+      responses:
+        '200':
+          description: payment created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopePaymentCreate'
+      x-mcp-operation: payment-create
+  /api/v1/payments/{reference}:
+    get:
+      tags: [payment]
+      summary: Get payment intent and latest attempt
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: payment detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+                
+  /api/v1/payments/{reference}/status:
+    get:
+      tags: [payment]
+      summary: Check provider status and reconcile mismatch if needed
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: status fetched
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+        '404':
+          $ref: '#/components/schemas/ErrorResponse'
+      x-mcp-operation: payment-status
+  /api/v1/payments/{reference}/refund:
+    post:
+      tags: [payment]
+      summary: Request refund
+      parameters:
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RefundResult'
+      responses:
+        '200':
+          description: refund requested
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+  /api/v1/webhook-events:
+    get:
+      tags: [webhook]
+      summary: List webhook events
+      parameters:
+        - in: query
+          name: provider
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: signature_valid
+          schema:
+            type: boolean
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+        - in: query
+          name: offset
+          schema:
+            type: integer
+            default: 0
+      responses:
+        '200':
+          description: webhook events
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeMeta'
+      x-mcp-operation: webhook-event-list
+  /api/v1/webhook-events/{id}:
+    get:
+      tags: [webhook]
+      summary: Get webhook event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: webhook event
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+      x-mcp-operation: webhook-event-get
+  /api/v1/webhook-events/{id}/forwarding-attempts:
+    get:
+      tags: [webhook]
+      summary: List forwarding attempts for one event
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: forwarding attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeList'
+      x-mcp-operation: webhook-forwarding-attempts-by-event
+  /api/v1/webhook-events/{id}/replay:
+    post:
+      tags: [webhook]
+      summary: Replay webhook event forwarding
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: replay initiated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+      x-mcp-operation: webhook-replay
+  /api/v1/webhook-forwarding-targets:
+    get:
+      tags: [forwarding]
+      summary: List forwarding targets
+      parameters:
+        - in: query
+          name: provider
+          schema:
+            type: string
+        - in: query
+          name: enabled_only
+          schema:
+            type: boolean
+            default: true
+      responses:
+        '200':
+          description: forwarding targets
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeList'
+      x-mcp-operation: forwarding-target-list
+    post:
+      tags: [forwarding]
+      summary: Create forwarding target
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForwardingTarget'
+      responses:
+        '200':
+          description: target created
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+      x-mcp-operation: forwarding-target-create
+  /api/v1/webhook-forwarding-targets/{id}:
+    put:
+      tags: [forwarding]
+      summary: Update forwarding target
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ForwardingTarget'
+      responses:
+        '200':
+          description: target updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+      x-mcp-operation: forwarding-target-update
+    delete:
+      tags: [forwarding]
+      summary: Delete forwarding target
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: target deleted
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+      x-mcp-operation: forwarding-target-delete
+  /api/v1/webhook-forwarding-attempts:
+    get:
+      tags: [forwarding]
+      summary: List forwarding attempts
+      parameters:
+        - in: query
+          name: provider
+          schema:
+            type: string
+        - in: query
+          name: target_id
+          schema:
+            type: string
+        - in: query
+          name: event_id
+          schema:
+            type: string
+        - in: query
+          name: status
+          schema:
+            type: string
+        - in: query
+          name: limit
+          schema:
+            type: integer
+            default: 20
+      responses:
+        '200':
+          description: forwarding attempts
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeList'
+      x-mcp-operation: forwarding-attempt-list
+  /api/v1/reconcile/{provider}/{reference}:
+    post:
+      tags: [ops]
+      summary: Reconcile one payment reference with provider status
+      parameters:
+        - name: provider
+          in: path
+          required: true
+          schema:
+            type: string
+        - name: reference
+          in: path
+          required: true
+          schema:
+            type: string
+      responses:
+        '200':
+          description: reconcile result
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/EnvelopeData'
+      x-mcp-operation: payment-reconcile
+  /api/v1/stats:
+    get:
+      tags: [ops]
+      summary: Runtime and data stats
+      responses:
+        '200':
+          description: aggregate stats
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Stats'
