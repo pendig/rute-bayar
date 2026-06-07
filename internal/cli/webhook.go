@@ -18,6 +18,7 @@ import (
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/forwarding"
 	"github.com/pendig/rute-bayar/internal/forwardingsvc"
+	"github.com/pendig/rute-bayar/internal/paymentsvc"
 	"github.com/pendig/rute-bayar/internal/providerfactory"
 	"github.com/pendig/rute-bayar/internal/storage/sqlite"
 )
@@ -63,7 +64,10 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 
 		srv := daemon.NewServer(*addr, nil, nil, nil)
 		apiServer := api.NewServer(api.Config{
-			Version: strings.TrimSpace(build.Version),
+			Version:            strings.TrimSpace(build.Version),
+			APIKey:             cfg.APIKey,
+			AllowedOrigins:     cfg.APIAllowedOrigins,
+			RateLimitPerMinute: cfg.APIRateLimit,
 		})
 
 		if selectedMode == webhookModeAPI {
@@ -90,6 +94,17 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 		if err != nil {
 			return err
 		}
+
+		apiServer = api.NewServer(api.Config{
+			Version:            strings.TrimSpace(build.Version),
+			APIKey:             cfg.APIKey,
+			AllowedOrigins:     cfg.APIAllowedOrigins,
+			RateLimitPerMinute: cfg.APIRateLimit,
+			AuditSink:          store,
+			Store:              store,
+			PaymentService:     paymentsvc.New(store, factory),
+			DefaultEnvironment: domain.Environment(environmentValue),
+		})
 
 		srv = daemon.NewServer(*addr, store, forwarding.NewService(store), handlers)
 		if selectedMode == webhookModeAll {
