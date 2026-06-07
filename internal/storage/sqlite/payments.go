@@ -5,10 +5,83 @@ import (
 	"database/sql"
 	"encoding/json"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pendig/rute-bayar/internal/domain"
 )
+
+func (s *Store) ListPaymentIntents(ctx context.Context, provider domain.ProviderCode, status domain.PaymentStatus, limit, offset int) ([]domain.PaymentIntent, error) {
+	if limit <= 0 {
+		limit = 50
+	}
+	if limit > 500 {
+		limit = 500
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	args := []any{}
+	conditions := []string{}
+	if strings.TrimSpace(string(provider)) != "" {
+		conditions = append(conditions, "p.code = ?")
+		args = append(args, string(provider))
+	}
+	if strings.TrimSpace(string(status)) != "" {
+		conditions = append(conditions, "pi.status = ?")
+		args = append(args, string(status))
+	}
+
+	query := `
+		SELECT
+			pi.id,
+			pi.external_ref,
+			p.code,
+			pi.amount,
+			pi.currency,
+			pi.status,
+			pi.metadata_json,
+			pi.created_at,
+			pi.updated_at
+		FROM payment_intents pi
+		JOIN providers p ON p.id = pi.provider_id
+	`
+	if len(conditions) > 0 {
+		query += " WHERE " + strings.Join(conditions, " AND ")
+	}
+	query += " ORDER BY pi.created_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("list payment intents: %w", err)
+	}
+	defer rows.Close()
+
+	var intents []domain.PaymentIntent
+	for rows.Next() {
+		var (
+			intent       domain.PaymentIntent
+			providerCode string
+			metadataRaw  string
+			createdAtRaw string
+			updatedAtRaw string
+		)
+		if err := rows.Scan(&intent.ID, &intent.ExternalRef, &providerCode, &intent.Amount, &intent.Currency, &intent.Status, &metadataRaw, &createdAtRaw, &updatedAtRaw); err != nil {
+			return nil, fmt.Errorf("scan payment intent: %w", err)
+		}
+		intent.ProviderCode = domain.ProviderCode(providerCode)
+		intent.MetadataJSON = json.RawMessage(metadataRaw)
+		intent.CreatedAt = parseTime(createdAtRaw)
+		intent.UpdatedAt = parseTime(updatedAtRaw)
+		intents = append(intents, intent)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate payment intents: %w", err)
+	}
+	return intents, nil
+}
 
 func (s *Store) GetPaymentIntentByExternalRef(ctx context.Context, externalRef string) (domain.PaymentIntent, error) {
 	var (

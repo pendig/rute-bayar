@@ -59,7 +59,7 @@ Usage:
   rutebayar pay create --provider doku --method checkout --reference rb-0001 --amount 15000
   rutebayar pay status --provider midtrans --reference rb-0001
   rutebayar pay refund --provider xendit --reference rb-0001
-	rutebayar webhook serve --addr :8080
+	rutebayar webhook serve --addr :8080 --mode webhook|api|all
 	rutebayar webhook replay --event-id <id>
 	rutebayar webhook forward list
 	rutebayar webhook forward add
