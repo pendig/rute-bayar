@@ -623,9 +623,12 @@ func (s *Server) paymentsCreateHandler(r *http.Request) (any, error) {
 	if err != nil {
 		return nil, err
 	}
-	environment, err := parseEnvironment(payload.Environment)
-	if err != nil {
-		return nil, err
+	environment := s.environment
+	if strings.TrimSpace(payload.Environment) != "" {
+		environment, err = parseEnvironment(payload.Environment)
+		if err != nil {
+			return nil, err
+		}
 	}
 	if strings.TrimSpace(payload.Reference) == "" {
 		return nil, NewError(http.StatusBadRequest, errBadRequest, "reference is required")

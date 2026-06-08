@@ -115,13 +115,18 @@ func apiProviderCommand(ctx context.Context, stdout, stderr io.Writer, providerC
 
 	pathParamValues := copyStringMap(pathParams.values)
 	var unresolved []string
-	for _, match := range regexp.MustCompile(`\{([^/{}]+)\}`).FindAllStringSubmatch(resolvedPath, -1) {
-		if len(match) != 2 {
+	for _, match := range regexp.MustCompile(`\{([^/{}]+)\}|<([^/<>]+)>`).FindAllStringSubmatch(resolvedPath, -1) {
+		if len(match) != 3 {
 			continue
 		}
 		placeholder := match[1]
+		placeholderToken := "{" + placeholder + "}"
+		if placeholder == "" {
+			placeholder = match[2]
+			placeholderToken = "<" + placeholder + ">"
+		}
 		if value, ok := pathParamValues[placeholder]; ok {
-			resolvedPath = strings.ReplaceAll(resolvedPath, "{"+placeholder+"}", url.PathEscape(strings.TrimSpace(value)))
+			resolvedPath = strings.ReplaceAll(resolvedPath, placeholderToken, url.PathEscape(strings.TrimSpace(value)))
 		} else {
 			unresolved = append(unresolved, placeholder)
 		}
