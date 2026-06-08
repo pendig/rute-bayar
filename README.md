@@ -116,13 +116,45 @@ Semua provider di mode `api` memakai credential yang tersimpan pada `provider ac
   - endpoint membutuhkan header/credential provider agar tidak ditolak (`Client-Id` untuk DOKU, header IPAYMU tertentu untuk iPaymu).
   - gunakan credential aktif lewat onboarding sebelum memanggil endpoint non-dummy.
 
-Untuk Midtrans, operasi `api` saat ini menggunakan shortcut dari endpoint yang tersedia di `midtrans/Midtrans-Payment-API-Postman-Collections` (kumpulan Postman), karena repo itu saat ini belum menyediakan file OpenAPI/Swagger (`.json`/`.yaml`) resmi.
+### Mapping API mode (referensi cepat)
 
-Kamu bisa generate ulang artefak OpenAPI dari Postman collection ini dengan:
+`--operation` menyebut alias yang dipetakan ke method/path resmi provider:
+
+| Provider | Operation | Method | Path |
+| - | - | - | - |
+| midtrans | auth-test / auth / ping | GET | /v2/rute-bayar-auth-test/status |
+| midtrans | status / check-status | GET | /v2/{order_id}/status |
+| midtrans | charge / create | POST | /v2/charge |
+| midtrans | snap / snap-transaction / snap-v1 | POST | /snap/v1/transactions |
+| midtrans | approve / deny / cancel / expire / refund | POST | /v2/{order_id}/<action> |
+| xendit | auth-balance / balance | GET | /balance |
+| xendit | session-create / create | POST | /sessions |
+| xendit | session-status / status | GET | /sessions/{session_id} |
+| doku | checkout | POST | /checkout/v1/payment |
+| doku | order-status / status | GET | /orders/v1/status/{invoice_number_or_request_id} |
+| ipaymu | payment-channels / channels | GET | /api/v2/payment-channels |
+| ipaymu | transaction | POST | /api/v2/transaction |
+
+Contoh:
+
+```bash
+./bin/rutebayar api midtrans --operation snap-transaction --method POST --body '<payload_json>'
+./bin/rutebayar api xendit --operation auth-balance
+./bin/rutebayar api doku --operation order-status --path-param invoice_number_or_request_id=RB-INV-001
+./bin/rutebayar api ipaymu --operation payment-channels --method GET
+```
+
+Untuk Midtrans, operasi `api` juga mencakup alias yang dihasilkan dari file konversi Postman. Jika ingin regenerate, run:
 
 ```bash
 ./scripts/convert-midtrans-postman-to-openapi.sh
-./scripts/convert-midtrans-postman-to-openapi.sh docs/apis/midtrans-openapi-from-postman.json
+./scripts/generate-midtrans-openapi-aliases.sh
+```
+
+Atau langsung generate alias OpenAPI dari file lokal yang sudah ada:
+
+```bash
+./scripts/generate-midtrans-openapi-aliases.sh docs/apis/midtrans-openapi-from-postman.json
 ```
 
 Note: DOKU callback delivery still depends on the matching Notification URL being configured in DOKU Back Office per channel, so keep the path aligned with `/webhooks/doku` before relying on live webhook callbacks.

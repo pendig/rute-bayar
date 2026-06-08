@@ -25,6 +25,16 @@ export const LANDING_AGENT_STATUS_LINES = [
   "local status is in sync",
 ];
 
+export const LANDING_API_MODE_LINES = [
+  "$ rutebayar api midtrans --operation status --path-param order_id=rb-001",
+  "HTTP/2 200",
+  "transaction_status: settle",
+  "",
+  "$ rutebayar api xendit --operation auth-balance",
+  "HTTP/2 200",
+  "message: Success",
+];
+
 export const LANDING_QUICK_INSTALL_LINES = [
   "$ curl -fsSL https://raw.githubusercontent.com/pendig/rute-bayar/main/scripts/install.sh | bash",
   "$ rutebayar version",

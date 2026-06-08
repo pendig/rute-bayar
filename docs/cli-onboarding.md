@@ -31,6 +31,7 @@ Contoh alur:
 - `rutebayar onboard midtrans --merchant-id <id> --client-key <key> --server-key <key> --environment sandbox`
 - `rutebayar onboard doku --client-id <id> --secret-key <key> --environment sandbox`
 - `rutebayar api <provider> --operation <slug> --method <method> --path <url>` (experimental)
+- `rutebayar api <provider> --operation <slug>` (jalankan alias cepat ke endpoint resmi provider)
 - `rutebayar provider list`
 - `rutebayar provider accounts`
 - `rutebayar provider test midtrans`
@@ -53,26 +54,54 @@ Contoh alur:
 
 Mode ini dipakai untuk memanggil API resmi provider langsung dari CLI.
 
-Sebelum testing ke endpoint yang sensitif, pastikan:
+Sebelum testing endpoint resmi:
 
-- provider sudah onboard untuk environment yang sesuai
-- kredensial tersimpan (`provider accounts` menunjukkan entry provider)
-- query tidak memakai `--skip-auth` untuk pengujian real provider
+- onboarding provider harus sesuai environment target (`sandbox`/`production`)
+- kredensial sudah ada di `provider accounts`
+- endpoint sensitif sebaiknya mulai tanpa `--skip-auth` agar header autentikasi terisi otomatis
+
+Kita bisa pakai:
+
+- `--operation`: shortcut alias operation (direkomendasikan)
+- `--path`: path relatif ke base URL (untuk endpoint yang tidak punya alias)
+- `--path-param`: isi placeholder path jika alias/path butuh variable
+- `--query`: query param key/value
+- `--header`: override header tambahan
+- `--base-url`: override base URL untuk testing khusus
 
 Contoh:
 
 ```bash
-rutebayar api midtrans --operation snap-transaction --method POST --body '<payload_json>'
+rutebayar api midtrans --environment sandbox --operation status --path-param order_id=rb-demo-001
+rutebayar api midtrans --operation snap-transaction --method POST --body '{"transaction_details":{"order_id":"rb-demo-002","gross_amount":12000}}'
 rutebayar api xendit --operation auth-balance
-rutebayar api doku --operation checkout --method POST --body '<payload_json>'
-rutebayar api ipaymu --path /api/v2/payment-channels --method GET
+rutebayar api doku --operation order-status --path-param invoice_number_or_request_id=INV-001
+rutebayar api doku --method GET --path /orders/v1/status/INV-002
+rutebayar api ipaymu --operation payment-channels --method GET
 ```
 
-Temuan uji:
+Mapping operasi yang didukung (ringkas):
 
-- `xendit session-create` menolak payload jika belum lengkap (contoh wajib: `reference_id`).
-- `doku` dan `ipaymu` menolak request tanpa header auth/credential yang tepat (error 400/401).
-- `midtrans` status/approve/deny/cancel/expire/refund bekerja via alias operation; hasil akhir tergantung state transaksi di Midtrans.
+| Provider | Operation | Method | Path |
+| - | - | - | - |
+| midtrans | auth-test / auth / ping | GET | /v2/rute-bayar-auth-test/status |
+| midtrans | status / check-status | GET | /v2/{order_id}/status |
+| midtrans | charge / create | POST | /v2/charge |
+| midtrans | snap / snap-transaction / snap-v1 | POST | /snap/v1/transactions |
+| midtrans | approve / cancel / deny / expire / refund | POST | /v2/{order_id}/<action> |
+| xendit | auth-balance / balance | GET | /balance |
+| xendit | session-create / create | POST | /sessions |
+| xendit | session-status / status | GET | /sessions/{session_id} |
+| doku | checkout | POST | /checkout/v1/payment |
+| doku | order-status / status | GET | /orders/v1/status/{invoice_number_or_request_id} |
+| ipaymu | payment-channels / channels | GET | /api/v2/payment-channels |
+| ipaymu | transaction | POST | /api/v2/transaction |
+
+Ringkasan hasil smoke test terakhir:
+
+- `xendit session-create` menolak payload yang belum lengkap (`reference_id` wajib ada).
+- `doku` dan `ipaymu` menolak request tanpa header/credential yang tepat.
+- `midtrans` status/approve/deny/cancel/expire/refund bisa dipanggil via alias; hasil final bergantung lifecycle transaksi.
 
 ## Onboarding Provider
 
