@@ -343,17 +343,17 @@ func (a *Adapter) doForm(ctx context.Context, method, path string, values url.Va
 func (a *Adapter) signRequest(req *http.Request, method string, payload any) {
 	req.Header.Set("va", a.va)
 	timestamp := a.timestamp().UTC().Format("20060102150405")
-	req.Header.Set("signature", GenerateSignature(method, a.va, a.apiKey, timestamp, payload))
+	req.Header.Set("signature", GenerateSignature(method, a.va, a.apiKey, payload))
 	req.Header.Set("timestamp", timestamp)
 }
 
-func GenerateSignature(method, va, apiKey, timestamp string, payload any) string {
+func GenerateSignature(method, va, apiKey string, payload any) string {
 	var payloadJSON []byte
 	if payload != nil {
 		payloadJSON, _ = json.Marshal(payload)
 	}
 	bodyHash := sha256.Sum256(payloadJSON)
-	stringToSign := strings.ToUpper(method) + ":" + va + ":" + hex.EncodeToString(bodyHash[:]) + ":" + apiKey + ":" + timestamp
+	stringToSign := strings.ToUpper(method) + ":" + va + ":" + hex.EncodeToString(bodyHash[:]) + ":" + apiKey
 	mac := hmac.New(sha256.New, []byte(apiKey))
 	mac.Write([]byte(stringToSign))
 	return hex.EncodeToString(mac.Sum(nil))

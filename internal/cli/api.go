@@ -473,7 +473,7 @@ func applyStoredCredentials(providerCode domain.ProviderCode, req *http.Request,
 				signaturePayload = string(rawBody)
 			}
 		}
-		signature := ipaymu.GenerateSignature(req.Method, va, apiKey, timestamp, signaturePayload)
+		signature := ipaymu.GenerateSignature(req.Method, va, apiKey, signaturePayload)
 		req.Header.Set("signature", signature)
 	default:
 		return fmt.Errorf("provider %q is not supported in api mode", providerCode)

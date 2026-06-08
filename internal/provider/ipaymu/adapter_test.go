@@ -22,16 +22,16 @@ func TestGenerateSignature(t *testing.T) {
 		Account:       "1179000899",
 		TransactionID: "4719",
 	}
-	got := GenerateSignature("POST", "1179000899", "secret-key", "20260604200000", payload)
-	want := "bf6a2cf43e9c0844a724a4073926a1b815eeac0beebac87857f0100bd1d19956"
+	got := GenerateSignature("POST", "1179000899", "secret-key", payload)
+	want := "27af0b21d04496831361c37237fce28edcfab09e3914d0a9cc3e069c46b862e3"
 	if got != want {
 		t.Fatalf("got %s want %s", got, want)
 	}
 }
 
 func TestGenerateSignatureNilPayloadHashesEmptyBody(t *testing.T) {
-	got := GenerateSignature("GET", "1179000899", "secret-key", "20260604200000", nil)
-	want := "0c6fb844c0ce7aaa416b6708570bcb756d2444f70834c2d49f819305c68e86b4"
+	got := GenerateSignature("GET", "1179000899", "secret-key", nil)
+	want := "ef60100ee3e1416d08e88f667597c1eff1d95bcd2de54339db504d53d0900558"
 	if got != want {
 		t.Fatalf("got %s want %s", got, want)
 	}
@@ -49,7 +49,7 @@ func TestAuthSignsEmptyGETBodyAndCompactTimestamp(t *testing.T) {
 		if string(body) != "" {
 			t.Fatalf("GET body = %q, want empty", string(body))
 		}
-		if got, want := r.Header.Get("signature"), GenerateSignature("GET", "1179000899", "secret-key", "20260604200000", nil); got != want {
+		if got, want := r.Header.Get("signature"), GenerateSignature("GET", "1179000899", "secret-key", nil); got != want {
 			t.Fatalf("signature = %s, want %s", got, want)
 		}
 		if got, want := r.Header.Get("timestamp"), "20260604200000"; got != want {
