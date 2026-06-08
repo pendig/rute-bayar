@@ -6,6 +6,7 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"strings"
 	"time"
 
 	"github.com/pendig/rute-bayar/internal/domain"
@@ -162,4 +163,107 @@ func (s *Store) GetProviderAccount(ctx context.Context, provider domain.Provider
 	account.CreatedAt = parseTime(createdAtRaw)
 	account.UpdatedAt = parseTime(updatedAtRaw)
 	return account, nil
+}
+
+func (s *Store) GetProviderAccountByID(ctx context.Context, id string) (domain.ProviderAccount, error) {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return domain.ProviderAccount{}, fmt.Errorf("%w: provider account id is required", sql.ErrNoRows)
+	}
+
+	var (
+		account       domain.ProviderAccount
+		providerCode  string
+		environment   string
+		credentialRaw string
+		configRaw     string
+		createdAtRaw  string
+		updatedAtRaw  string
+	)
+
+	err := s.db.QueryRowContext(ctx, `
+		SELECT
+			pa.id,
+			p.code,
+			pa.environment,
+			pa.display_name,
+			pa.credential_json,
+			pa.config_json,
+			pa.created_at,
+			pa.updated_at
+		FROM provider_accounts pa
+		JOIN providers p ON p.id = pa.provider_id
+		WHERE pa.id = ?
+	`, id).Scan(&account.ID, &providerCode, &environment, &account.DisplayName, &credentialRaw, &configRaw, &createdAtRaw, &updatedAtRaw)
+	if err != nil {
+		if err == sql.ErrNoRows {
+			return domain.ProviderAccount{}, fmt.Errorf("%w: provider account %s is not configured", sql.ErrNoRows, id)
+		}
+		return domain.ProviderAccount{}, fmt.Errorf("get provider account by id: %w", err)
+	}
+
+	account.ProviderCode = domain.ProviderCode(providerCode)
+	account.Environment = domain.Environment(environment)
+	account.CredentialJSON = json.RawMessage(credentialRaw)
+	account.ConfigJSON = json.RawMessage(configRaw)
+	account.CreatedAt = parseTime(createdAtRaw)
+	account.UpdatedAt = parseTime(updatedAtRaw)
+	return account, nil
+}
+
+func (s *Store) UpdateProviderAccountByID(ctx context.Context, account domain.ProviderAccount) error {
+	id := strings.TrimSpace(account.ID)
+	if id == "" {
+		return fmt.Errorf("provider account id is required")
+	}
+
+	result, err := s.db.ExecContext(ctx, `
+		UPDATE provider_accounts
+		SET
+			provider_id = (SELECT id FROM providers WHERE code = ?),
+			environment = ?,
+			display_name = ?,
+			credential_json = ?,
+			config_json = ?,
+			updated_at = ?
+		WHERE id = ?
+	`, string(account.ProviderCode), string(account.Environment), strings.TrimSpace(account.DisplayName), string(account.CredentialJSON), string(account.ConfigJSON), time.Now().UTC().Format(time.RFC3339Nano), id)
+	if err != nil {
+		return fmt.Errorf("update provider account: %w", err)
+	}
+
+	count, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check provider account update rows affected: %w", err)
+	}
+	if count == 0 {
+		return fmt.Errorf("%w: provider account %s is not configured", sql.ErrNoRows, id)
+	}
+
+	return nil
+}
+
+func (s *Store) DeleteProviderAccount(ctx context.Context, id string) error {
+	id = strings.TrimSpace(id)
+	if id == "" {
+		return fmt.Errorf("provider account id is required")
+	}
+
+	result, err := s.db.ExecContext(ctx, `
+		DELETE FROM provider_accounts
+		WHERE id = ?
+	`, id)
+	if err != nil {
+		return fmt.Errorf("delete provider account: %w", err)
+	}
+
+	count, err := result.RowsAffected()
+	if err != nil {
+		return fmt.Errorf("check provider account delete rows affected: %w", err)
+	}
+	if count == 0 {
+		return fmt.Errorf("%w: provider account %s is not configured", sql.ErrNoRows, id)
+	}
+
+	return nil
 }
