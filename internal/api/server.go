@@ -746,10 +746,11 @@ func (s *Server) paymentStatusHandler(r *http.Request) (any, error) {
 		}
 		return nil, err
 	}
+	environment := paymentIntentEnvironment(intent.MetadataJSON, s.environment)
 
 	result, err := service.Status(r.Context(), paymentsvc.StatusInput{
 		Provider:          intent.ProviderCode,
-		Environment:       s.environment,
+		Environment:       environment,
 		Reference:         intent.ExternalRef,
 		BaseURL:           strings.TrimSpace(r.URL.Query().Get("base_url")),
 		ProviderReference: strings.TrimSpace(r.URL.Query().Get("provider_reference")),
@@ -802,6 +803,7 @@ func (s *Server) paymentRefundHandler(r *http.Request) (any, error) {
 	if payload.ProviderReference == "" {
 		payload.ProviderReference = ""
 	}
+	environment := paymentIntentEnvironment(intent.MetadataJSON, s.environment)
 
 	cacheKey := idempotencyCacheKey("payments/refund", r.Header.Get("Idempotency-Key"), reference, string(intent.ProviderCode), payload.RefundReference, strconv.FormatInt(payload.Amount, 10))
 	if cached, ok := s.readIdempotent(cacheKey); ok {
@@ -810,7 +812,7 @@ func (s *Server) paymentRefundHandler(r *http.Request) (any, error) {
 
 	result, err := svc.Refund(r.Context(), paymentsvc.RefundInput{
 		Provider:          intent.ProviderCode,
-		Environment:       s.environment,
+		Environment:       environment,
 		Reference:         reference,
 		ProviderReference: strings.TrimSpace(payload.ProviderReference),
 		RefundReference:   strings.TrimSpace(payload.RefundReference),
@@ -1213,6 +1215,10 @@ func (s *Server) paymentReconcileHandler(r *http.Request) (any, error) {
 	if err != nil {
 		return nil, err
 	}
+	store, err := s.requireStore()
+	if err != nil {
+		return nil, err
+	}
 
 	provider, err := parseProvider(strings.TrimSpace(r.PathValue("provider")))
 	if err != nil {
@@ -1226,10 +1232,21 @@ func (s *Server) paymentReconcileHandler(r *http.Request) (any, error) {
 	if reference == "" {
 		return nil, NewError(http.StatusBadRequest, errBadRequest, "reference is required")
 	}
+	intent, err := store.GetPaymentIntentByExternalRef(r.Context(), reference)
+	if err != nil {
+		if errors.Is(err, sql.ErrNoRows) {
+			return nil, NewError(http.StatusNotFound, errNotFound, "payment not found")
+		}
+		return nil, err
+	}
+	if intent.ProviderCode != provider {
+		return nil, NewError(http.StatusNotFound, errNotFound, "payment not found")
+	}
+	environment := paymentIntentEnvironment(intent.MetadataJSON, s.environment)
 
 	result, err := service.Reconcile(r.Context(), paymentsvc.ReconcileInput{
 		Provider:          provider,
-		Environment:       s.environment,
+		Environment:       environment,
 		BaseURL:           strings.TrimSpace(r.URL.Query().Get("base_url")),
 		Reference:         reference,
 		ProviderReference: strings.TrimSpace(r.URL.Query().Get("provider_reference")),
@@ -1353,6 +1370,28 @@ func parseProvider(value string) (domain.ProviderCode, error) {
 	}
 
 	return "", NewError(http.StatusBadRequest, errBadRequest, "provider must be one of \"midtrans\", \"xendit\", \"doku\", \"ipaymu\"")
+}
+
+func paymentIntentEnvironment(raw json.RawMessage, fallback domain.Environment) domain.Environment {
+	type paymentIntentMetadata struct {
+		Environment string `json:"environment"`
+	}
+
+	if len(raw) == 0 {
+		return fallback
+	}
+
+	var metadata paymentIntentMetadata
+	if err := json.Unmarshal(raw, &metadata); err != nil {
+		return fallback
+	}
+
+	environment := domain.Environment(strings.ToLower(strings.TrimSpace(metadata.Environment)))
+	if environment == domain.EnvironmentSandbox || environment == domain.EnvironmentProduction {
+		return environment
+	}
+
+	return fallback
 }
 
 func parseEnvironment(raw string) (domain.Environment, error) {
