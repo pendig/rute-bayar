@@ -5,6 +5,7 @@ import (
 	"database/sql"
 	"encoding/json"
 	"errors"
+	"io"
 	"net/http"
 	"strconv"
 	"strings"
@@ -16,7 +17,10 @@ import (
 	"github.com/pendig/rute-bayar/internal/paymentsvc"
 )
 
-const errNotFound = "not_found"
+const (
+	errNotFound      = "not_found"
+	maxRequestBody   = 1024 * 1024
+)
 
 type providerAccountRequest struct {
 	Provider    string          `json:"provider"`
@@ -619,8 +623,13 @@ func decodeBody(r *http.Request, target any) error {
 	if r.Body == nil {
 		return NewError(http.StatusBadRequest, errBadRequest, "request body is required")
 	}
-	defer r.Body.Close()
-	if err := json.NewDecoder(r.Body).Decode(target); err != nil {
+	body := http.MaxBytesReader(nil, r.Body, int64(maxRequestBody))
+	defer body.Close()
+	decoder := json.NewDecoder(body)
+	if err := decoder.Decode(target); err != nil {
+		return NewError(http.StatusBadRequest, errBadRequest, "invalid json body")
+	}
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		return NewError(http.StatusBadRequest, errBadRequest, "invalid json body")
 	}
 	return nil
@@ -723,10 +732,29 @@ func (s *Server) withIdempotency(r *http.Request, scope string, fn func() (any, 
 		return fn()
 	}
 	cacheKey := scope + ":" + key
+	now := time.Now().UTC()
 	s.idemMu.Lock()
 	if cached, ok := s.idempotency[cacheKey]; ok {
-		s.idemMu.Unlock()
-		return cached, nil
+		if now.Before(cached.expires) {
+			s.idemMu.Unlock()
+			return cached.payload, nil
+		}
+		delete(s.idempotency, cacheKey)
+	}
+	if len(s.idempotency) >= idemLimit {
+		for idemKey, entry := range s.idempotency {
+			if now.After(entry.expires) {
+				delete(s.idempotency, idemKey)
+			}
+		}
+	}
+	if len(s.idempotency) >= idemLimit {
+		for idemKey := range s.idempotency {
+			delete(s.idempotency, idemKey)
+			if len(s.idempotency) < idemLimit/2 {
+				break
+			}
+		}
 	}
 	s.idemMu.Unlock()
 	payload, err := fn()
@@ -734,7 +762,11 @@ func (s *Server) withIdempotency(r *http.Request, scope string, fn func() (any, 
 		return nil, err
 	}
 	s.idemMu.Lock()
-	s.idempotency[cacheKey] = payload
+	expiresAt := time.Now().UTC().Add(idemTTL)
+	s.idempotency[cacheKey] = idempotencyEntry{
+		payload: payload,
+		expires: expiresAt,
+	}
 	s.idemMu.Unlock()
 	return payload, nil
 }

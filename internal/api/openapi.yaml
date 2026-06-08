@@ -320,6 +320,13 @@ components:
                   type: integer
                 total:
                   type: integer
+  responses:
+    ErrorResponse:
+      description: error response
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/ErrorResponse'
 security:
   - ApiKeyAuth: []
 paths:
@@ -387,7 +394,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/EnvelopeList'
         '401':
-          $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/ErrorResponse'
     post:
       tags: [provider]
       summary: Create or update provider account
@@ -423,7 +430,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/EnvelopeData'
         '400':
-          $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/ErrorResponse'
   /api/v1/provider-accounts/{id}:
     put:
       tags: [provider]
@@ -555,7 +562,7 @@ paths:
               schema:
                 $ref: '#/components/schemas/EnvelopeData'
         '404':
-          $ref: '#/components/schemas/ErrorResponse'
+          $ref: '#/components/responses/ErrorResponse'
       x-mcp-operation: payment-status
   /api/v1/payments/{reference}/refund:
     post:

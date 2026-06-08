@@ -1,13 +1,16 @@
 package api
 
 import (
+	"fmt"
 	"context"
 	"encoding/json"
 	"errors"
+	"net"
 	"log"
 	"net/http"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pendig/rute-bayar/internal/auditlog"
@@ -28,7 +31,14 @@ const (
 	headerOrigin    = "Origin"
 
 	contentTypeJSON = "application/json"
+
+	rateBucketLimit = 2000
+	rateBucketTTL   = 10 * time.Minute
+	idemTTL         = 10 * time.Minute
+	idemLimit       = 2000
 )
+
+var requestIDSeq uint64
 
 // Server handles HTTP API routes used by daemon API mode.
 type Server struct {
@@ -43,7 +53,7 @@ type Server struct {
 
 	rateBuckets map[string]*rateBucket
 	bucketsMu   sync.Mutex
-	idempotency map[string]any
+	idempotency map[string]idempotencyEntry
 	idemMu      sync.Mutex
 }
 
@@ -110,7 +120,7 @@ func NewServer(cfg Config) *Server {
 		payments:      cfg.PaymentService,
 		environment:   defaultEnvironment(cfg.DefaultEnvironment),
 		rateBuckets:   map[string]*rateBucket{},
-		idempotency:   map[string]any{},
+		idempotency:   map[string]idempotencyEntry{},
 	}
 }
 
@@ -214,8 +224,9 @@ func (s *Server) isAuthorized(r *http.Request) bool {
 }
 
 type rateBucket struct {
-	start time.Time
-	count int
+	start  time.Time
+	count  int
+	seenAt time.Time
 }
 
 func (s *Server) allowRate(r *http.Request, remoteAddr string) bool {
@@ -224,8 +235,11 @@ func (s *Server) allowRate(r *http.Request, remoteAddr string) bool {
 	}
 
 	key := strings.TrimSpace(r.Header.Get("X-API-Key"))
-	if key == "" {
+	if s.apiKey == "" || key != s.apiKey {
 		key = remoteAddr
+		if host, _, splitErr := net.SplitHostPort(remoteAddr); splitErr == nil {
+			key = host
+		}
 	}
 	if key == "" {
 		key = "anonymous"
@@ -236,10 +250,21 @@ func (s *Server) allowRate(r *http.Request, remoteAddr string) bool {
 
 	s.bucketsMu.Lock()
 	defer s.bucketsMu.Unlock()
+	if len(s.rateBuckets) >= rateBucketLimit {
+		s.pruneRateBuckets(now)
+	}
+	if len(s.rateBuckets) >= rateBucketLimit {
+		for bucketKey := range s.rateBuckets {
+			delete(s.rateBuckets, bucketKey)
+			if len(s.rateBuckets) < rateBucketLimit/2 {
+				break
+			}
+		}
+	}
 
 	bucket, ok := s.rateBuckets[key]
 	if !ok {
-		bucket = &rateBucket{start: window}
+		bucket = &rateBucket{start: window, seenAt: now}
 		s.rateBuckets[key] = bucket
 	}
 
@@ -247,11 +272,20 @@ func (s *Server) allowRate(r *http.Request, remoteAddr string) bool {
 		bucket.start = window
 		bucket.count = 0
 	}
+	bucket.seenAt = now
 	if bucket.count >= s.rateLimit {
 		return false
 	}
 	bucket.count++
 	return true
+}
+
+func (s *Server) pruneRateBuckets(now time.Time) {
+	for key, bucket := range s.rateBuckets {
+		if now.Sub(bucket.seenAt) > rateBucketTTL {
+			delete(s.rateBuckets, key)
+		}
+	}
 }
 
 func (s *Server) writeCORSHeaders(w http.ResponseWriter) {
@@ -347,7 +381,13 @@ func (s *Server) versionHandler(r *http.Request) (any, error) {
 }
 
 func newRequestID() string {
-	return time.Now().UTC().Format(time.RFC3339Nano)
+	seq := atomic.AddUint64(&requestIDSeq, 1)
+	return fmt.Sprintf("%d-%d", time.Now().UTC().UnixNano(), seq)
+}
+
+type idempotencyEntry struct {
+	payload any
+	expires time.Time
 }
 
 // AuditStore defines the optional destination for request audit logs.
