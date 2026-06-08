@@ -30,6 +30,7 @@ Contoh alur:
 - `rutebayar onboard xendit --secret-key <key> --environment sandbox`
 - `rutebayar onboard midtrans --merchant-id <id> --client-key <key> --server-key <key> --environment sandbox`
 - `rutebayar onboard doku --client-id <id> --secret-key <key> --environment sandbox`
+- `rutebayar api <provider> --operation <slug> --method <method> --path <url>` (experimental)
 - `rutebayar provider list`
 - `rutebayar provider accounts`
 - `rutebayar provider test midtrans`

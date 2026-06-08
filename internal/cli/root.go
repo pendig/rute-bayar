@@ -34,6 +34,8 @@ func ExecuteWithIO(ctx context.Context, args []string, stdout, stderr io.Writer)
 		return payCommand(ctx, stdout, stderr, args[1:])
 	case "webhook":
 		return webhookCommand(ctx, stdout, stderr, args[1:])
+	case "api":
+		return apiCommand(ctx, stdout, stderr, args[1:])
 	case "db":
 		return dbCommand(ctx, stdout, args[1:])
 	case "reconcile":
@@ -51,6 +53,10 @@ Usage:
   rutebayar onboard xendit --secret-key <key>
   rutebayar onboard midtrans --server-key <key> --client-key <key> --merchant-id <id>
   rutebayar onboard doku --client-id <id> --secret-key <key>
+  rutebayar api midtrans --operation charge --method POST --body '{...}'
+  rutebayar api xendit --operation auth-balance
+  rutebayar api doku --method GET --path /orders/v1/status/<invoice>
+  rutebayar api ipaymu --path /api/v2/payment-channels --method GET
   rutebayar provider list
   rutebayar provider accounts
   rutebayar provider test

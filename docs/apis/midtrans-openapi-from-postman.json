@@ -1,0 +1,160 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Midtrans API (from Postman collection)",
+    "version": "2019-01",
+    "description": "Converted from Midtrans Payment API Postman collection. Validate and enrich before production use."
+  },
+  "servers": [
+    {
+      "url": "https://api.sandbox.midtrans.com",
+      "description": "Midtrans Sandbox"
+    },
+    {
+      "url": "https://api.midtrans.com",
+      "description": "Midtrans Production"
+    }
+  ],
+  "paths": {
+    "/snap/v1/transactions": {
+      "post": {
+        "operationId": "post_snap_v1_transactions_1_a_snap_transaction_token_request_minimum",
+        "summary": "1.a.  SNAP transaction token request (minimum)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/{order_id}/approve": {
+      "post": {
+        "operationId": "post_v2_{order_id}_approve_approve_transaction_that_suspected_as_fraud_challange_status",
+        "summary": "APPROVE transaction that suspected as fraud (challange status)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/{order_id}/cancel": {
+      "post": {
+        "operationId": "post_v2_{order_id}_cancel_cancel_transaction",
+        "summary": "CANCEL transaction",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/{order_id}/deny": {
+      "post": {
+        "operationId": "post_v2_{order_id}_deny_deny_transaction_that_suspected_as_fraud_challange_status",
+        "summary": "DENY transaction that suspected as fraud (challange status)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/{order_id}/expire": {
+      "post": {
+        "operationId": "post_v2_{order_id}_expire_expire_pending_transaction",
+        "summary": "EXPIRE pending transaction",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/{order_id}/refund": {
+      "post": {
+        "operationId": "post_v2_{order_id}_refund_refund_transaction",
+        "summary": "Refund transaction",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/{order_id}/status": {
+      "get": {
+        "operationId": "get_v2_{order_id}_status_get_transaction_status",
+        "summary": "GET transaction status",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/card/register": {
+      "get": {
+        "operationId": "get_v2_card_register_step_1_register_card",
+        "summary": "Step 1 - Register Card",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/charge": {
+      "post": {
+        "operationId": "post_v2_charge_charge_credit_card_transaction",
+        "summary": "Charge Credit Card Transaction",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/token": {
+      "get": {
+        "operationId": "get_v2_token_get_card_token",
+        "summary": "GET card token",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    }
+  }
+}

@@ -93,6 +93,25 @@ Onboard iPaymu credentials into local SQLite:
 ./bin/rutebayar provider test ipaymu
 ```
 
+Experimental: panggil API resmi provider langsung dari CLI:
+
+```bash
+./bin/rutebayar api midtrans --operation charge --method POST --body '{"payment_type":"bank_transfer","transaction_details":{"order_id":"rb-001","gross_amount":15000}}'
+./bin/rutebayar api midtrans --operation status --path-param order_id=rb-001
+./bin/rutebayar api xendit --operation auth-balance
+./bin/rutebayar api doku --method GET --path /orders/v1/status/<invoice_number>
+./bin/rutebayar api ipaymu --path /api/v2/payment-channels --method GET
+```
+
+Untuk Midtrans, operasi `api` saat ini menggunakan shortcut dari endpoint yang tersedia di `midtrans/Midtrans-Payment-API-Postman-Collections` (kumpulan Postman), karena repo itu saat ini belum menyediakan file OpenAPI/Swagger (`.json`/`.yaml`) resmi.
+
+Kamu bisa generate ulang artefak OpenAPI dari Postman collection ini dengan:
+
+```bash
+./scripts/convert-midtrans-postman-to-openapi.sh
+./scripts/convert-midtrans-postman-to-openapi.sh docs/apis/midtrans-openapi-from-postman.json
+```
+
 Note: DOKU callback delivery still depends on the matching Notification URL being configured in DOKU Back Office per channel, so keep the path aligned with `/webhooks/doku` before relying on live webhook callbacks.
 
 Start the webhook daemon:

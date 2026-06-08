@@ -23,7 +23,8 @@ func TestDecodeJSONBody_EnforcesStrictJSONAndSizeLimit(t *testing.T) {
 			Name string `json:"name"`
 		}{}
 		req := httptest.NewRequest(http.MethodPost, "/api", strings.NewReader(`{"name":"ok"}junk`))
-		if err := decodeJSONBody(req, &payload); err == nil {
+		err := decodeJSONBody(req, &payload)
+		if err == nil {
 			t.Fatalf("expected strict JSON decode error, got nil")
 		}
 		apiErr, ok := err.(*apiError)
