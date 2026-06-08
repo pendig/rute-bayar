@@ -111,6 +111,15 @@ func New(store Store, factory *providerfactory.Factory) *Service {
 	return &Service{store: store, factory: factory}
 }
 
+func paymentIntentMetadata(environment domain.Environment) json.RawMessage {
+	value := strings.TrimSpace(string(environment))
+	if value == "" {
+		return json.RawMessage("{}")
+	}
+	metadata, _ := json.Marshal(map[string]any{"environment": value})
+	return metadata
+}
+
 func (s *Service) Create(ctx context.Context, input CreateInput) (CreateResult, error) {
 	providerCode, err := normalizeProvider(input.Provider)
 	if err != nil {
@@ -149,6 +158,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (CreateResult, 
 	if err != nil {
 		return CreateResult{}, err
 	}
+	metadata := paymentIntentMetadata(input.Environment)
 
 	adapter, err := s.factory.AdapterForStoredAccount(ctx, providerCode, input.Environment, input.BaseURL)
 	if err != nil {
@@ -161,6 +171,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (CreateResult, 
 		Amount:       input.Amount,
 		Currency:     currency,
 		Status:       domain.PaymentStatusPending,
+		MetadataJSON: metadata,
 	})
 	if err != nil {
 		return CreateResult{}, err
@@ -201,6 +212,7 @@ func (s *Service) Create(ctx context.Context, input CreateInput) (CreateResult, 
 		Amount:       input.Amount,
 		Currency:     request.Currency,
 		Status:       response.Status,
+		MetadataJSON: metadata,
 	}); err != nil {
 		return CreateResult{ProviderCode: providerCode, Reference: request.ExternalRef, Response: response}, err
 	}

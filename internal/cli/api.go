@@ -153,7 +153,6 @@ func apiProviderCommand(ctx context.Context, stdout, stderr io.Writer, providerC
 	if serviceBaseURL == "" {
 		serviceBaseURL = apiDefaultBaseURL(providerCode, domain.Environment(environmentValue))
 	}
-	serviceBaseURL = strings.TrimSuffix(serviceBaseURL, "/")
 	serviceBaseURL = strings.TrimRight(serviceBaseURL, "/")
 
 	endpoint, err := url.Parse(serviceBaseURL)
@@ -469,7 +468,7 @@ func applyStoredCredentials(providerCode domain.ProviderCode, req *http.Request,
 				signaturePayload = string(rawBody)
 			}
 		}
-		signature := ipaymu.GenerateSignature(req.Method, va, apiKey, signaturePayload)
+		signature := ipaymu.GenerateSignature(req.Method, va, apiKey, timestamp, signaturePayload)
 		req.Header.Set("signature", signature)
 	default:
 		return fmt.Errorf("provider %q is not supported in api mode", providerCode)
@@ -515,7 +514,7 @@ func dokuGenerateSignature(clientID, requestID, requestTimestamp, requestTarget 
 	}
 
 	mac := hmac.New(sha256.New, []byte(secretKey))
-	_, _ = mac.Write([]byte(component.String()))
+	_, _ = io.WriteString(mac, component.String())
 	signature = "HMACSHA256=" + base64.StdEncoding.EncodeToString(mac.Sum(nil))
 	return
 }

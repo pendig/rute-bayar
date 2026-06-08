@@ -221,7 +221,7 @@ func (s *Store) ListWebhookEvents(ctx context.Context, provider domain.ProviderC
 		args = append(args, string(provider))
 	}
 	if status != "" {
-		query.WriteString(" AND we.event_type = ?")
+		query.WriteString(" AND we.processing_status = ?")
 		args = append(args, status)
 	}
 	if signatureValid != nil {
@@ -285,7 +285,7 @@ func (s *Store) CountWebhookEvents(ctx context.Context, provider domain.Provider
 		args = append(args, string(provider))
 	}
 	if status != "" {
-		query.WriteString(" AND we.event_type = ?")
+		query.WriteString(" AND we.processing_status = ?")
 		args = append(args, status)
 	}
 	if signatureValid != nil {

@@ -91,8 +91,6 @@ func (s *Store) GetLatestPaymentAttemptByIntent(ctx context.Context, paymentInte
 }
 
 func (s *Store) ListPaymentIntents(ctx context.Context, provider domain.ProviderCode, environment domain.Environment, status domain.PaymentStatus, limit, offset int) ([]domain.PaymentIntent, error) {
-	_ = environment
-
 	if limit <= 0 {
 		limit = 100
 	}
@@ -114,6 +112,10 @@ func (s *Store) ListPaymentIntents(ctx context.Context, provider domain.Provider
 	if status != "" {
 		query += " AND pi.status = ?"
 		args = append(args, string(status))
+	}
+	if environment != "" {
+		query += " AND COALESCE(json_extract(pi.metadata_json, '$.environment'), '') = ?"
+		args = append(args, string(environment))
 	}
 	query += " ORDER BY pi.created_at DESC LIMIT ? OFFSET ?"
 	args = append(args, limit, offset)
@@ -150,8 +152,6 @@ func (s *Store) ListPaymentIntents(ctx context.Context, provider domain.Provider
 }
 
 func (s *Store) CountPaymentIntents(ctx context.Context, provider domain.ProviderCode, environment domain.Environment, status domain.PaymentStatus) (int, error) {
-	_ = environment
-
 	query := ""
 	query += "\n\t\tSELECT COUNT(1)\n\t\tFROM payment_intents pi\n\t\tJOIN providers p ON p.id = pi.provider_id\n\t\tWHERE 1 = 1"
 	args := make([]any, 0, 2)
@@ -163,6 +163,10 @@ func (s *Store) CountPaymentIntents(ctx context.Context, provider domain.Provide
 	if status != "" {
 		query += " AND pi.status = ?"
 		args = append(args, string(status))
+	}
+	if environment != "" {
+		query += " AND COALESCE(json_extract(pi.metadata_json, '$.environment'), '') = ?"
+		args = append(args, string(environment))
 	}
 
 	var total int

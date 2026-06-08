@@ -531,7 +531,7 @@ func (s *Server) providerAccountUpdateHandler(r *http.Request) (any, error) {
 		if strings.Contains(strings.ToLower(err.Error()), "provider_id") {
 			return nil, NewError(http.StatusBadRequest, errBadRequest, "invalid provider code")
 		}
-		if strings.Contains(strings.ToLower(err.Error()), "conflict") {
+		if strings.Contains(strings.ToLower(err.Error()), "conflict") || strings.Contains(strings.ToLower(err.Error()), "unique") {
 			return nil, NewError(http.StatusConflict, errConflict, "provider account already exists for this provider and environment")
 		}
 		return nil, err
