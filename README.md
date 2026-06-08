@@ -103,6 +103,19 @@ Experimental: panggil API resmi provider langsung dari CLI:
 ./bin/rutebayar api ipaymu --path /api/v2/payment-channels --method GET
 ```
 
+### Catatan API mode per-provider (hasil smoke test)
+
+Semua provider di mode `api` memakai credential yang tersimpan pada `provider accounts`:
+
+- Midtrans: `auth-test`, `status`, `approve/deny/cancel/expire`, `refund`, dan `snap-transaction` siap dipanggil melalui `--operation` (resolusi alias sudah ada).
+- Xendit:
+  - `auth-balance` berhasil dan bisa dipakai untuk cek koneksi + saldo.
+  - `session-create` validasi field `reference_id` (payload akan ditolak bila belum ada).
+  - `session-status` mengikuti format `session_id` dari provider.
+- DOKU/IPaymu:
+  - endpoint membutuhkan header/credential provider agar tidak ditolak (`Client-Id` untuk DOKU, header IPAYMU tertentu untuk iPaymu).
+  - gunakan credential aktif lewat onboarding sebelum memanggil endpoint non-dummy.
+
 Untuk Midtrans, operasi `api` saat ini menggunakan shortcut dari endpoint yang tersedia di `midtrans/Midtrans-Payment-API-Postman-Collections` (kumpulan Postman), karena repo itu saat ini belum menyediakan file OpenAPI/Swagger (`.json`/`.yaml`) resmi.
 
 Kamu bisa generate ulang artefak OpenAPI dari Postman collection ini dengan:

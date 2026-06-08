@@ -49,6 +49,31 @@ Contoh alur:
 - `rutebayar webhook forward remove`
 - `rutebayar reconcile`
 
+### Catatan API mode (experimental)
+
+Mode ini dipakai untuk memanggil API resmi provider langsung dari CLI.
+
+Sebelum testing ke endpoint yang sensitif, pastikan:
+
+- provider sudah onboard untuk environment yang sesuai
+- kredensial tersimpan (`provider accounts` menunjukkan entry provider)
+- query tidak memakai `--skip-auth` untuk pengujian real provider
+
+Contoh:
+
+```bash
+rutebayar api midtrans --operation snap-transaction --method POST --body '<payload_json>'
+rutebayar api xendit --operation auth-balance
+rutebayar api doku --operation checkout --method POST --body '<payload_json>'
+rutebayar api ipaymu --path /api/v2/payment-channels --method GET
+```
+
+Temuan uji:
+
+- `xendit session-create` menolak payload jika belum lengkap (contoh wajib: `reference_id`).
+- `doku` dan `ipaymu` menolak request tanpa header auth/credential yang tepat (error 400/401).
+- `midtrans` status/approve/deny/cancel/expire/refund bekerja via alias operation; hasil akhir tergantung state transaksi di Midtrans.
+
 ## Onboarding Provider
 
 ### Midtrans
