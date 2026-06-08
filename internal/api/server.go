@@ -6,11 +6,14 @@ import (
 	"encoding/json"
 	"errors"
 	"fmt"
+	"io"
 	"log"
+	"net"
 	"net/http"
 	"strconv"
 	"strings"
 	"sync"
+	"sync/atomic"
 	"time"
 
 	"github.com/pendig/rute-bayar/internal/auditlog"
@@ -32,7 +35,16 @@ const (
 	requestIDHeader = "X-Request-ID"
 	requestIDQuery  = "request_id"
 	headerOrigin    = "Origin"
+
+	maxJSONBodyBytes = 1 * 1024 * 1024
+
+	rateBucketLimit = 2000
+	rateBucketTTL   = 10 * time.Minute
+	idemTTL         = 10 * time.Minute
+	idemLimit       = 2000
 )
+
+var requestIDSeq uint64
 
 const (
 	contentTypeJSON = "application/json"
@@ -53,7 +65,7 @@ type Server struct {
 	rateBuckets    map[string]*rateBucket
 	bucketsMu      sync.Mutex
 	idempotencyMu  sync.Mutex
-	idempotencyMap map[string]any
+	idempotencyMap map[string]idempotencyEntry
 }
 
 type Config struct {
@@ -121,7 +133,7 @@ func NewServer(cfg Config) *Server {
 		databasePath:   strings.TrimSpace(cfg.DatabasePath),
 		environment:    defaultEnvironment(cfg.DefaultEnvironment),
 		rateBuckets:    map[string]*rateBucket{},
-		idempotencyMap: map[string]any{},
+		idempotencyMap: map[string]idempotencyEntry{},
 	}
 }
 
@@ -232,8 +244,9 @@ func (s *Server) isAuthorized(r *http.Request) bool {
 }
 
 type rateBucket struct {
-	start time.Time
-	count int
+	start  time.Time
+	count  int
+	seenAt time.Time
 }
 
 func (s *Server) allowRate(r *http.Request, remoteAddr string) bool {
@@ -242,8 +255,11 @@ func (s *Server) allowRate(r *http.Request, remoteAddr string) bool {
 	}
 
 	key := strings.TrimSpace(r.Header.Get("X-API-Key"))
-	if key == "" {
+	if s.apiKey == "" || key != s.apiKey {
 		key = remoteAddr
+		if host, _, splitErr := net.SplitHostPort(remoteAddr); splitErr == nil {
+			key = host
+		}
 	}
 	if key == "" {
 		key = "anonymous"
@@ -254,10 +270,21 @@ func (s *Server) allowRate(r *http.Request, remoteAddr string) bool {
 
 	s.bucketsMu.Lock()
 	defer s.bucketsMu.Unlock()
+	if len(s.rateBuckets) >= rateBucketLimit {
+		s.pruneRateBuckets(now)
+	}
+	if len(s.rateBuckets) >= rateBucketLimit {
+		for bucketKey := range s.rateBuckets {
+			delete(s.rateBuckets, bucketKey)
+			if len(s.rateBuckets) < rateBucketLimit/2 {
+				break
+			}
+		}
+	}
 
 	bucket, ok := s.rateBuckets[key]
 	if !ok {
-		bucket = &rateBucket{start: window}
+		bucket = &rateBucket{start: window, seenAt: now}
 		s.rateBuckets[key] = bucket
 	}
 
@@ -265,11 +292,20 @@ func (s *Server) allowRate(r *http.Request, remoteAddr string) bool {
 		bucket.start = window
 		bucket.count = 0
 	}
+	bucket.seenAt = now
 	if bucket.count >= s.rateLimit {
 		return false
 	}
 	bucket.count++
 	return true
+}
+
+func (s *Server) pruneRateBuckets(now time.Time) {
+	for key, bucket := range s.rateBuckets {
+		if now.Sub(bucket.seenAt) > rateBucketTTL {
+			delete(s.rateBuckets, key)
+		}
+	}
 }
 
 func (s *Server) writeJSONError(w http.ResponseWriter, r *http.Request, requestID string, status int, code, message string) {
@@ -1293,7 +1329,13 @@ func defaultEnvironment(value domain.Environment) domain.Environment {
 }
 
 func newRequestID() string {
-	return time.Now().UTC().Format(time.RFC3339Nano)
+	seq := atomic.AddUint64(&requestIDSeq, 1)
+	return fmt.Sprintf("%d-%d", time.Now().UTC().UnixNano(), seq)
+}
+
+type idempotencyEntry struct {
+	payload any
+	expires time.Time
 }
 
 func parseProvider(value string) (domain.ProviderCode, error) {
@@ -1326,11 +1368,12 @@ func parseEnvironment(raw string) (domain.Environment, error) {
 }
 
 func decodeJSONBody(r *http.Request, out any) error {
+	r.Body = http.MaxBytesReader(nil, r.Body, maxJSONBodyBytes)
 	decoder := json.NewDecoder(r.Body)
 	if err := decoder.Decode(out); err != nil {
 		return err
 	}
-	if decoder.More() {
+	if err := decoder.Decode(&struct{}{}); err != io.EOF {
 		return NewError(http.StatusBadRequest, errBadRequest, "invalid JSON body")
 	}
 	return nil
@@ -1689,8 +1732,15 @@ func (s *Server) readIdempotent(cacheKey string) (any, bool) {
 	}
 	s.idempotencyMu.Lock()
 	defer s.idempotencyMu.Unlock()
-	cached, ok := s.idempotencyMap[cacheKey]
-	return cached, ok
+	entry, ok := s.idempotencyMap[cacheKey]
+	if !ok {
+		return nil, false
+	}
+	if time.Now().UTC().After(entry.expires) {
+		delete(s.idempotencyMap, cacheKey)
+		return nil, false
+	}
+	return entry.payload, true
 }
 
 func (s *Server) writeIdempotent(cacheKey string, payload any) {
@@ -1699,7 +1749,30 @@ func (s *Server) writeIdempotent(cacheKey string, payload any) {
 	}
 	s.idempotencyMu.Lock()
 	defer s.idempotencyMu.Unlock()
-	s.idempotencyMap[cacheKey] = payload
+	now := time.Now().UTC()
+	if len(s.idempotencyMap) >= idemLimit {
+		s.pruneIdempotency(now)
+	}
+	if len(s.idempotencyMap) >= idemLimit {
+		for key := range s.idempotencyMap {
+			delete(s.idempotencyMap, key)
+			if len(s.idempotencyMap) < idemLimit/2 {
+				break
+			}
+		}
+	}
+	s.idempotencyMap[cacheKey] = idempotencyEntry{
+		payload: payload,
+		expires: now.Add(idemTTL),
+	}
+}
+
+func (s *Server) pruneIdempotency(now time.Time) {
+	for cacheKey, entry := range s.idempotencyMap {
+		if now.After(entry.expires) {
+			delete(s.idempotencyMap, cacheKey)
+		}
+	}
 }
 
 type apiError struct {
