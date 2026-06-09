@@ -349,6 +349,9 @@ func resolveAPIOperation(providerCode domain.ProviderCode, operation string) (pa
 			return candidate, true
 		}
 	case domain.ProviderXendit:
+		if candidate, ok := generatedXenditAPIOperationAliases[key]; ok {
+			return candidate, true
+		}
 		switch key {
 		case "auth-balance", "balance":
 			return pathTemplateOperation{method: "GET", path: "/balance"}, true

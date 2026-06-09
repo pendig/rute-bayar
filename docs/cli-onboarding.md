@@ -69,6 +69,18 @@ Kita bisa pakai:
 - `--header`: override header tambahan
 - `--base-url`: override base URL untuk testing khusus
 
+Untuk memperbarui alias operasi Xendit dari Postman collection, jalankan:
+
+```bash
+./scripts/convert-xendit-postman-to-openapi.sh \
+  docs/apis/xendit-openapi-from-postman.json \
+  /path/API-Xendit.postman_collection.json \
+  /path/API-Xendit\ SNAP.postman_collection.json
+./scripts/generate-xendit-openapi-aliases.sh \
+  docs/apis/xendit-openapi-from-postman.json \
+  internal/cli/xendit_openapi_aliases_generated.go
+```
+
 Contoh:
 
 ```bash
