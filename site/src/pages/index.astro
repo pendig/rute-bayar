@@ -17,7 +17,28 @@ const webhookLines = LANDING_WEBHOOK_LINES;
 const apiModeLines = LANDING_API_MODE_LINES;
 const lang: Lang = "id";
 const providerStripLabel = layoutCopy[lang].providerStripLabel;
-const supportedGateways = ["Xendit", "Midtrans", "DOKU", "iPaymu"];
+const supportedGateways = [
+  {
+    name: "Xendit",
+    href: "https://www.xendit.co/",
+    logo: withSiteBase("/assets/providers/xendit.png"),
+  },
+  {
+    name: "Midtrans",
+    href: "https://midtrans.com/",
+    logo: withSiteBase("/assets/providers/midtrans.png"),
+  },
+  {
+    name: "DOKU",
+    href: "https://www.doku.com/",
+    logo: withSiteBase("/assets/providers/doku.png"),
+  },
+  {
+    name: "iPaymu",
+    href: "https://ipaymu.com/",
+    logo: withSiteBase("/assets/providers/ipaymu.png"),
+  },
+];
 ---
 
 <BaseLayout
@@ -74,10 +95,18 @@ const supportedGateways = ["Xendit", "Midtrans", "DOKU", "iPaymu"];
       <h2 id="supported-gateways-heading">Provider yang sudah disupport Rute Bayar.</h2>
       <p>Logo/wordmark berikut mewakili gateway aktif yang sudah punya adapter di Rute Bayar. Refund tetap mengikuti capability masing-masing provider.</p>
     </div>
-    <div class="gateway-marquee" tabindex="0" aria-label="Xendit, Midtrans, DOKU, dan iPaymu. Fokuskan area ini untuk menjeda animasi logo gateway.">
+    <div class="gateway-marquee" aria-label="Logo provider Xendit, Midtrans, DOKU, dan iPaymu.">
       <div class="gateway-marquee-track">
-        {[...supportedGateways, ...supportedGateways].map((gateway) => (
-          <span class="gateway-logo-card" aria-label={gateway}>{gateway}</span>
+        {supportedGateways.map((gateway) => (
+          <a
+            class="gateway-logo-card"
+            href={gateway.href}
+            target="_blank"
+            rel="noopener noreferrer"
+            aria-label={`Buka website ${gateway.name}`}
+          >
+            <img src={gateway.logo} alt="" loading="eager" decoding="async" />
+          </a>
         ))}
       </div>
     </div>
