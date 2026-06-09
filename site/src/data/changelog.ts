@@ -1,5 +1,19 @@
 export const changelogEntries = [
   {
+    version: "v0.1.8",
+    date: "2026-06-09",
+    tag: "API mode update",
+    summary:
+      "Rilis ini memperkuat mode API dengan dokumentasi direct provider API, peningkatan konten operasional, dan penyempurnaan konten landing/kontribusi.",
+    items: [
+      "Tambahkan dokumentasi API mode dengan contoh panggilan langsung provider dan mapping status Midtrans serta Xendit.",
+      "Lengkapi catatan operasional API mode di landing dan dokumentasi support agar langkah onboarding API lebih jelas.",
+      "Perbaiki landing dengan logo provider yang clickable dan panduan verifikasi provider yang lebih jelas.",
+      "Perbarui dokumentasi install untuk alur release-readiness dan kontribusi yang konsisten.",
+      "Perjelas status refund dan endpoint iPaymu yang belum didukung di dokumentasi.",
+    ],
+  },
+  {
     version: "v0.1.7",
     date: "2026-06-05",
     tag: "iPaymu sandbox release",
