@@ -139,9 +139,13 @@ func NewServer(cfg Config) *Server {
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
+	registeredOptions := map[string]struct{}{}
 	handled := func(method, path string, fn endpointFunc, requireAuth bool) {
 		mux.HandleFunc(method+" "+path, s.wrap(fn, requireAuth))
-		mux.HandleFunc("OPTIONS "+path, s.wrap(s.handleCORSPreflight, false))
+		if _, seen := registeredOptions[path]; !seen {
+			mux.HandleFunc("OPTIONS "+path, s.wrap(s.handleCORSPreflight, false))
+			registeredOptions[path] = struct{}{}
+		}
 	}
 
 	handled("GET", "/healthz", s.health, false)
