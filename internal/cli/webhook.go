@@ -11,14 +11,33 @@ import (
 	"strings"
 	"time"
 
+	"github.com/pendig/rute-bayar/internal/api"
+	"github.com/pendig/rute-bayar/internal/build"
 	"github.com/pendig/rute-bayar/internal/config"
 	"github.com/pendig/rute-bayar/internal/daemon"
 	"github.com/pendig/rute-bayar/internal/domain"
 	"github.com/pendig/rute-bayar/internal/forwarding"
 	"github.com/pendig/rute-bayar/internal/forwardingsvc"
+	"github.com/pendig/rute-bayar/internal/paymentsvc"
 	"github.com/pendig/rute-bayar/internal/providerfactory"
 	"github.com/pendig/rute-bayar/internal/storage/sqlite"
 )
+
+const (
+	webhookModeAPI     = "api"
+	webhookModeAll     = "all"
+	webhookModeWebhook = "webhook"
+)
+
+func parseWebhookServeMode(raw string) (string, error) {
+	mode := strings.TrimSpace(strings.ToLower(raw))
+	switch mode {
+	case webhookModeWebhook, webhookModeAPI, webhookModeAll:
+		return mode, nil
+	default:
+		return "", fmt.Errorf("webhook mode must be one of %q, %q, or %q", webhookModeWebhook, webhookModeAPI, webhookModeAll)
+	}
+}
 
 func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string) error {
 	if len(args) == 0 {
@@ -31,14 +50,53 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 		fs.SetOutput(stderr)
 		cfg := config.Load()
 		addr := fs.String("addr", cfg.WebhookAddr, "daemon listen address")
+		mode := fs.String("mode", webhookModeWebhook, "daemon runtime mode: webhook, api, or all")
 		environment := fs.String("environment", cfg.Environment, "webhook provider credential environment")
 		dbPath := fs.String("db", cfg.DBPath, "sqlite database path")
 		if err := fs.Parse(args[1:]); err != nil {
 			return err
 		}
+
+		selectedMode, err := parseWebhookServeMode(*mode)
+		if err != nil {
+			return err
+		}
 		environmentValue := strings.TrimSpace(*environment)
+		if environmentValue == "" {
+			environmentValue = string(domain.EnvironmentSandbox)
+		}
 		if err := validateEnvironment(environmentValue); err != nil {
 			return err
+		}
+
+		srv := daemon.NewServer(*addr, nil, nil, nil)
+		var apiServer *api.Server
+
+		if selectedMode == webhookModeAPI {
+			store, err := sqlite.Open(ctx, *dbPath)
+			if err != nil {
+				return err
+			}
+			defer store.Close()
+
+			factory := providerfactory.New(store)
+			apiServer = api.NewServer(api.Config{
+				Version:            strings.TrimSpace(build.Version),
+				APIKey:             cfg.APIKey,
+				AllowedOrigins:     cfg.APIAllowedOrigins,
+				RateLimitPerMinute: cfg.APIRateLimit,
+				AuditSink:          store,
+				Store:              store,
+				PaymentService:     paymentsvc.New(store, factory),
+				DatabasePath:       *dbPath,
+				DefaultEnvironment: domain.Environment(environmentValue),
+			})
+
+			fmt.Fprintf(stdout, "Rute Bayar API daemon listening on %s\n", *addr)
+			fmt.Fprintf(stdout, "api environment: %s\n", environmentValue)
+			fmt.Fprintf(stdout, "SQLite database: %s\n", *dbPath)
+			srv = srv.WithAPIHandler(apiServer.Handler())
+			return srv.ListenAndServe()
 		}
 
 		store, err := sqlite.Open(ctx, *dbPath)
@@ -53,8 +111,28 @@ func webhookCommand(ctx context.Context, stdout, stderr io.Writer, args []string
 			return err
 		}
 
-		srv := daemon.NewServer(*addr, store, forwarding.NewService(store), handlers)
-		fmt.Fprintf(stdout, "Rute Bayar webhook daemon listening on %s\n", *addr)
+		apiServer = api.NewServer(api.Config{
+			Version:            strings.TrimSpace(build.Version),
+			APIKey:             cfg.APIKey,
+			AllowedOrigins:     cfg.APIAllowedOrigins,
+			RateLimitPerMinute: cfg.APIRateLimit,
+			AuditSink:          store,
+			Store:              store,
+			PaymentService:     paymentsvc.New(store, factory),
+			DatabasePath:       *dbPath,
+			DefaultEnvironment: domain.Environment(environmentValue),
+		})
+
+		srv = daemon.NewServer(*addr, store, forwarding.NewService(store), handlers)
+		if selectedMode == webhookModeAll {
+			srv = srv.WithAPIHandler(apiServer.Handler())
+		}
+
+		if selectedMode == webhookModeWebhook {
+			fmt.Fprintf(stdout, "Rute Bayar webhook daemon listening on %s\n", *addr)
+		} else {
+			fmt.Fprintf(stdout, "Rute Bayar webhook+api daemon listening on %s\n", *addr)
+		}
 		fmt.Fprintf(stdout, "webhook environment: %s\n", environmentValue)
 		fmt.Fprintf(stdout, "SQLite database: %s\n", *dbPath)
 		return srv.ListenAndServe()

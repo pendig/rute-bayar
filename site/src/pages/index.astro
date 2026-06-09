@@ -2,12 +2,19 @@
 import BaseLayout from "../layouts/BaseLayout.astro";
 import ShellBlock from "../components/ShellBlock.astro";
 import { layoutCopy, type Lang } from "../i18n";
-import { LANDING_AGENT_STATUS_LINES, LANDING_CREATE_PAYMENT_LINES, LANDING_QUICK_INSTALL_LINES, LANDING_WEBHOOK_LINES } from "../data/landing-shell-lines";
+import {
+  LANDING_AGENT_STATUS_LINES,
+  LANDING_CREATE_PAYMENT_LINES,
+  LANDING_QUICK_INSTALL_LINES,
+  LANDING_WEBHOOK_LINES,
+  LANDING_API_MODE_LINES,
+} from "../data/landing-shell-lines";
 import { withSiteBase } from "../i18n";
 import "../styles/landing.css";
 
 const createPaymentLines = LANDING_CREATE_PAYMENT_LINES;
 const webhookLines = LANDING_WEBHOOK_LINES;
+const apiModeLines = LANDING_API_MODE_LINES;
 const lang: Lang = "id";
 const providerStripLabel = layoutCopy[lang].providerStripLabel;
 const supportedGateways = [
@@ -106,6 +113,18 @@ const supportedGateways = [
   </section>
 
   <section class="section">
+    <div class="container split">
+      <div>
+        <p class="eyebrow">API mode raw</p>
+        <h2>Panggil API resmi provider saat perlu.</h2>
+        <p>
+          Fitur ini untuk eksperimen dan debugging cepat: pakai alias operasi atau path langsung,
+          sambil tetap pakai credential onboarding yang sama.
+        </p>
+      </div>
+      <ShellBlock title="api mode" lines={apiModeLines} />
+    </div>
+
     <div class="container split">
       <div>
         <p class="eyebrow">Jalur payment yang jelas</p>

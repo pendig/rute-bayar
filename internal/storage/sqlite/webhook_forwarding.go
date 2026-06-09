@@ -321,6 +321,66 @@ func (s *Store) ListForwardingAttempts(ctx context.Context, filter forwarding.At
 	return attempts, nil
 }
 
+func (s *Store) CountForwardingAttempts(ctx context.Context, filter forwarding.AttemptFilter) (int, error) {
+	query := strings.Builder{}
+	query.WriteString(`
+		SELECT COUNT(1)
+		FROM webhook_forwarding_attempts wfa
+		JOIN webhook_forwarding_targets wft ON wft.id = wfa.forwarding_target_id
+		JOIN providers p ON p.id = wft.provider_id
+		WHERE 1 = 1
+	`)
+	args := make([]any, 0, 4)
+	if filter.Provider != "" {
+		query.WriteString(" AND p.code = ?")
+		args = append(args, string(filter.Provider))
+	}
+	if strings.TrimSpace(filter.TargetID) != "" {
+		query.WriteString(" AND wfa.forwarding_target_id = ?")
+		args = append(args, strings.TrimSpace(filter.TargetID))
+	}
+	if strings.TrimSpace(filter.WebhookEventID) != "" {
+		query.WriteString(" AND wfa.webhook_event_id = ?")
+		args = append(args, strings.TrimSpace(filter.WebhookEventID))
+	}
+	if strings.TrimSpace(filter.Status) != "" {
+		query.WriteString(" AND wfa.status = ?")
+		args = append(args, strings.TrimSpace(filter.Status))
+	}
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, query.String(), args...).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count forwarding attempts: %w", err)
+	}
+
+	return total, nil
+}
+
+func (s *Store) CountForwardingTargets(ctx context.Context, provider domain.ProviderCode, includeDisabled bool) (int, error) {
+	query := strings.Builder{}
+	query.WriteString(`
+		SELECT COUNT(1)
+		FROM webhook_forwarding_targets wt
+		JOIN providers p ON p.id = wt.provider_id
+		WHERE 1 = 1
+	`)
+	args := make([]any, 0, 2)
+	if provider != "" {
+		query.WriteString(" AND p.code = ?")
+		args = append(args, string(provider))
+	}
+	if !includeDisabled {
+		query.WriteString(" AND wt.enabled = 1")
+	}
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, query.String(), args...).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count forwarding targets: %w", err)
+	}
+
+	return total, nil
+}
+
 func (s *Store) GetForwardingAttempt(ctx context.Context, attemptID string) (forwarding.AttemptRecord, error) {
 	row := s.db.QueryRowContext(ctx, `
 		SELECT

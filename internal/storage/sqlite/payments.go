@@ -90,6 +90,92 @@ func (s *Store) GetLatestPaymentAttemptByIntent(ctx context.Context, paymentInte
 	return attempt, nil
 }
 
+func (s *Store) ListPaymentIntents(ctx context.Context, provider domain.ProviderCode, environment domain.Environment, status domain.PaymentStatus, limit, offset int) ([]domain.PaymentIntent, error) {
+	if limit <= 0 {
+		limit = 100
+	}
+	if limit > 200 {
+		limit = 200
+	}
+	if offset < 0 {
+		offset = 0
+	}
+
+	query := ""
+	query += "\n\t\tSELECT\n\t\t\tpi.id,\n\t\t\tpi.external_ref,\n\t\t\tp.code,\n\t\t\tpi.amount,\n\t\t\tpi.currency,\n\t\t\tpi.status,\n\t\t\tpi.metadata_json,\n\t\t\tpi.created_at,\n\t\t\tpi.updated_at\n\t\tFROM payment_intents pi\n\t\tJOIN providers p ON p.id = pi.provider_id\n\t\tWHERE 1 = 1"
+	args := make([]any, 0, 2)
+
+	if provider != "" {
+		query += " AND p.code = ?"
+		args = append(args, string(provider))
+	}
+	if status != "" {
+		query += " AND pi.status = ?"
+		args = append(args, string(status))
+	}
+	if environment != "" {
+		query += " AND COALESCE(json_extract(pi.metadata_json, '$.environment'), '') = ?"
+		args = append(args, string(environment))
+	}
+	query += " ORDER BY pi.created_at DESC LIMIT ? OFFSET ?"
+	args = append(args, limit, offset)
+
+	rows, err := s.db.QueryContext(ctx, query, args...)
+	if err != nil {
+		return nil, fmt.Errorf("query payment intents: %w", err)
+	}
+	defer rows.Close()
+
+	items := make([]domain.PaymentIntent, 0)
+	for rows.Next() {
+		var (
+			intent       domain.PaymentIntent
+			providerCode string
+			metadataRaw  string
+			createdAtRaw string
+			updatedAtRaw string
+		)
+		if err := rows.Scan(&intent.ID, &intent.ExternalRef, &providerCode, &intent.Amount, &intent.Currency, &intent.Status, &metadataRaw, &createdAtRaw, &updatedAtRaw); err != nil {
+			return nil, fmt.Errorf("scan payment intent: %w", err)
+		}
+		intent.ProviderCode = domain.ProviderCode(providerCode)
+		intent.MetadataJSON = json.RawMessage(metadataRaw)
+		intent.CreatedAt = parseTime(createdAtRaw)
+		intent.UpdatedAt = parseTime(updatedAtRaw)
+		items = append(items, intent)
+	}
+	if err := rows.Err(); err != nil {
+		return nil, fmt.Errorf("iterate payment intents: %w", err)
+	}
+
+	return items, nil
+}
+
+func (s *Store) CountPaymentIntents(ctx context.Context, provider domain.ProviderCode, environment domain.Environment, status domain.PaymentStatus) (int, error) {
+	query := ""
+	query += "\n\t\tSELECT COUNT(1)\n\t\tFROM payment_intents pi\n\t\tJOIN providers p ON p.id = pi.provider_id\n\t\tWHERE 1 = 1"
+	args := make([]any, 0, 2)
+
+	if provider != "" {
+		query += " AND p.code = ?"
+		args = append(args, string(provider))
+	}
+	if status != "" {
+		query += " AND pi.status = ?"
+		args = append(args, string(status))
+	}
+	if environment != "" {
+		query += " AND COALESCE(json_extract(pi.metadata_json, '$.environment'), '') = ?"
+		args = append(args, string(environment))
+	}
+
+	var total int
+	if err := s.db.QueryRowContext(ctx, query, args...).Scan(&total); err != nil {
+		return 0, fmt.Errorf("count payment intents: %w", err)
+	}
+	return total, nil
+}
+
 func (s *Store) UpsertPaymentIntent(ctx context.Context, intent domain.PaymentIntent) (string, error) {
 	id := intent.ID
 	if id == "" {

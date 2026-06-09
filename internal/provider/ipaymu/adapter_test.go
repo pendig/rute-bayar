@@ -15,7 +15,13 @@ import (
 )
 
 func TestGenerateSignature(t *testing.T) {
-	payload := map[string]any{"account": "1179000899", "transactionId": "4719"}
+	payload := struct {
+		Account       string `json:"account"`
+		TransactionID string `json:"transactionId"`
+	}{
+		Account:       "1179000899",
+		TransactionID: "4719",
+	}
 	got := GenerateSignature("POST", "1179000899", "secret-key", payload)
 	want := "27af0b21d04496831361c37237fce28edcfab09e3914d0a9cc3e069c46b862e3"
 	if got != want {

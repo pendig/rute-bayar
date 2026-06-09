@@ -70,6 +70,44 @@ func TestValidateEnvironment(t *testing.T) {
 	}
 }
 
+func TestResolveAPIOperation_MidtransUsesGeneratedAliasAndManualFallback(t *testing.T) {
+	t.Parallel()
+
+	tests := []struct {
+		name      string
+		operation string
+		method    string
+		path      string
+	}{
+		{name: "generated snap", operation: "snap-v1-transaction", method: http.MethodPost, path: "/snap/v1/transactions"},
+		{name: "generated status", operation: "status", method: http.MethodGet, path: "/v2/{order_id}/status"},
+		{name: "generated approve", operation: "approve", method: http.MethodPost, path: "/v2/{order_id}/approve"},
+		{name: "generated deny", operation: "deny", method: http.MethodPost, path: "/v2/{order_id}/deny"},
+		{name: "generated cancel", operation: "cancel", method: http.MethodPost, path: "/v2/{order_id}/cancel"},
+		{name: "generated expire", operation: "expire", method: http.MethodPost, path: "/v2/{order_id}/expire"},
+		{name: "generated refund", operation: "refund", method: http.MethodPost, path: "/v2/{order_id}/refund"},
+		{name: "manual check-status", operation: "check-status", method: http.MethodGet, path: "/v2/{order_id}/status"},
+		{name: "manual auth-test", operation: "auth-test", method: http.MethodGet, path: "/v2/rute-bayar-auth-test/status"},
+	}
+
+	for _, tc := range tests {
+		tc := tc
+		t.Run(tc.name, func(t *testing.T) {
+			t.Parallel()
+			alias, ok := resolveAPIOperation(domain.ProviderMidtrans, tc.operation)
+			if !ok {
+				t.Fatalf("operation %q should be available", tc.operation)
+			}
+			if alias.method != tc.method {
+				t.Fatalf("operation %q method = %q, want %q", tc.operation, alias.method, tc.method)
+			}
+			if alias.path != tc.path {
+				t.Fatalf("operation %q path = %q, want %q", tc.operation, alias.path, tc.path)
+			}
+		})
+	}
+}
+
 func TestWebhookForwardCLI(t *testing.T) {
 	t.Parallel()
 

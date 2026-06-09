@@ -342,8 +342,9 @@ func (a *Adapter) doForm(ctx context.Context, method, path string, values url.Va
 
 func (a *Adapter) signRequest(req *http.Request, method string, payload any) {
 	req.Header.Set("va", a.va)
+	timestamp := a.timestamp().UTC().Format("20060102150405")
 	req.Header.Set("signature", GenerateSignature(method, a.va, a.apiKey, payload))
-	req.Header.Set("timestamp", a.timestamp().Format("20060102150405"))
+	req.Header.Set("timestamp", timestamp)
 }
 
 func GenerateSignature(method, va, apiKey string, payload any) string {
