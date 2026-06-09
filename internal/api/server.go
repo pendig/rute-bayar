@@ -139,40 +139,49 @@ func NewServer(cfg Config) *Server {
 
 func (s *Server) Handler() http.Handler {
 	mux := http.NewServeMux()
-	mux.HandleFunc("GET /healthz", s.wrap(s.health, false))
-	mux.HandleFunc("GET /api/v1/healthz", s.wrap(s.health, false))
-	mux.HandleFunc("GET /api/v1/version", s.wrap(s.versionHandler, true))
-	mux.HandleFunc("POST /api/v1/version", s.wrap(s.versionHandler, true))
+	handled := func(method, path string, fn endpointFunc, requireAuth bool) {
+		mux.HandleFunc(method+" "+path, s.wrap(fn, requireAuth))
+		mux.HandleFunc("OPTIONS "+path, s.wrap(s.handleCORSPreflight, false))
+	}
 
-	mux.HandleFunc("GET /api/v1/provider-accounts", s.wrap(s.providerAccountsListHandler, true))
-	mux.HandleFunc("POST /api/v1/provider-accounts", s.wrap(s.providerAccountsCreateHandler, true))
-	mux.HandleFunc("PUT /api/v1/provider-accounts/{id}", s.wrap(s.providerAccountUpdateHandler, true))
-	mux.HandleFunc("DELETE /api/v1/provider-accounts/{id}", s.wrap(s.providerAccountDeleteHandler, true))
+	handled("GET", "/healthz", s.health, false)
+	handled("GET", "/api/v1/healthz", s.health, false)
+	handled("GET", "/api/v1/version", s.versionHandler, true)
+	handled("POST", "/api/v1/version", s.versionHandler, true)
 
-	mux.HandleFunc("GET /api/v1/payments", s.wrap(s.paymentsListHandler, true))
-	mux.HandleFunc("POST /api/v1/payments", s.wrap(s.paymentsCreateHandler, true))
-	mux.HandleFunc("GET /api/v1/payments/{reference}", s.wrap(s.paymentGetHandler, true))
-	mux.HandleFunc("GET /api/v1/payments/{reference}/status", s.wrap(s.paymentStatusHandler, true))
-	mux.HandleFunc("POST /api/v1/payments/{reference}/refund", s.wrap(s.paymentRefundHandler, true))
-	mux.HandleFunc("GET /api/v1/readiness", s.wrap(s.readinessHandler, false))
+	handled("GET", "/api/v1/provider-accounts", s.providerAccountsListHandler, true)
+	handled("POST", "/api/v1/provider-accounts", s.providerAccountsCreateHandler, true)
+	handled("PUT", "/api/v1/provider-accounts/{id}", s.providerAccountUpdateHandler, true)
+	handled("DELETE", "/api/v1/provider-accounts/{id}", s.providerAccountDeleteHandler, true)
 
-	mux.HandleFunc("GET /api/v1/webhook-events", s.wrap(s.webhookEventsListHandler, true))
-	mux.HandleFunc("GET /api/v1/webhook-events/{id}", s.wrap(s.webhookEventGetHandler, true))
-	mux.HandleFunc("GET /api/v1/webhook-events/{id}/forwarding-attempts", s.wrap(s.webhookEventForwardingAttemptsHandler, true))
-	mux.HandleFunc("POST /api/v1/webhook-events/{id}/replay", s.wrap(s.webhookEventReplayHandler, true))
-	mux.HandleFunc("GET /api/v1/webhook-forwarding-targets", s.wrap(s.webhookForwardingTargetsListHandler, true))
-	mux.HandleFunc("POST /api/v1/webhook-forwarding-targets", s.wrap(s.webhookForwardingTargetCreateHandler, true))
-	mux.HandleFunc("PUT /api/v1/webhook-forwarding-targets/{id}", s.wrap(s.webhookForwardingTargetUpdateHandler, true))
-	mux.HandleFunc("DELETE /api/v1/webhook-forwarding-targets/{id}", s.wrap(s.webhookForwardingTargetDeleteHandler, true))
-	mux.HandleFunc("GET /api/v1/webhook-forwarding-attempts", s.wrap(s.webhookForwardingAttemptsListHandler, true))
-	mux.HandleFunc("POST /api/v1/reconcile/{provider}/{reference}", s.wrap(s.paymentReconcileHandler, true))
-	mux.HandleFunc("GET /api/v1/stats", s.wrap(s.statsHandler, true))
+	handled("GET", "/api/v1/payments", s.paymentsListHandler, true)
+	handled("POST", "/api/v1/payments", s.paymentsCreateHandler, true)
+	handled("GET", "/api/v1/payments/{reference}", s.paymentGetHandler, true)
+	handled("GET", "/api/v1/payments/{reference}/status", s.paymentStatusHandler, true)
+	handled("POST", "/api/v1/payments/{reference}/refund", s.paymentRefundHandler, true)
+	handled("GET", "/api/v1/readiness", s.readinessHandler, false)
+
+	handled("GET", "/api/v1/webhook-events", s.webhookEventsListHandler, true)
+	handled("GET", "/api/v1/webhook-events/{id}", s.webhookEventGetHandler, true)
+	handled("GET", "/api/v1/webhook-events/{id}/forwarding-attempts", s.webhookEventForwardingAttemptsHandler, true)
+	handled("POST", "/api/v1/webhook-events/{id}/replay", s.webhookEventReplayHandler, true)
+	handled("GET", "/api/v1/webhook-forwarding-targets", s.webhookForwardingTargetsListHandler, true)
+	handled("POST", "/api/v1/webhook-forwarding-targets", s.webhookForwardingTargetCreateHandler, true)
+	handled("PUT", "/api/v1/webhook-forwarding-targets/{id}", s.webhookForwardingTargetUpdateHandler, true)
+	handled("DELETE", "/api/v1/webhook-forwarding-targets/{id}", s.webhookForwardingTargetDeleteHandler, true)
+	handled("GET", "/api/v1/webhook-forwarding-attempts", s.webhookForwardingAttemptsListHandler, true)
+	handled("POST", "/api/v1/reconcile/{provider}/{reference}", s.paymentReconcileHandler, true)
+	handled("GET", "/api/v1/stats", s.statsHandler, true)
 
 	mux.Handle("/", http.NotFoundHandler())
 	return mux
 }
 
 type endpointFunc func(*http.Request) (any, error)
+
+func (s *Server) handleCORSPreflight(_ *http.Request) (any, error) {
+	return map[string]any{}, nil
+}
 
 func (s *Server) wrap(fn endpointFunc, requireAuth bool) http.HandlerFunc {
 	return func(w http.ResponseWriter, r *http.Request) {

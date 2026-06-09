@@ -167,6 +167,41 @@ func TestWriteAndReadIdempotency_ExpiredEntryIsDeleted(t *testing.T) {
 	}
 }
 
+func TestServerHandler_OptionsPreflightReturnsNoContentWithCorsHeaders(t *testing.T) {
+	server := NewServer(Config{AllowedOrigins: "https://ui.example.com"})
+	handler := server.Handler()
+
+	req := httptest.NewRequest(http.MethodOptions, "/api/v1/provider-accounts", nil)
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected OPTIONS preflight status %d, got %d", http.StatusNoContent, res.Code)
+	}
+
+	if got := res.Header().Get("Access-Control-Allow-Origin"); got != "https://ui.example.com" {
+		t.Fatalf("expected allow origin %q, got %q", "https://ui.example.com", got)
+	}
+
+	if got := res.Header().Get("Access-Control-Allow-Methods"); !strings.Contains(got, "OPTIONS") {
+		t.Fatalf("expected allow methods to include OPTIONS, got %q", got)
+	}
+}
+
+func TestServerHandler_OptionsPreflightSkipsAuth(t *testing.T) {
+	server := NewServer(Config{APIKey: "secret"})
+	handler := server.Handler()
+
+	req := httptest.NewRequest(http.MethodOptions, "/api/v1/payments", nil)
+	req.Header.Set("X-API-Key", "wrong")
+	res := httptest.NewRecorder()
+	handler.ServeHTTP(res, req)
+
+	if res.Code != http.StatusNoContent {
+		t.Fatalf("expected OPTIONS preflight status %d, got %d", http.StatusNoContent, res.Code)
+	}
+}
+
 func TestServerWrap_AuthAndRateLimitForHandlers(t *testing.T) {
 	server := NewServer(Config{
 		APIKey:             "secret",
