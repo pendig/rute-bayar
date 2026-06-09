@@ -48,12 +48,13 @@ jobs:
         with:
           path: site/dist
 
-  deploy:
-    needs: build
-    runs-on: ubuntu-latest
-    environment:
-      name: github-pages
-      url: https://rutebayar.id
+deploy:
+  needs: build
+  runs-on: ubuntu-latest
+  if: github.ref_name == 'main'
+  environment:
+    name: github-pages
+    url: https://rutebayar.id
     steps:
       - name: Deploy to GitHub Pages
         uses: actions/deploy-pages@v5
