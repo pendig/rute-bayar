@@ -4,6 +4,22 @@ All notable changes to Rute Bayar will be documented in this file.
 
 ## Unreleased
 
+## v0.1.8 - 2026-06-09
+
+### Added
+
+- Enrich API mode documentation with direct provider API examples and updated mapping coverage for Midtrans and Xendit.
+- Add API-mode-focused operational notes to landing and support documentation.
+
+### Changed
+
+- Improve landing content with clickable provider logo assets and clearer provider verification guidance.
+- Update site install docs for release-readiness and contributor flow.
+
+### Fixed
+
+- Clarify iPaymu refund status and unsupported endpoints in documentation.
+
 ## v0.1.7 - 2026-06-05
 
 ### Added
