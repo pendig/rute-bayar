@@ -12,9 +12,9 @@ Rute Bayar is an open source payment router for Indonesian payment gateways.
 
 The project provides one internal interface for multiple providers, starting with **Xendit**, **Midtrans**, **DOKU Checkout**, and **iPaymu**. It is designed as a Go CLI and daemon that can create payments, receive provider webhooks, store raw JSON traffic for debugging, and optionally forward incoming webhooks to user-configured targets.
 
-> Status: stable `v0.1.7`. The repository includes webhook signature verification for Midtrans and DOKU, callback-token verification for Xendit, plus `pay create`, `pay status`, `reconcile`, and SQLite persistence. Midtrans/Xendit refund flows are implemented; DOKU and iPaymu refunds are intentionally disabled until provider-specific refund/disbursement setup is wired. iPaymu refund is also not exposed in the public iPaymu API v2 collection and remains unsupported until iPaymu provides an official endpoint/payload. Real sandbox proof covers Midtrans/Xendit webhook callbacks, Xendit refund reconciliation through final `refund.succeeded` callback, DOKU sandbox checkout/status plus signed webhook forwarding simulation, and iPaymu sandbox QRIS redirect payment reconciliation to `paid`. Webhook forwarding target management is also available via CLI.
+> Status: stable `v0.1.8`. The repository includes webhook signature verification for Midtrans and DOKU, callback-token verification for Xendit, plus `pay create`, `pay status`, `reconcile`, and SQLite persistence. Midtrans/Xendit refund flows are implemented; DOKU and iPaymu refunds are intentionally disabled until provider-specific refund/disbursement setup is wired. iPaymu refund is also not exposed in the public iPaymu API v2 collection and remains unsupported until iPaymu provides an official endpoint/payload. Real sandbox proof covers Midtrans/Xendit webhook callbacks, Xendit refund reconciliation through final `refund.succeeded` callback, DOKU sandbox checkout/status plus signed webhook forwarding simulation, and iPaymu sandbox QRIS redirect payment reconciliation to `paid`. Webhook forwarding target management is also available via CLI.
 
-Latest release: [v0.1.7](https://github.com/pendig/rute-bayar/releases/tag/v0.1.7)
+Latest release: [v0.1.8](https://github.com/pendig/rute-bayar/releases/tag/v0.1.8)
 
 ## Features
 
