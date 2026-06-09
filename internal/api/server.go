@@ -723,7 +723,8 @@ func (s *Server) paymentGetHandler(r *http.Request) (any, error) {
 		}
 	}
 
-	response["environment"] = string(intent.Environment)
+	environment := paymentIntentEnvironment(intent.MetadataJSON, s.environment)
+	response["environment"] = string(environment)
 	return response, nil
 }
 
