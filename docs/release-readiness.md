@@ -60,6 +60,16 @@ Checklist, changelog, dan release notes sudah disiapkan untuk release publik sta
 
 ### Release Engineering
 
+#### Wajib untuk setiap update versi (tag `v*`)
+
+- Update `CHANGELOG.md` dengan entri penuh (added/changed/fixed).
+- Update `site/src/data/changelog.ts` agar halaman `/changelog/` ikut sinkron.
+- Update `README.md` release pointer/status text jika diperlukan.
+- Update dokumentasi publik di `docs/` untuk fitur/behavior yang berubah.
+- Simpan atau perbarui bukti operasi di `docs/release/` (termasuk issue execution log kalau ada).
+
+Semua poin di atas harus dicentang saat PR memuat perubahan untuk rilis versi.
+
 - Update changelog/release notes untuk `v0.1.0`.
 - Pastikan README tidak lagi memberi kesan alpha setelah stable tag siap dibuat.
 - Release artifact automation yang repeatable.

@@ -38,6 +38,27 @@ Before opening a pull request:
 - Keep provider-specific behavior inside the relevant adapter package.
 - Keep raw inbound/outbound JSON storage behavior intact unless the change is explicitly about storage semantics.
 
+Additional release rule:
+
+- If the change introduces a versioned release or release prep, update:
+  - `CHANGELOG.md`
+  - `site/src/data/changelog.ts` (landing changelog data)
+  - `README.md` release pointer/status text when relevant
+  - related docs under `docs/`
+  - release-readiness artifacts in `docs/release-readiness.md` or `docs/release/*.md`
+
+If the docs updates are skipped, mark it as a pending release blocker in the PR description.
+
+## Release and Contribution Rules
+
+For every version bump (`v*` tag), contributor updates are mandatory in these files unless explicitly documented as out-of-scope:
+
+- `CHANGELOG.md` (release history)
+- `site/src/data/changelog.ts` (landing changelog page)
+- `README.md` (feature/status references, especially release links)
+- at least one provider/feature doc in `docs/` for user-facing behavior changes
+- docs or runbook evidence links for operations/sandbox proof if behavior depends on provider flow
+
 ## Commit Style
 
 Use short, imperative commit messages:
