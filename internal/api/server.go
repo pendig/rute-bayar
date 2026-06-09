@@ -2,7 +2,9 @@ package api
 
 import (
 	"context"
+	"crypto/sha256"
 	"database/sql"
+	"encoding/hex"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -349,18 +351,21 @@ func (s *Server) writeJSON(w http.ResponseWriter, r *http.Request, requestID str
 }
 
 func (s *Server) audit(r *http.Request, requestID string, status int, durationMs int64) {
+	apiKey := strings.TrimSpace(r.Header.Get("X-API-Key"))
+	actorID := "anonymous"
+	if apiKey != "" {
+		digest := sha256.Sum256([]byte(apiKey))
+		actorID = "api-key:" + hex.EncodeToString(digest[:])
+	}
 	event := auditlog.Event{
 		RequestID:  requestID,
 		ActorType:  "api-client",
-		ActorID:    strings.TrimSpace(r.Header.Get("X-API-Key")),
+		ActorID:    actorID,
 		Method:     r.Method,
 		Path:       r.URL.Path,
 		Status:     status,
 		DurationMs: durationMs,
 		ClientIP:   r.RemoteAddr,
-	}
-	if event.ActorID == "" {
-		event.ActorID = "anonymous"
 	}
 	if s.auditStore == nil {
 		log.Printf("api.request request_id=%s method=%s path=%s status=%d duration_ms=%d client_ip=%s", requestID, event.Method, event.Path, event.Status, event.DurationMs, event.ClientIP)
