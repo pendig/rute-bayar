@@ -866,9 +866,37 @@
         }
       }
     },
-    "/qr_codes/order-id-1666420204/payments/simulate": {
+    "/qr_codes/{id}": {
+      "get": {
+        "operationId": "get_qr_codes_{id}_get_qr_code_by_qr_id",
+        "summary": "Get QR Code by QR ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/qr_codes/{id}/payments": {
+      "get": {
+        "operationId": "get_qr_codes_{id}_payments_get_list_of_qr_payments_by_qr_id",
+        "summary": "Get List of QR Payments by QR ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/qr_codes/{id}/payments/simulate": {
       "post": {
-        "operationId": "post_qr_codes_order-id-1666420204_payments_simulate_simulate_qr_payments_test_mode_",
+        "operationId": "post_qr_codes_{id}_payments_simulate_simulate_qr_payments_test_mode_",
         "summary": "Simulate QR Payments (Test Mode)",
         "responses": {
           "200": {
@@ -910,34 +938,6 @@
       "get": {
         "operationId": "get_qr_codes_payments_{qrpy_id}_refunds_{refund_id}_get_qr_refund_by_refund_id",
         "summary": "Get QR Refund by Refund ID",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "default": {
-            "description": "Error"
-          }
-        }
-      }
-    },
-    "/qr_codes/qr_61cb3576-3a25-4d35-8d15-0e8e3bdba4f2": {
-      "get": {
-        "operationId": "get_qr_codes_qr_61cb3576-3a25-4d35-8d15-0e8e3bdba4f2_get_qr_code_by_qr_id",
-        "summary": "Get QR Code by QR ID",
-        "responses": {
-          "200": {
-            "description": "Success"
-          },
-          "default": {
-            "description": "Error"
-          }
-        }
-      }
-    },
-    "/qr_codes/qr_61cb3576-3a25-4d35-8d15-0e8e3bdba4f2/payments": {
-      "get": {
-        "operationId": "get_qr_codes_qr_61cb3576-3a25-4d35-8d15-0e8e3bdba4f2_payments_get_list_of_qr_payments_by_qr_id",
-        "summary": "Get List of QR Payments by QR ID",
         "responses": {
           "200": {
             "description": "Success"
