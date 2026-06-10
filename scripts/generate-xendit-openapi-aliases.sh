@@ -32,6 +32,7 @@ if (!specPath || !outPath) {
 
 const rawSpec = fs.readFileSync(specPath, 'utf8');
 const spec = JSON.parse(rawSpec);
+const HTTP_METHODS = new Set(['get', 'post', 'put', 'patch', 'delete', 'head', 'options', 'connect', 'trace']);
 
 function sanitizeAlias(value) {
 	return value
@@ -51,6 +52,9 @@ function withoutVersions(segments) {
 			return false;
 		}
 		if (/^v\d+$/i.test(segment)) {
+			return false;
+		}
+		if (/^v\d+(?:\.\d+)+$/i.test(segment)) {
 			return false;
 		}
 		if (/^\d+$/.test(segment)) {
@@ -133,17 +137,21 @@ function buildAliases(path, method) {
 }
 
 const generated = new Map();
-for (const [rawPath, methods] of Object.entries(spec.paths || {})) {
+	for (const [rawPath, methods] of Object.entries(spec.paths || {})) {
 	if (typeof methods !== 'object' || methods === null) {
 		continue;
 	}
 
 	for (const [rawMethod, operation] of Object.entries(methods)) {
+		const methodLower = String(rawMethod || '').toLowerCase();
+		if (!HTTP_METHODS.has(methodLower)) {
+			continue;
+		}
 		if (typeof operation !== 'object' || operation === null) {
 			continue;
 		}
 
-		const method = String(rawMethod || '').toUpperCase();
+		const method = methodLower.toUpperCase();
 		if (!method) {
 			continue;
 		}
