@@ -88,7 +88,6 @@ function buildAliases(path, method) {
 
 	const aliases = new Set();
 	const allVariants = [
-		segments,
 		withoutVersions(segments),
 	];
 
