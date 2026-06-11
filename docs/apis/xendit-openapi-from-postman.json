@@ -1,0 +1,1804 @@
+{
+  "openapi": "3.0.3",
+  "info": {
+    "title": "Xendit API (from Postman collection)",
+    "version": "2026-06-09",
+    "description": "Converted from Xendit Postman collections (official + SNAP). Validate and enrich before production use."
+  },
+  "servers": [
+    {
+      "url": "https://api.xendit.co",
+      "description": "Xendit API"
+    }
+  ],
+  "paths": {
+    "/available_disbursements_banks": {
+      "get": {
+        "operationId": "get_available_disbursements_banks_list_disbursement_banks",
+        "summary": "List Disbursement Banks",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/available_virtual_account_banks": {
+      "get": {
+        "operationId": "get_available_virtual_account_banks_list_available_fva_banks",
+        "summary": "List available FVA banks",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/balance": {
+      "get": {
+        "operationId": "get_balance_get_balance",
+        "summary": "Get Balance",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/batch_disbursements": {
+      "post": {
+        "operationId": "post_batch_disbursements_create_batch_disbursement",
+        "summary": "Create Batch Disbursement",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/callback_urls/{type}": {
+      "post": {
+        "operationId": "post_callback_urls_{type}_set_callback_url",
+        "summary": "Set Callback URL",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/callback_virtual_account_payments/payment_id={payment_id}": {
+      "get": {
+        "operationId": "get_callback_virtual_account_payments_payment_id={payment_id}_get_virtual_account_payment",
+        "summary": "Get Virtual Account Payment",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/callback_virtual_accounts": {
+      "post": {
+        "operationId": "post_callback_virtual_accounts_create_fva",
+        "summary": "Create FVA",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/callback_virtual_accounts/{id}": {
+      "get": {
+        "operationId": "get_callback_virtual_accounts_{id}_get_virtual_account",
+        "summary": "Get Virtual Account",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_callback_virtual_accounts_{id}_update_virtual_account",
+        "summary": "Update Virtual Account",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/callback_virtual_accounts/external_id={external_id}/simulate_payment": {
+      "post": {
+        "operationId": "post_callback_virtual_accounts_external_id={external_id}_simulate_payment__test_pay_fva",
+        "summary": "[TEST] Pay FVA",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/credit_card_charges": {
+      "post": {
+        "operationId": "post_credit_card_charges_authorize_hold_amount_",
+        "summary": "Authorize (Hold Amount)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/credit_card_charges/{credit_card_charge_id}": {
+      "get": {
+        "operationId": "get_credit_card_charges_{credit_card_charge_id}_get_charge",
+        "summary": "Get Charge",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/credit_card_charges/{id}": {
+      "get": {
+        "operationId": "get_credit_card_charges_{id}_get_charge_by_external_id",
+        "summary": "Get Charge by External ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/credit_card_charges/{id}/auth_reversal": {
+      "post": {
+        "operationId": "post_credit_card_charges_{id}_auth_reversal_reverse_auth",
+        "summary": "Reverse Auth",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/credit_card_charges/{id}/capture": {
+      "post": {
+        "operationId": "post_credit_card_charges_{id}_capture_capture_auth",
+        "summary": "Capture Auth",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/credit_card_charges/{id}/refunds": {
+      "post": {
+        "operationId": "post_credit_card_charges_{id}_refunds_refund_charge",
+        "summary": "Refund Charge",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/customers": {
+      "post": {
+        "operationId": "post_customers_step_1_create_customer",
+        "summary": "Step 1 - Create Customer",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/customers/{id}": {
+      "get": {
+        "operationId": "get_customers_{id}_get_customer",
+        "summary": "Get Customer",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/direct_debits": {
+      "post": {
+        "operationId": "post_direct_debits_payment_one_time_payment_w_o_otp",
+        "summary": "Payment - One Time Payment w/o OTP",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/direct_debits/{direct_debit_id}/validate_otp": {
+      "post": {
+        "operationId": "post_direct_debits_{direct_debit_id}_validate_otp_payment_validate_otp_one_time_payment_w_otp_",
+        "summary": "Payment - Validate OTP (One Time Payment w OTP)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/disbursements": {
+      "post": {
+        "operationId": "post_disbursements__test_disbursement_fail_not_enough_balance_error_",
+        "summary": "[TEST] Disbursement: Fail (Not enough balance error)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/disbursements/{id}": {
+      "get": {
+        "operationId": "get_disbursements_{id}_get_disbursement",
+        "summary": "Get Disbursement",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/ewallets/charges": {
+      "post": {
+        "operationId": "post_ewallets_charges_channel_not_activated_403",
+        "summary": "channel_not_activated - 403",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/ewallets/charges/{charge_id}": {
+      "get": {
+        "operationId": "get_ewallets_charges_{charge_id}_get_charge_status",
+        "summary": "Get Charge Status",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/ewallets/charges/{charge_id}/refunds/{refund_id}": {
+      "get": {
+        "operationId": "get_ewallets_charges_{charge_id}_refunds_{refund_id}_get_refund_status",
+        "summary": "Get refund status",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/ewallets/charges/{id}/refunds": {
+      "get": {
+        "operationId": "get_ewallets_charges_{id}_refunds_get_list_of_refunds",
+        "summary": "Get list of refunds",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_ewallets_charges_{id}_refunds_refund_charges_w_magic_numbers_in_docs",
+        "summary": "Refund charges w magic numbers in docs",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/ewallets/charges/{id}/void": {
+      "get": {
+        "operationId": "get_ewallets_charges_{id}_void_get_void_status",
+        "summary": "Get void status",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_ewallets_charges_{id}_void_void_charges_w_magic_numbers_in_docs",
+        "summary": "Void charges w magic numbers in docs",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/fee_rules": {
+      "post": {
+        "operationId": "post_fee_rules__deprecated_create_fee_rule",
+        "summary": "[Deprecated] Create Fee Rule",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/fixed_payment_code": {
+      "post": {
+        "operationId": "post_fixed_payment_code_create_fpc_alfamart_",
+        "summary": "Create FPC (Alfamart)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/fixed_payment_code/{fixed_payment_code_id}": {
+      "get": {
+        "operationId": "get_fixed_payment_code_{fixed_payment_code_id}_get_fpc_detail",
+        "summary": "Get FPC Detail",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_fixed_payment_code_{fixed_payment_code_id}_update_fpc",
+        "summary": "Update FPC",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/fixed_payment_code/simulate_payment": {
+      "post": {
+        "operationId": "post_fixed_payment_code_simulate_payment__test_pay_alfamart_fpc",
+        "summary": "[TEST] Pay Alfamart FPC",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/linked_account_tokens/{linked_account_token_id}": {
+      "delete": {
+        "operationId": "delete_linked_account_tokens_{linked_account_token_id}_binding_unlink_linked_account_token_copy",
+        "summary": "Binding - Unlink Linked Account Token Copy",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/linked_account_tokens/{linked_account_token_id}/accounts": {
+      "get": {
+        "operationId": "get_linked_account_tokens_{linked_account_token_id}_accounts_binding_retreive_accessible_account",
+        "summary": "Binding - Retreive Accessible Accounts Copy",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/linked_account_tokens/{linked_account_token_id}/validate_otp": {
+      "post": {
+        "operationId": "post_linked_account_tokens_{linked_account_token_id}_validate_otp_binding_validate_otp_for_linke",
+        "summary": "Binding - Validate OTP for Linked Account Token",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/linked_account_tokens/auth": {
+      "post": {
+        "operationId": "post_linked_account_tokens_auth_binding_initiate_account_authorization",
+        "summary": "Binding - Initiate Account Authorization",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/non_fixed_payment_code/simulate_payment": {
+      "post": {
+        "operationId": "post_non_fixed_payment_code_simulate_payment__test_alfamart_payment",
+        "summary": "[TEST] Alfamart Payment",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/paylater/charges": {
+      "post": {
+        "operationId": "post_paylater_charges_create_kredivo_charge",
+        "summary": "Create KREDIVO Charge",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/paylater/charges/{charge_id_plc_format}/refunds": {
+      "get": {
+        "operationId": "get_paylater_charges_{charge_id_plc_format}_refunds_list_paylater_refunds",
+        "summary": "List Paylater Refunds",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/paylater/charges/{charge-id-plc-format}": {
+      "get": {
+        "operationId": "get_paylater_charges_{charge-id-plc-format}_get_paylater_charge_by_id",
+        "summary": "GET Paylater Charge by ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/paylater/charges/{id-plc-format}/refunds": {
+      "post": {
+        "operationId": "post_paylater_charges_{id-plc-format}_refunds_create_paylater_refund",
+        "summary": "Create Paylater Refund",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/paylater/charges/{refund_id_plc_format}/refunds": {
+      "get": {
+        "operationId": "get_paylater_charges_{refund_id_plc_format}_refunds_get_refund_status_by_refund_id",
+        "summary": "Get Refund status by Refund ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/paylater/plans": {
+      "post": {
+        "operationId": "post_paylater_plans_initiate_paylater_plans_with_fee_and_discount_even_amount_",
+        "summary": "Initiate PayLater plans with FEE and DISCOUNT (even amount)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/payment_codes": {
+      "post": {
+        "operationId": "post_payment_codes_create_payment_code_7eleven_",
+        "summary": "Create Payment Code (7ELEVEN)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/payment_codes/{payment_code_id}": {
+      "get": {
+        "operationId": "get_payment_codes_{payment_code_id}_get_payment_code_by_id",
+        "summary": "Get Payment Code by ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_payment_codes_{payment_code_id}_update_payment_code",
+        "summary": "Update Payment Code",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/payment_codes/{payment_code_id}/payments": {
+      "get": {
+        "operationId": "get_payment_codes_{payment_code_id}_payments_get_payments",
+        "summary": "Get Payments",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/payment_methods": {
+      "post": {
+        "operationId": "post_payment_methods_binding_create_payment_method",
+        "summary": "Binding - Create Payment Method",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/payment_requests": {
+      "get": {
+        "operationId": "get_payment_requests_list_payment_requests",
+        "summary": "List Payment Requests",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_payment_requests_pay_with_linked_payment_method_with_3ds",
+        "summary": "Pay with Linked Payment Method with 3DS",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/payment_requests/{id}": {
+      "get": {
+        "operationId": "get_payment_requests_{id}_get_payment_request_by_id",
+        "summary": "Get Payment Request by ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/payment_requests/{id}/auth": {
+      "post": {
+        "operationId": "post_payment_requests_{id}_auth_confirm_payment_validate_otp",
+        "summary": "Confirm Payment - Validate OTP",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/payment_requests/{id}/captures": {
+      "get": {
+        "operationId": "get_payment_requests_{id}_captures_list_captures_by_payment_request_id",
+        "summary": "List Captures by Payment Request ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_payment_requests_{id}_captures_capture_payment_full_amount",
+        "summary": "Capture Payment - Full Amount",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/payouts": {
+      "post": {
+        "operationId": "post_payouts_create_payout",
+        "summary": "Create Payout",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/payouts_channels": {
+      "get": {
+        "operationId": "get_payouts_channels_get_payout_channels",
+        "summary": "Get Payout Channels",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/payouts/{id}": {
+      "get": {
+        "operationId": "get_payouts_{id}_get_payout",
+        "summary": "Get Payout",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/payouts/{id}/void": {
+      "post": {
+        "operationId": "post_payouts_{id}_void_void_payout",
+        "summary": "Void Payout",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/pool_virtual_accounts/simulate_payment": {
+      "post": {
+        "operationId": "post_pool_virtual_accounts_simulate_payment__test_payment_invoice_va",
+        "summary": "[TEST] Payment: Invoice VA",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/qr_codes": {
+      "post": {
+        "operationId": "post_qr_codes_create_qr_code",
+        "summary": "Create QR Code",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/qr_codes/{id}": {
+      "get": {
+        "operationId": "get_qr_codes_{id}_get_qr_code_by_qr_id",
+        "summary": "Get QR Code by QR ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/qr_codes/{id}/payments": {
+      "get": {
+        "operationId": "get_qr_codes_{id}_payments_get_list_of_qr_payments_by_qr_id",
+        "summary": "Get List of QR Payments by QR ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/qr_codes/{id}/payments/simulate": {
+      "post": {
+        "operationId": "post_qr_codes_{id}_payments_simulate_simulate_qr_payments_test_mode_",
+        "summary": "Simulate QR Payments (Test Mode)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/qr_codes/payments/{qrpy_id}/refunds": {
+      "get": {
+        "operationId": "get_qr_codes_payments_{qrpy_id}_refunds_list_qr_refunds_by_qr_payment_id",
+        "summary": "List QR Refunds by QR Payment ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_qr_codes_payments_{qrpy_id}_refunds_refund_qr_payment",
+        "summary": "Refund QR Payment",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/qr_codes/payments/{qrpy_id}/refunds/{refund_id}": {
+      "get": {
+        "operationId": "get_qr_codes_payments_{qrpy_id}_refunds_{refund_id}_get_qr_refund_by_refund_id",
+        "summary": "Get QR Refund by Refund ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/recurring_payments": {
+      "post": {
+        "operationId": "post_recurring_payments_payment_recurring_payments",
+        "summary": "Payment - Recurring Payments",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/recurring/plans": {
+      "post": {
+        "operationId": "post_recurring_plans_create_plan_xendit_linking_ui_",
+        "summary": "Create Plan (Xendit Linking UI)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/recurring/plans/{id}": {
+      "get": {
+        "operationId": "get_recurring_plans_{id}_get_plan",
+        "summary": "Get Plan",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_recurring_plans_{id}_update_plan",
+        "summary": "Update Plan",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/recurring/plans/{id}/cycles": {
+      "get": {
+        "operationId": "get_recurring_plans_{id}_cycles_get_plan_s_list_of_cycles",
+        "summary": "Get Plan's list of Cycles",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/recurring/plans/{id}/deactivate": {
+      "post": {
+        "operationId": "post_recurring_plans_{id}_deactivate_deactivate_plan",
+        "summary": "Deactivate Plan",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/recurring/plans/{plan_id}/cycles/{id}": {
+      "get": {
+        "operationId": "get_recurring_plans_{plan_id}_cycles_{id}_get_cycle",
+        "summary": "Get Cycle",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_recurring_plans_{plan_id}_cycles_{id}_update_cycle",
+        "summary": "Update Cycle",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/recurring/plans/{plan_id}/cycles/{id}/cancel": {
+      "post": {
+        "operationId": "post_recurring_plans_{plan_id}_cycles_{id}_cancel_cancel_cycle",
+        "summary": "Cancel Cycle",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/recurring/plans/{plan_id}/cycles/{id}/simulate": {
+      "post": {
+        "operationId": "post_recurring_plans_{plan_id}_cycles_{id}_simulate_simulate_cycle_status",
+        "summary": "Simulate Cycle Status",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/recurring/schedules": {
+      "patch": {
+        "operationId": "patch_recurring_schedules_update_schedule",
+        "summary": "Update Schedule",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_recurring_schedules_create_schedule",
+        "summary": "Create Schedule",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/recurring/schedules/{id}": {
+      "get": {
+        "operationId": "get_recurring_schedules_{id}_get_schedule",
+        "summary": "Get Schedule",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/refunds": {
+      "post": {
+        "operationId": "post_refunds_refund_payment",
+        "summary": "Refund Payment",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/reports": {
+      "post": {
+        "operationId": "post_reports_generate_report",
+        "summary": "Generate Report",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/reports/{id}": {
+      "get": {
+        "operationId": "get_reports_{id}_get_report",
+        "summary": "Get Report",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/sessions": {
+      "post": {
+        "operationId": "post_sessions_create_payment_session",
+        "summary": "Create Payment Session",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/sessions/{session_id}": {
+      "get": {
+        "operationId": "get_sessions_{session_id}_get_session",
+        "summary": "GET Session",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/sessions/{session_id}/cancel": {
+      "post": {
+        "operationId": "post_sessions_{session_id}_cancel_cancel_session",
+        "summary": "Cancel Session",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/remittance-collections/v1.0/emoney/top-up": {
+      "post": {
+        "operationId": "post_snap_remittance-collections_v1.0_emoney_top-up_refund_remittance_collection_virtual_account",
+        "summary": "Refund Remittance Collection Virtual Account Payment",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/remittance-collections/v1.0/transfer-va/create-va": {
+      "post": {
+        "operationId": "post_snap_remittance-collections_v1.0_transfer-va_create-va_create_remittance_collection_virtual",
+        "summary": "Create Remittance Collection Virtual Account",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/remittance-collections/v1.0/transfer-va/delete-va": {
+      "post": {
+        "operationId": "post_snap_remittance-collections_v1.0_transfer-va_delete-va_deactivate_existing_remittance_colle",
+        "summary": "Deactivate existing Remittance Collection Virtual Account",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/remittances/v1.0/emoney/top-up": {
+      "post": {
+        "operationId": "post_snap_remittances_v1.0_emoney_top-up_create_remittance",
+        "summary": "Create Remittance",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/remittances/v1.0/emoney/topup-status": {
+      "post": {
+        "operationId": "post_snap_remittances_v1.0_emoney_topup-status_get_remittance_payout",
+        "summary": "Get Remittance Payout",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/v1.0/debit/payment-host-to-host": {
+      "post": {
+        "operationId": "post_snap_v1.0_debit_payment-host-to-host_create_direct_debit_payment",
+        "summary": "Create Direct Debit Payment",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/v1.0/debit/refund": {
+      "post": {
+        "operationId": "post_snap_v1.0_debit_refund_create_direct_debit_refund",
+        "summary": "Create Direct Debit Refund",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/v1.0/payouts": {
+      "post": {
+        "operationId": "post_snap_v1.0_payouts_create_payout",
+        "summary": "Create Payout",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/v1.0/payouts-status": {
+      "post": {
+        "operationId": "post_snap_v1.0_payouts-status_get_transaction_status_inquiry",
+        "summary": "Get Transaction Status Inquiry",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/v1.0/registration-account-binding": {
+      "post": {
+        "operationId": "post_snap_v1.0_registration-account-binding_direct_debit_account_linking",
+        "summary": "Direct Debit Account Linking",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/v1.0/transfer-va/create-va": {
+      "post": {
+        "operationId": "post_snap_v1.0_transfer-va_create-va_create_va",
+        "summary": "Create VA",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/v1.0/transfer-va/delete-va": {
+      "post": {
+        "operationId": "post_snap_v1.0_transfer-va_delete-va_deactivate_va",
+        "summary": "Deactivate VA",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/v1.0/transfer-va/inquiry-va": {
+      "post": {
+        "operationId": "post_snap_v1.0_transfer-va_inquiry-va_inquiry_va",
+        "summary": "Inquiry VA",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/v1.0/transfer-va/update-va": {
+      "post": {
+        "operationId": "post_snap_v1.0_transfer-va_update-va_update_va",
+        "summary": "Update VA",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/snap/v1.0/utilities/asymmetric-signature-service": {
+      "post": {
+        "operationId": "post_snap_v1.0_utilities_asymmetric-signature-service_generate_asymmetric_signature",
+        "summary": "Generate Asymmetric Signature",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/split_rules": {
+      "post": {
+        "operationId": "post_split_rules_create_split_rule",
+        "summary": "Create Split Rule",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/transactions": {
+      "get": {
+        "operationId": "get_transactions_list_transactions",
+        "summary": "List Transactions",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/transactions/{id}": {
+      "get": {
+        "operationId": "get_transactions_{id}_get_transaction",
+        "summary": "Get Transaction",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/transfers": {
+      "post": {
+        "operationId": "post_transfers_create_transfer",
+        "summary": "Create Transfer",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/transfers/reference={reference}": {
+      "get": {
+        "operationId": "get_transfers_reference={reference}_get_transfer",
+        "summary": "Get Transfer",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/account_holders": {
+      "post": {
+        "operationId": "post_v2_account_holders_create_account_holder",
+        "summary": "Create Account Holder",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/account_holders/{id}": {
+      "get": {
+        "operationId": "get_v2_account_holders_{id}_get_account_holder_by_id",
+        "summary": "Get Account Holder by ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_v2_account_holders_{id}_update_account_holder",
+        "summary": "Update Account Holder",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/accounts": {
+      "post": {
+        "operationId": "post_v2_accounts_create_account_v2",
+        "summary": "Create Account V2",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/accounts/{id}": {
+      "get": {
+        "operationId": "get_v2_accounts_{id}_get_account_v2",
+        "summary": "Get Account V2",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_v2_accounts_{id}_update_account_v2",
+        "summary": "Update Account V2",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/invoices": {
+      "post": {
+        "operationId": "post_v2_invoices__test_invoice_paid_virtual_account",
+        "summary": "[TEST] Invoice: Paid / Virtual Account",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/invoices/{id}": {
+      "get": {
+        "operationId": "get_v2_invoices_{id}_get_invoice",
+        "summary": "Get Invoice",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/payment_methods": {
+      "get": {
+        "operationId": "get_v2_payment_methods_list_payment_methods",
+        "summary": "List Payment Methods",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_v2_payment_methods_linking_only_create_payment_method",
+        "summary": "Linking only - Create Payment Method",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/payment_methods/{id}": {
+      "get": {
+        "operationId": "get_v2_payment_methods_{id}_get_payment_method_by_id",
+        "summary": "Get Payment Method by ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "patch": {
+        "operationId": "patch_v2_payment_methods_{id}_update_payment_method",
+        "summary": "Update Payment Method",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/payment_methods/{id}/auth": {
+      "post": {
+        "operationId": "post_v2_payment_methods_{id}_auth_linking_only_validate_otp",
+        "summary": "Linking only - Validate OTP",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/payment_methods/{id}/expire": {
+      "post": {
+        "operationId": "post_v2_payment_methods_{id}_expire_expire_payment_method",
+        "summary": "Expire Payment Method",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/payment_methods/{id}/payments": {
+      "get": {
+        "operationId": "get_v2_payment_methods_{id}_payments_list_payments_by_payment_method_id",
+        "summary": "List Payments by Payment Method ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/payment_methods/{id}/payments/simulate": {
+      "post": {
+        "operationId": "post_v2_payment_methods_{id}_payments_simulate_simulate_payment",
+        "summary": "Simulate Payment",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/payment_methods/expire": {
+      "post": {
+        "operationId": "post_v2_payment_methods_expire_expire_payment_method",
+        "summary": "Expire Payment Method",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/payouts": {
+      "get": {
+        "operationId": "get_v2_payouts_get_idr_payouts_by_reference_id",
+        "summary": "Get IDR payouts by reference ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      },
+      "post": {
+        "operationId": "post_v2_payouts_success_create_idr_cash_payout_otc_",
+        "summary": "Success create IDR cash payout (OTC)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/payouts/{id}": {
+      "get": {
+        "operationId": "get_v2_payouts_{id}_get_php_payout_by_id",
+        "summary": "Get PHP payout by ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/payouts/{id}/cancel": {
+      "post": {
+        "operationId": "post_v2_payouts_{id}_cancel_success_cancel_idr_cash_payout_otc_",
+        "summary": "Success cancel IDR cash payout (OTC)",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/v2/payouts/{payout_id}": {
+      "get": {
+        "operationId": "get_v2_payouts_{payout_id}_get_idr_payout_by_id",
+        "summary": "Get IDR payout by ID",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    },
+    "/yourendpointhere": {
+      "post": {
+        "operationId": "post_yourendpointhere_sample_payment_notification_from_xendit",
+        "summary": "Sample Payment Notification from Xendit",
+        "responses": {
+          "200": {
+            "description": "Success"
+          },
+          "default": {
+            "description": "Error"
+          }
+        }
+      }
+    }
+  }
+}

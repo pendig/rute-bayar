@@ -157,6 +157,18 @@ Atau langsung generate alias OpenAPI dari file lokal yang sudah ada:
 ./scripts/generate-midtrans-openapi-aliases.sh docs/apis/midtrans-openapi-from-postman.json
 ```
 
+Untuk Xendit, alias bisa dibangun dari Postman collection Xendit official + SNAP:
+
+```bash
+./scripts/convert-xendit-postman-to-openapi.sh \
+  docs/apis/xendit-openapi-from-postman.json \
+  /path/API-Xendit.postman_collection.json \
+  /path/API-Xendit\ SNAP.postman_collection.json
+./scripts/generate-xendit-openapi-aliases.sh \
+  docs/apis/xendit-openapi-from-postman.json \
+  internal/cli/xendit_openapi_aliases_generated.go
+```
+
 Note: DOKU callback delivery still depends on the matching Notification URL being configured in DOKU Back Office per channel, so keep the path aligned with `/webhooks/doku` before relying on live webhook callbacks.
 
 Start the webhook daemon:
