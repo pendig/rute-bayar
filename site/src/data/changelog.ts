@@ -1,5 +1,18 @@
 export const changelogEntries = [
   {
+    version: "v0.1.9",
+    date: "2026-06-12",
+    tag: "API mode expansion",
+    summary:
+      "Rilis ini menambahkan mode API yang lebih terstruktur dengan alias operasi Xendit berbasis OpenAPI, serta memperkaya dokumentasi penggunaan API-mode.",
+    items: [
+      "Tambahkan alias operasi Xendit yang dihasilkan otomatis dari spesifikasi provider resmi (OpenAPI dari Postman collection).",
+      "Lengkapi catatan onboarding API untuk penggunaan `rutebayar api xendit` dengan contoh operasi dan parameter yang mudah diikuti.",
+      "Perbaiki deteksi segmen dynamic id saat menyusun alias path agar konsisten terhadap format UUID dan prefiks provider.",
+      "Pastikan skrip generator/konverter tetap eksekutabel agar alur maintain mapping lebih mulus.",
+    ],
+  },
+  {
     version: "v0.1.8",
     date: "2026-06-09",
     tag: "API mode update",
