@@ -137,6 +137,10 @@ function buildAliases(path, method) {
 
 const generated = new Map();
 	for (const [rawPath, methods] of Object.entries(spec.paths || {})) {
+		const normalizedPath = String(rawPath || '').trim();
+		if (normalizedPath.startsWith('/snap')) {
+			continue;
+		}
 	if (typeof methods !== 'object' || methods === null) {
 		continue;
 	}
