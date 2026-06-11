@@ -4,6 +4,22 @@ All notable changes to Rute Bayar will be documented in this file.
 
 ## Unreleased
 
+## v0.1.9 - 2026-06-12
+
+### Added
+
+- Add Xendit API-mode operation aliases generated from official provider OpenAPI spec converted from Postman collections.
+- Add CLI docs and examples for `rutebayar api xendit ...` interaction using official spec-aligned operation names.
+
+### Changed
+
+- Expand API-mode onboarding docs to include practical Xendit operation alias examples and response field mapping notes.
+
+### Fixed
+
+- Normalize Xendit alias path generation against UUID-style dynamic segments.
+- Keep generator tooling idempotent and executable for operator use.
+
 ## v0.1.8 - 2026-06-09
 
 ### Added
