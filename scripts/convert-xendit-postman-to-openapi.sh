@@ -34,16 +34,19 @@ function isLikelyIdSegment(value) {
 	if (/^[0-9a-f]{12,}$/i.test(value)) {
 		return true;
 	}
-	if (/^[a-z0-9_-]+-[0-9a-f]{12,}(?:-[0-9a-f]{4})*$/i.test(value)) {
+	if (/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
 		return true;
 	}
-	if (/^[a-z0-9_-]+-[a-z]+-\d+$/i.test(value)) {
+	if (/^[a-z0-9_]+[_-][0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value)) {
+		return true;
+	}
+	if (/^order-id-\d+$/i.test(value)) {
 		return true;
 	}
 	if (/^[a-z0-9_]+_[0-9a-f]{12,}(?:-[0-9a-f]{4})*$/i.test(value)) {
 		return true;
 	}
-	return /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i.test(value);
+	return false;
 }
 
 function toPath(rawUrl) {
